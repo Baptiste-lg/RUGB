@@ -39,12 +39,14 @@ impl Emulator {
         if interrupt_cycles > 0 {
             self.mmu.ppu.tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
             self.mmu.timer.tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
+            self.mmu.apu.tick(interrupt_cycles);
             return interrupt_cycles;
         }
 
         let cycles = self.cpu.step(&mut self.mmu);
         self.mmu.ppu.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.timer.tick(cycles, &mut self.mmu.interrupt_flag);
+        self.mmu.apu.tick(cycles);
         cycles
     }
 
@@ -90,5 +92,35 @@ impl WasmEmulator {
 
     pub fn title(&self) -> String {
         self.emu.mmu.cartridge_title()
+    }
+
+    /// Returns channel state as [freq_hz, volume, enabled] for Web Audio.
+    /// ch: 1-4
+    pub fn channel_freq(&self, ch: u8) -> f64 {
+        match ch {
+            1 => if self.emu.mmu.apu.ch1.enabled { self.emu.mmu.apu.ch1.frequency_hz() } else { 0.0 },
+            2 => if self.emu.mmu.apu.ch2.enabled { self.emu.mmu.apu.ch2.frequency_hz() } else { 0.0 },
+            3 => if self.emu.mmu.apu.ch3.enabled { self.emu.mmu.apu.ch3.frequency_hz() } else { 0.0 },
+            _ => 0.0,
+        }
+    }
+
+    pub fn channel_volume(&self, ch: u8) -> f64 {
+        match ch {
+            1 => if self.emu.mmu.apu.ch1.enabled { self.emu.mmu.apu.ch1.volume as f64 / 15.0 } else { 0.0 },
+            2 => if self.emu.mmu.apu.ch2.enabled { self.emu.mmu.apu.ch2.volume as f64 / 15.0 } else { 0.0 },
+            3 => {
+                if !self.emu.mmu.apu.ch3.enabled { return 0.0; }
+                match self.emu.mmu.apu.ch3.volume_shift {
+                    0 => 0.0,
+                    1 => 1.0,
+                    2 => 0.5,
+                    3 => 0.25,
+                    _ => 0.0,
+                }
+            }
+            4 => if self.emu.mmu.apu.ch4.enabled { self.emu.mmu.apu.ch4.volume as f64 / 15.0 } else { 0.0 },
+            _ => 0.0,
+        }
     }
 }
