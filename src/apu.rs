@@ -90,8 +90,12 @@ impl SquareChannel {
         }
     }
 
+    fn dac_enabled(&self) -> bool {
+        self.env_initial > 0 || self.env_direction > 0
+    }
+
     fn trigger(&mut self) {
-        self.enabled = true;
+        self.enabled = self.dac_enabled();
         if self.length_counter == 0 {
             self.length_counter = 64;
         }
@@ -210,8 +214,12 @@ impl NoiseChannel {
         }
     }
 
+    fn dac_enabled(&self) -> bool {
+        self.env_initial > 0 || self.env_direction > 0
+    }
+
     fn trigger(&mut self) {
-        self.enabled = true;
+        self.enabled = self.dac_enabled();
         if self.length_counter == 0 {
             self.length_counter = 64;
         }
