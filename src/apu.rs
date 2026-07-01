@@ -1,14 +1,14 @@
-/// APU — Audio Processing Unit with 4 channels.
-///
-/// Channel 1: Square wave with frequency sweep
-/// Channel 2: Square wave (no sweep)
-/// Channel 3: Programmable wave
-/// Channel 4: Noise (LFSR-based)
-///
-/// The frame sequencer runs at 512 Hz and clocks:
-///   Steps 0,2,4,6 — length counters
-///   Steps 2,6     — frequency sweep (CH1 only)
-///   Step 7        — volume envelope (CH1, CH2, CH4)
+//! APU — Audio Processing Unit with 4 channels.
+//!
+//! Channel 1: Square wave with frequency sweep
+//! Channel 2: Square wave (no sweep)
+//! Channel 3: Programmable wave
+//! Channel 4: Noise (LFSR-based)
+//!
+//! The frame sequencer runs at 512 Hz and clocks:
+//!   Steps 0,2,4,6 — length counters
+//!   Steps 2,6     — frequency sweep (CH1 only)
+//!   Step 7        — volume envelope (CH1, CH2, CH4)
 
 pub struct Apu {
     pub enabled: bool,
@@ -161,8 +161,8 @@ impl SquareChannel {
             return;
         }
         self.env_timer = self.env_period;
-        let new_vol = self.volume as i8 + self.env_direction as i8;
-        if new_vol >= 0 && new_vol <= 15 {
+        let new_vol = self.volume as i8 + self.env_direction;
+        if (0..=15).contains(&new_vol) {
             self.volume = new_vol as u8;
         }
     }
@@ -241,8 +241,8 @@ impl NoiseChannel {
         self.env_timer = self.env_timer.saturating_sub(1);
         if self.env_timer > 0 { return; }
         self.env_timer = self.env_period;
-        let new_vol = self.volume as i8 + self.env_direction as i8;
-        if new_vol >= 0 && new_vol <= 15 {
+        let new_vol = self.volume as i8 + self.env_direction;
+        if (0..=15).contains(&new_vol) {
             self.volume = new_vol as u8;
         }
     }
