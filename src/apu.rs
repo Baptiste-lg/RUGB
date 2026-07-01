@@ -408,6 +408,7 @@ impl Apu {
                 self.ch1.env_initial = val >> 4;
                 self.ch1.env_direction = if val & 0x08 != 0 { 1 } else { -1 };
                 self.ch1.env_period = val & 0x07;
+                if !self.ch1.dac_enabled() { self.ch1.enabled = false; }
             }
             0xFF13 => {
                 self.ch1.freq_raw = (self.ch1.freq_raw & 0x700) | val as u16;
@@ -428,6 +429,7 @@ impl Apu {
                 self.ch2.env_initial = val >> 4;
                 self.ch2.env_direction = if val & 0x08 != 0 { 1 } else { -1 };
                 self.ch2.env_period = val & 0x07;
+                if !self.ch2.dac_enabled() { self.ch2.enabled = false; }
             }
             0xFF18 => {
                 self.ch2.freq_raw = (self.ch2.freq_raw & 0x700) | val as u16;
@@ -466,6 +468,7 @@ impl Apu {
                 self.ch4.env_initial = val >> 4;
                 self.ch4.env_direction = if val & 0x08 != 0 { 1 } else { -1 };
                 self.ch4.env_period = val & 0x07;
+                if !self.ch4.dac_enabled() { self.ch4.enabled = false; }
             }
             0xFF22 => {
                 self.ch4.clock_shift = val >> 4;
