@@ -121,7 +121,7 @@ impl Cpu {
         self.regs.a = result as u8;
         self.regs.set_flag_z((result as u8) == 0);
         self.regs.set_flag_n(true);
-        self.regs.set_flag_h((a as i16 & 0x0F) - (val as i16 & 0x0F) - carry as i16 < 0);
+        self.regs.set_flag_h((a as i16 & 0x0F) - (val as i16 & 0x0F) - (carry as i16) < 0);
         self.regs.set_flag_c(result < 0);
     }
 
