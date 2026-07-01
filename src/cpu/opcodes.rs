@@ -443,7 +443,7 @@ impl Cpu {
 
             // Unused opcodes on DMG behave like a 2-byte NOP that locks up the CPU.
             // Treat them as NOP to keep the emulator running.
-            0xD3 | 0xDB | 0xDD | 0xE3 | 0xE4 | 0xEB | 0xEC | 0xED | 0xF4 | 0xFD => {
+            0xD3 | 0xDB | 0xDD | 0xE3 | 0xE4 | 0xEB | 0xEC | 0xED | 0xF4 | 0xFC | 0xFD => {
                 #[cfg(debug_assertions)]
                 eprintln!("Illegal opcode: 0x{:02X} at PC=0x{:04X}", opcode, self.regs.pc.wrapping_sub(1));
                 4

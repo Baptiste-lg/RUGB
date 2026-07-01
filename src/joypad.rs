@@ -82,8 +82,6 @@ impl Joypad {
             if self.start  { result &= !0x08; }
         }
 
-        // Active-low: unselected/unpressed bits read as 1
-        result | 0x0F & !result; // no-op, just return result
         result
     }
 

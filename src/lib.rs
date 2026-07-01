@@ -9,10 +9,6 @@ mod interrupt;
 
 use cpu::Cpu;
 use mmu::Mmu;
-use ppu::Ppu;
-use timer::Timer;
-use joypad::Joypad;
-use apu::Apu;
 use interrupt::handle_interrupts;
 
 use wasm_bindgen::prelude::*;
