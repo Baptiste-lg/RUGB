@@ -10,6 +10,7 @@
     <div class="container">
         <h1>OXIDE BOY</h1>
         <canvas id="screen" width="160" height="144"></canvas>
+
         <div class="controls">
             <label class="file-btn">
                 Load ROM
@@ -17,9 +18,66 @@
             </label>
             <button id="pause-btn" disabled>Pause</button>
             <button id="reset-btn" disabled>Reset</button>
+            <button id="mute-btn" disabled>Mute</button>
         </div>
-        <p class="help">Arrow keys = D-pad &nbsp;|&nbsp; Z = A &nbsp;|&nbsp; X = B &nbsp;|&nbsp; Enter = Start &nbsp;|&nbsp; Shift = Select</p>
-        <p class="help">Or drag & drop a .gb file onto the screen</p>
+
+        <div class="options">
+            <div class="option-group">
+                <span>Speed:</span>
+                <button class="speed-btn active" data-speed="1">1x</button>
+                <button class="speed-btn" data-speed="2">2x</button>
+                <button class="speed-btn" data-speed="4">4x</button>
+            </div>
+            <div class="option-group">
+                <span>Palette:</span>
+                <button class="palette-btn" data-palette="green">Green</button>
+                <button class="palette-btn" data-palette="gray">Gray</button>
+                <button class="palette-btn" data-palette="bw">B&W</button>
+            </div>
+        </div>
+
+        <p class="help">Arrow keys = D-pad | Z = A | X = B | Enter = Start | Shift = Select | ? = Help</p>
+
+        <!-- Touch controls for mobile -->
+        <div class="touch-controls">
+            <div class="touch-dpad">
+                <button class="touch-btn dpad-up" data-btn="2">&#9650;</button>
+                <div class="dpad-mid">
+                    <button class="touch-btn dpad-left" data-btn="1">&#9664;</button>
+                    <button class="touch-btn dpad-right" data-btn="0">&#9654;</button>
+                </div>
+                <button class="touch-btn dpad-down" data-btn="3">&#9660;</button>
+            </div>
+            <div class="touch-actions">
+                <div class="touch-ab">
+                    <button class="touch-btn action-btn" data-btn="5">B</button>
+                    <button class="touch-btn action-btn" data-btn="4">A</button>
+                </div>
+                <div class="touch-meta">
+                    <button class="touch-btn meta-btn" data-btn="7">Sel</button>
+                    <button class="touch-btn meta-btn" data-btn="6">Start</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help overlay -->
+        <div id="help-overlay" class="overlay">
+            <div class="overlay-content">
+                <h2>Keyboard Shortcuts</h2>
+                <table>
+                    <tr><td>Arrow keys</td><td>D-pad</td></tr>
+                    <tr><td>Z</td><td>A button</td></tr>
+                    <tr><td>X</td><td>B button</td></tr>
+                    <tr><td>Enter</td><td>Start</td></tr>
+                    <tr><td>Shift</td><td>Select</td></tr>
+                    <tr><td>P</td><td>Pause / Resume</td></tr>
+                    <tr><td>M</td><td>Mute / Unmute</td></tr>
+                    <tr><td>1 / 2 / 4</td><td>Speed</td></tr>
+                    <tr><td>?</td><td>Toggle this help</td></tr>
+                </table>
+                <p class="close-hint">Press ? to close</p>
+            </div>
+        </div>
     </div>
     <script type="module" src="js/index.js"></script>
 </body>
