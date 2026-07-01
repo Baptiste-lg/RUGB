@@ -1,7 +1,7 @@
-/// PPU — Pixel Processing Unit
-///
-/// Renders 160x144 pixels per frame via a scanline state machine.
-/// Each frame is 154 scanlines (144 visible + 10 VBlank), each scanline is 456 T-cycles.
+//! PPU — Pixel Processing Unit
+//!
+//! Renders 160x144 pixels per frame via a scanline state machine.
+//! Each frame is 154 scanlines (144 visible + 10 VBlank), each scanline is 456 T-cycles.
 
 const SCREEN_W: usize = 160;
 const SCREEN_H: usize = 144;
@@ -334,8 +334,7 @@ impl Ppu {
         let lo = self.vram[(addr - 0x8000) as usize];
         let hi = self.vram[(addr + 1 - 0x8000) as usize];
         let bit = 7 - pixel_col;
-        let color_id = ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1);
-        color_id
+        ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
     }
 
     /// Map a 2-bit color ID through a palette register to get a shade index
