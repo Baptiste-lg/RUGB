@@ -1,0 +1,80 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+h1 {
+    font-size: 1.8rem;
+    letter-spacing: 0.3rem;
+    color: #8be9fd;
+    margin-bottom: 1.5rem;
+}
+
+canvas {
+    display: block;
+    margin: 0 auto 1.5rem;
+    width: 640px;
+    height: 576px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #0f3460;
+    border: 3px solid #444;
+    border-radius: 4px;
+}
+
+canvas.drag-over {
+    border-color: #8be9fd;
+    box-shadow: 0 0 20px rgba(139, 233, 253, 0.4);
+}
+
+.controls {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+button, .file-btn {
+    padding: 0.5rem 1.2rem;
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+button:hover, .file-btn:hover {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.help {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.4rem;
+}
+
+@media (max-width: 700px) {
+    canvas {
+        width: 320px;
+        height: 288px;
+    }
+}

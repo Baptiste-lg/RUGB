@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxideBoy</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OXIDE BOY</h1>
+        <canvas id="screen" width="160" height="144"></canvas>
+        <div class="controls">
+            <label class="file-btn">
+                Load ROM
+                <input type="file" id="rom-input" accept=".gb,.bin" hidden>
+            </label>
+            <button id="pause-btn" disabled>Pause</button>
+            <button id="reset-btn" disabled>Reset</button>
+        </div>
+        <p class="help">Arrow keys = D-pad &nbsp;|&nbsp; Z = A &nbsp;|&nbsp; X = B &nbsp;|&nbsp; Enter = Start &nbsp;|&nbsp; Shift = Select</p>
+        <p class="help">Or drag & drop a .gb file onto the screen</p>
+    </div>
+    <script type="module" src="js/index.js"></script>
+</body>
+</html>
