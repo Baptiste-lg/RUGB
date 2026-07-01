@@ -72,9 +72,19 @@ impl Timer {
         }
     }
 
-    pub fn write(&mut self, addr: u16, val: u8) {
+    pub fn write(&mut self, addr: u16, val: u8, interrupt_flag: &mut u8) {
         match addr {
-            0xFF04 => self.div_counter = 0, // Any write resets the whole counter
+            0xFF04 => {
+                // If timer is enabled and selected bit was 1, resetting creates a falling edge
+                if self.tac & 0x04 != 0 && self.div_counter & self.selected_bit_mask() != 0 {
+                    self.tima = self.tima.wrapping_add(1);
+                    if self.tima == 0 {
+                        self.tima = self.tma;
+                        *interrupt_flag |= 0x04;
+                    }
+                }
+                self.div_counter = 0;
+            }
             0xFF05 => self.tima = val,
             0xFF06 => self.tma = val,
             0xFF07 => self.tac = val & 0x07,

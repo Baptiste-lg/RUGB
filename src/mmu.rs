@@ -121,7 +121,11 @@ impl Mmu {
                     eprint!("{}", self.serial_data as char);
                 }
             }
-            0xFF04..=0xFF07 => self.timer.write(addr, val),
+            0xFF04..=0xFF07 => {
+                let mut iflag = self.interrupt_flag;
+                self.timer.write(addr, val, &mut iflag);
+                self.interrupt_flag = iflag;
+            }
             0xFF0F => self.interrupt_flag = val,
             0xFF10..=0xFF3F => self.apu.write(addr, val),
             0xFF40..=0xFF4B => {
