@@ -12,6 +12,7 @@ body {
 .container {
     text-align: center;
     padding: 2rem 1rem;
+    max-width: 720px;
 }
 
 h1 {
@@ -38,11 +39,14 @@ canvas.drag-over {
     box-shadow: 0 0 20px rgba(139, 233, 253, 0.4);
 }
 
+/* --- Buttons --- */
+
 .controls {
     display: flex;
     gap: 0.8rem;
     justify-content: center;
     margin-bottom: 1rem;
+    flex-wrap: wrap;
 }
 
 button, .file-btn {
@@ -66,10 +70,176 @@ button:disabled {
     cursor: default;
 }
 
+button.active {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+    color: #8be9fd;
+}
+
+/* --- Options row --- */
+
+.options {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.option-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.option-group span {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.speed-btn, .palette-btn {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+}
+
+/* --- Help text --- */
+
 .help {
     font-size: 0.75rem;
-    color: #888;
+    color: #666;
     margin-top: 0.4rem;
+}
+
+/* --- Help overlay --- */
+
+.overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.overlay.visible {
+    display: flex;
+}
+
+.overlay-content {
+    background: #16213e;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 400px;
+}
+
+.overlay-content h2 {
+    color: #8be9fd;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.overlay-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.overlay-content td {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+.overlay-content td:first-child {
+    color: #8be9fd;
+    text-align: right;
+    width: 40%;
+}
+
+.close-hint {
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* --- Touch controls (mobile only) --- */
+
+.touch-controls {
+    display: none;
+    justify-content: space-between;
+    padding: 1rem 0.5rem;
+    margin-top: 1rem;
+}
+
+.touch-dpad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.dpad-mid {
+    display: flex;
+    gap: 2px;
+}
+
+.touch-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 1.2rem;
+    background: #16213e;
+    border: 1px solid #555;
+    border-radius: 6px;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.touch-btn:active {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+}
+
+.touch-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.touch-ab {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.touch-meta {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.meta-btn {
+    width: 60px;
+    height: 32px;
+    font-size: 0.7rem;
+    border-radius: 12px;
+}
+
+/* Show touch controls on touch-capable devices */
+@media (pointer: coarse) {
+    .touch-controls { display: flex; }
+    .help { display: none; }
 }
 
 @media (max-width: 700px) {
