@@ -78,7 +78,7 @@ impl Mmu {
             0xFF10..=0xFF3F => self.apu.read(addr),
             0xFF40..=0xFF4B => self.ppu.read_register(addr),
             // Remaining I/O returns 0xFF
-            0xFF00..=0xFF7F => 0xFF,
+            0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => 0xFF,
 
             // High RAM
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
@@ -139,7 +139,7 @@ impl Mmu {
                 }
                 self.ppu.write_register(addr, val);
             }
-            0xFF00..=0xFF7F => {} // Unhandled I/O — ignore
+            0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => {} // Unhandled I/O — ignore
 
             // High RAM
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = val,
