@@ -390,7 +390,7 @@ impl Ppu {
                     Mode::OamScan => 2,
                     Mode::PixelTransfer => 3,
                 };
-                (self.stat & 0xF8) | mode_bits | 0x80 // bit 7 always reads 1
+                (self.stat & 0x7C) | mode_bits | 0x80 // bit 7 always 1, bits 2-6 from stat, bits 0-1 from mode
             }
             0xFF42 => self.scy,
             0xFF43 => self.scx,
