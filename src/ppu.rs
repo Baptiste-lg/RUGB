@@ -23,9 +23,6 @@ pub struct Ppu {
     dots: u32,
     /// Internal window line counter — only incremented on lines where window was drawn
     window_line: u8,
-    /// Whether window was triggered on this frame
-    window_was_active: bool,
-
     // LCD registers
     lcdc: u8,  // 0xFF40 — LCD Control
     stat: u8,  // 0xFF41 — LCD Status (mode bits are read-only)
@@ -51,7 +48,6 @@ impl Ppu {
             mode: Mode::OamScan,
             dots: 0,
             window_line: 0,
-            window_was_active: false,
             lcdc: 0x91, // LCD on, BG on after boot
             stat: 0,
             scy: 0,
@@ -116,7 +112,6 @@ impl Ppu {
                         }
                         // Reset window line counter for next frame
                         self.window_line = 0;
-                        self.window_was_active = false;
                     } else {
                         self.mode = Mode::OamScan;
                         // STAT OAM interrupt
@@ -247,7 +242,6 @@ impl Ppu {
 
         if drew_anything {
             self.window_line += 1;
-            self.window_was_active = true;
         }
     }
 
@@ -265,7 +259,7 @@ impl Ppu {
             let attr = self.oam[base + 3];
 
             // Check if sprite overlaps current scanline
-            if self.ly >= sy && self.ly < sy.wrapping_add(sprite_height) {
+            if self.ly.wrapping_sub(sy) < sprite_height {
                 sprites.push((sy, sx, tile, attr, i));
                 if sprites.len() >= 10 {
                     break;
@@ -415,7 +409,7 @@ impl Ppu {
                 if was_on && val & 0x80 == 0 {
                     self.ly = 0;
                     self.dots = 0;
-                    self.mode = Mode::HBlank;
+                    self.mode = Mode::OamScan;
                 }
             }
             0xFF41 => {
