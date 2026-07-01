@@ -312,7 +312,7 @@ impl Apu {
             // NR13 — CH1 freq low (write-only)
             0xFF13 => 0xFF,
             // NR14 — CH1 freq high + trigger + length enable
-            0xFF14 => if self.ch1.length_enabled { 0xC0 } else { 0xBF },
+            0xFF14 => 0xBF | if self.ch1.length_enabled { 0x40 } else { 0 },
 
             // NR21-NR24 — CH2
             0xFF16 => (self.ch2.duty << 6) | 0x3F,
@@ -322,14 +322,14 @@ impl Apu {
                     | self.ch2.env_period
             }
             0xFF18 => 0xFF,
-            0xFF19 => if self.ch2.length_enabled { 0xC0 } else { 0xBF },
+            0xFF19 => 0xBF | if self.ch2.length_enabled { 0x40 } else { 0 },
 
             // NR30-NR34 — CH3
             0xFF1A => if self.ch3.dac_enabled { 0xFF } else { 0x7F },
             0xFF1B => 0xFF,
             0xFF1C => (self.ch3.volume_shift << 5) | 0x9F,
             0xFF1D => 0xFF,
-            0xFF1E => if self.ch3.length_enabled { 0xC0 } else { 0xBF },
+            0xFF1E => 0xBF | if self.ch3.length_enabled { 0x40 } else { 0 },
 
             // NR41-NR44 — CH4
             0xFF20 => 0xFF,
@@ -343,7 +343,7 @@ impl Apu {
                     | if self.ch4.width_mode { 0x08 } else { 0 }
                     | self.ch4.divisor_code
             }
-            0xFF23 => if self.ch4.length_enabled { 0xC0 } else { 0xBF },
+            0xFF23 => 0xBF | if self.ch4.length_enabled { 0x40 } else { 0 },
 
             // NR50/NR51/NR52
             0xFF24 => self.nr50,
