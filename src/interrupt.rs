@@ -1,13 +1,11 @@
 use crate::cpu::Cpu;
 use crate::mmu::Mmu;
 
-/// Interrupt vectors:
-///   VBlank   = 0x0040 (bit 0)
-///   LCD STAT = 0x0048 (bit 1)
-///   Timer    = 0x0050 (bit 2)
-///   Serial   = 0x0058 (bit 3)
-///   Joypad   = 0x0060 (bit 4)
+//! Interrupt controller — dispatches pending interrupts by priority.
 
+/// Interrupt vectors:
+///   VBlank=0x0040(bit 0), STAT=0x0048(bit 1), Timer=0x0050(bit 2),
+///   Serial=0x0058(bit 3), Joypad=0x0060(bit 4)
 pub fn handle_interrupts(cpu: &mut Cpu, mmu: &mut Mmu) -> u32 {
     let pending = mmu.interrupt_flag & mmu.ie & 0x1F;
 

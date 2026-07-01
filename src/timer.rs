@@ -1,7 +1,7 @@
-/// Timer subsystem — DIV, TIMA, TMA, TAC registers.
-///
-/// DIV is the upper 8 bits of a free-running 16-bit counter.
-/// TIMA increments at a rate selected by TAC and triggers an interrupt on overflow.
+//! Timer subsystem — DIV, TIMA, TMA, TAC registers.
+//!
+//! DIV is the upper 8 bits of a free-running 16-bit counter.
+//! TIMA increments at a rate selected by TAC and triggers an interrupt on overflow.
 
 pub struct Timer {
     /// Internal 16-bit counter. DIV register = upper 8 bits (bits 8-15).

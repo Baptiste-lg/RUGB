@@ -1,9 +1,9 @@
-/// Joypad input register (0xFF00).
-///
-/// Games select which button group to read by writing to bits 4-5:
-///   bit 5 = 0 → select action buttons (A, B, Select, Start)
-///   bit 4 = 0 → select D-pad (Right, Left, Up, Down)
-/// Reading returns the selected group in bits 0-3 (active LOW: 0 = pressed).
+//! Joypad input register (0xFF00).
+//!
+//! Games select which button group to read by writing to bits 4-5:
+//!   bit 5 = 0 → select action buttons (A, B, Select, Start)
+//!   bit 4 = 0 → select D-pad (Right, Left, Up, Down)
+//! Reading returns the selected group in bits 0-3 (active LOW: 0 = pressed).
 
 pub struct Joypad {
     // Button states — true means pressed
