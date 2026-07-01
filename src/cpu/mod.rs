@@ -288,7 +288,7 @@ impl Cpu {
     }
 
     pub(crate) fn cb_swap(&mut self, val: u8) -> u8 {
-        let result = (val >> 4) | (val << 4);
+        let result = val.rotate_left(4);
         self.regs.set_flag_z(result == 0);
         self.regs.set_flag_n(false);
         self.regs.set_flag_h(false);
