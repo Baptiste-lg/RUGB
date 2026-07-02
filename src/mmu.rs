@@ -2,6 +2,7 @@ use crate::apu::Apu;
 use crate::cartridge::{self, Cartridge};
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
+use crate::savestate::*;
 use crate::timer::Timer;
 
 pub struct Mmu {
@@ -44,6 +45,32 @@ impl Mmu {
 
     pub fn cartridge_title(&self) -> String {
         self.cartridge.title().to_string()
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        d.extend_from_slice(&self.wram);
+        d.extend_from_slice(&self.hram);
+        push_u8(d, self.ie);
+        push_u8(d, self.interrupt_flag);
+        push_u8(d, self.serial_data);
+        self.ppu.save_state(d);
+        self.timer.save_state(d);
+        self.apu.save_state(d);
+        self.cartridge.save_state(d);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.wram.copy_from_slice(&d[..0x2000]);
+        *d = &d[0x2000..];
+        self.hram.copy_from_slice(&d[..0x7F]);
+        *d = &d[0x7F..];
+        self.ie = pop_u8(d);
+        self.interrupt_flag = pop_u8(d);
+        self.serial_data = pop_u8(d);
+        self.ppu.load_state(d);
+        self.timer.load_state(d);
+        self.apu.load_state(d);
+        self.cartridge.load_state(d);
     }
 
     pub fn read(&self, addr: u16) -> u8 {

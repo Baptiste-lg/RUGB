@@ -5,6 +5,7 @@ mod interrupt;
 mod joypad;
 mod mmu;
 mod ppu;
+pub mod savestate;
 mod timer;
 
 use cpu::Cpu;
@@ -65,6 +66,19 @@ impl Emulator {
     pub fn framebuffer(&self) -> &[u8] {
         &self.mmu.ppu.framebuffer
     }
+
+    pub fn save_state(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+        self.cpu.save_state(&mut data);
+        self.mmu.save_state(&mut data);
+        data
+    }
+
+    pub fn load_state(&mut self, data: &[u8]) {
+        let mut cursor: &[u8] = data;
+        self.cpu.load_state(&mut cursor);
+        self.mmu.load_state(&mut cursor);
+    }
 }
 
 #[wasm_bindgen]
@@ -110,6 +124,14 @@ impl WasmEmulator {
             3 if self.emu.mmu.apu.ch3.enabled => self.emu.mmu.apu.ch3.frequency_hz(),
             _ => 0.0,
         }
+    }
+
+    pub fn save_state(&self) -> Vec<u8> {
+        self.emu.save_state()
+    }
+
+    pub fn load_state(&mut self, data: &[u8]) {
+        self.emu.load_state(data);
     }
 
     pub fn channel_volume(&self, ch: u8) -> f64 {
