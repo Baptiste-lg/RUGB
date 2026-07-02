@@ -137,7 +137,7 @@ body {
 /* ===================== Game Boy shell ===================== */
 
 .gameboy {
-    --gb-w: 600px;
+    --gb-w: 540px;
     width: var(--gb-w);
     position: relative;
     background: #c8c4be;
