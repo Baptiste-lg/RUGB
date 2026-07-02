@@ -342,6 +342,7 @@ document.addEventListener('keydown', (e) => {
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined && emu) {
         emu.set_button(btn, true);
+        if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.add('pressed');
         e.preventDefault();
     }
 });
@@ -351,22 +352,40 @@ document.addEventListener('keyup', (e) => {
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined && emu) {
         emu.set_button(btn, false);
+        if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.remove('pressed');
         e.preventDefault();
     }
 });
 
-// --- Touch controls ---
+// --- Visual Game Boy buttons ---
 
-document.querySelectorAll('.touch-btn').forEach(btn => {
-    const gbBtn = parseInt(btn.dataset.btn);
-    btn.addEventListener('touchstart', (e) => {
+const gbInputBtns = document.querySelectorAll('.gb-input');
+
+// Map GB button index to its visual element for keyboard feedback
+const btnIndexToEl = {};
+gbInputBtns.forEach(el => {
+    btnIndexToEl[parseInt(el.dataset.btn)] = el;
+});
+
+// Mouse / touch on visual buttons
+gbInputBtns.forEach(el => {
+    const gbBtn = parseInt(el.dataset.btn);
+    const press = (e) => {
         e.preventDefault();
+        el.classList.add('pressed');
         if (emu) emu.set_button(gbBtn, true);
-    });
-    btn.addEventListener('touchend', (e) => {
+    };
+    const release = (e) => {
         e.preventDefault();
+        el.classList.remove('pressed');
         if (emu) emu.set_button(gbBtn, false);
-    });
+    };
+    el.addEventListener('mousedown', press);
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+    el.addEventListener('touchstart', press);
+    el.addEventListener('touchend', release);
+    el.addEventListener('touchcancel', release);
 });
 
 console.log('RUGB ready — load a ROM to start');

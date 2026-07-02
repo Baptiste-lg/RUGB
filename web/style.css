@@ -206,89 +206,204 @@ button.active {
     justify-content: center;
 }
 
-/* --- Touch controls (mobile only) --- */
+/* --- Game Boy body --- */
 
-.touch-controls {
-    display: none;
+.gb-body {
+    background: #2a2a3e;
+    border-radius: 12px 12px 40px 40px;
+    padding: 1.5rem 2rem 2rem;
+    margin: 0 auto;
+    max-width: 540px;
+    border: 2px solid #3a3a50;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.gb-controls {
+    display: flex;
     justify-content: space-between;
-    padding: 1rem 0.5rem;
-    margin-top: 1rem;
-}
-
-.touch-dpad {
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    margin-bottom: 1.5rem;
 }
 
-.dpad-mid {
-    display: flex;
-    gap: 2px;
-}
+/* --- D-pad --- */
 
-.touch-btn {
-    width: 52px;
-    height: 52px;
-    font-size: 1.2rem;
-    background: #16213e;
-    border: 1px solid #555;
-    border-radius: 6px;
-    color: #ccc;
+.gb-dpad-area {
+    flex-shrink: 0;
+    width: 130px;
+    height: 130px;
     display: flex;
     align-items: center;
     justify-content: center;
-    -webkit-user-select: none;
-    user-select: none;
-    touch-action: manipulation;
 }
 
-.touch-btn:active {
-    background: #1a3a5c;
-    border-color: #8be9fd;
+.gb-dpad {
+    position: relative;
+    width: 110px;
+    height: 110px;
 }
 
-.touch-actions {
+.dpad-v, .dpad-h {
+    position: absolute;
     display: flex;
+}
+
+.dpad-v {
     flex-direction: column;
-    align-items: center;
-    gap: 0.8rem;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 100%;
 }
 
-.touch-ab {
+.dpad-h {
+    flex-direction: row;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 36px;
+}
+
+.dpad-arm {
+    flex: 1;
+    background: #1a1a2e;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.05s;
+}
+
+.dpad-up { border-radius: 6px 6px 0 0; }
+.dpad-down { border-radius: 0 0 6px 6px; }
+.dpad-left { border-radius: 6px 0 0 6px; }
+.dpad-right { border-radius: 0 6px 6px 0; }
+
+.dpad-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    background: #1a1a2e;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.dpad-arm.pressed {
+    background: #0d6efd;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* --- A / B buttons --- */
+
+.gb-ab-area {
+    flex-shrink: 0;
+}
+
+.gb-ab {
     display: flex;
-    gap: 0.5rem;
+    gap: 16px;
+    transform: rotate(-25deg);
 }
 
-.action-btn {
+.gb-round-btn {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    font-size: 1.1rem;
-    font-weight: bold;
-}
-
-.touch-meta {
+    background: #8b2252;
+    border: 3px solid #6b1a42;
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.05s, box-shadow 0.05s;
+    box-shadow: 0 3px 0 #4a1030, 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
-.meta-btn {
-    width: 60px;
-    height: 32px;
-    font-size: 0.7rem;
-    border-radius: 12px;
+.gb-round-btn span {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.6);
+    transform: rotate(25deg);
+    pointer-events: none;
 }
 
-/* Show touch controls on touch-capable devices */
-@media (pointer: coarse) {
-    .touch-controls { display: flex; }
-    .help { display: none; }
+.gb-round-btn.pressed {
+    background: #6b1a42;
+    box-shadow: 0 1px 0 #4a1030, inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    transform: translateY(2px);
 }
+
+.gb-ab .gb-round-btn.pressed {
+    transform: translateY(2px);
+}
+
+/* --- Start / Select --- */
+
+.gb-meta-area {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    transform: rotate(-25deg);
+    margin-left: 40px;
+}
+
+.gb-pill-btn {
+    width: 56px;
+    height: 16px;
+    border-radius: 8px;
+    background: #444;
+    border: 1px solid #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.05s, box-shadow 0.05s;
+    box-shadow: 0 2px 0 #222;
+}
+
+.gb-pill-btn span {
+    font-size: 0.5rem;
+    letter-spacing: 0.1rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    transform: rotate(25deg);
+    pointer-events: none;
+}
+
+.gb-pill-btn.pressed {
+    background: #333;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    transform: translateY(1px);
+}
+
+/* --- Responsive --- */
 
 @media (max-width: 700px) {
     canvas {
         width: 320px;
         height: 288px;
+    }
+    .gb-body {
+        padding: 1rem 1rem 1.5rem;
+    }
+    .gb-dpad-area {
+        width: 100px;
+        height: 100px;
+    }
+    .gb-dpad {
+        width: 90px;
+        height: 90px;
+    }
+    .dpad-v { width: 30px; }
+    .dpad-h { height: 30px; }
+    .dpad-center { width: 30px; height: 30px; }
+    .gb-round-btn {
+        width: 46px;
+        height: 46px;
     }
 }

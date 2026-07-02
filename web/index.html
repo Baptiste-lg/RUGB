@@ -39,25 +39,37 @@
 
         <p class="help">Arrow keys = D-pad | Z = A | X = B | Enter = Start | Shift = Select | ? = Help</p>
 
-        <!-- Touch controls for mobile -->
-        <div class="touch-controls">
-            <div class="touch-dpad">
-                <button class="touch-btn dpad-up" data-btn="2">&#9650;</button>
-                <div class="dpad-mid">
-                    <button class="touch-btn dpad-left" data-btn="1">&#9664;</button>
-                    <button class="touch-btn dpad-right" data-btn="0">&#9654;</button>
+        <!-- Game Boy body with interactive buttons -->
+        <div class="gb-body">
+            <div class="gb-controls">
+                <!-- D-pad -->
+                <div class="gb-dpad-area">
+                    <div class="gb-dpad">
+                        <div class="dpad-v">
+                            <div class="dpad-arm dpad-up gb-input" data-btn="2"></div>
+                            <div class="dpad-arm dpad-down gb-input" data-btn="3"></div>
+                        </div>
+                        <div class="dpad-h">
+                            <div class="dpad-arm dpad-left gb-input" data-btn="1"></div>
+                            <div class="dpad-arm dpad-right gb-input" data-btn="0"></div>
+                        </div>
+                        <div class="dpad-center"></div>
+                    </div>
                 </div>
-                <button class="touch-btn dpad-down" data-btn="3">&#9660;</button>
+
+                <!-- A / B buttons -->
+                <div class="gb-ab-area">
+                    <div class="gb-ab">
+                        <div class="gb-round-btn gb-input btn-b" data-btn="5"><span>B</span></div>
+                        <div class="gb-round-btn gb-input btn-a" data-btn="4"><span>A</span></div>
+                    </div>
+                </div>
             </div>
-            <div class="touch-actions">
-                <div class="touch-ab">
-                    <button class="touch-btn action-btn" data-btn="5">B</button>
-                    <button class="touch-btn action-btn" data-btn="4">A</button>
-                </div>
-                <div class="touch-meta">
-                    <button class="touch-btn meta-btn" data-btn="7">Sel</button>
-                    <button class="touch-btn meta-btn" data-btn="6">Start</button>
-                </div>
+
+            <!-- Start / Select -->
+            <div class="gb-meta-area">
+                <div class="gb-pill-btn gb-input btn-select" data-btn="7"><span>SELECT</span></div>
+                <div class="gb-pill-btn gb-input btn-start" data-btn="6"><span>START</span></div>
             </div>
         </div>
 
