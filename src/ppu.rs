@@ -3,6 +3,8 @@
 //! Renders 160x144 pixels per frame via a scanline state machine.
 //! Each frame is 154 scanlines (144 visible + 10 VBlank), each scanline is 456 T-cycles.
 
+use crate::savestate::*;
+
 const SCREEN_W: usize = 160;
 const SCREEN_H: usize = 144;
 
@@ -417,6 +419,57 @@ impl Ppu {
             0xFF4B => self.wx,
             _ => 0xFF,
         }
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        let mode_byte = match self.mode {
+            Mode::OamScan => 0u8,
+            Mode::PixelTransfer => 1,
+            Mode::HBlank => 2,
+            Mode::VBlank => 3,
+        };
+        push_u8(d, mode_byte);
+        push_u32(d, self.dots);
+        push_u8(d, self.window_line);
+        push_u8(d, self.lcdc);
+        push_u8(d, self.stat);
+        push_u8(d, self.scy);
+        push_u8(d, self.scx);
+        push_u8(d, self.ly);
+        push_u8(d, self.lyc);
+        push_u8(d, self.bgp);
+        push_u8(d, self.obp0);
+        push_u8(d, self.obp1);
+        push_u8(d, self.wy);
+        push_u8(d, self.wx);
+        d.extend_from_slice(&self.vram);
+        d.extend_from_slice(&self.oam);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.mode = match pop_u8(d) {
+            0 => Mode::OamScan,
+            1 => Mode::PixelTransfer,
+            2 => Mode::HBlank,
+            _ => Mode::VBlank,
+        };
+        self.dots = pop_u32(d);
+        self.window_line = pop_u8(d);
+        self.lcdc = pop_u8(d);
+        self.stat = pop_u8(d);
+        self.scy = pop_u8(d);
+        self.scx = pop_u8(d);
+        self.ly = pop_u8(d);
+        self.lyc = pop_u8(d);
+        self.bgp = pop_u8(d);
+        self.obp0 = pop_u8(d);
+        self.obp1 = pop_u8(d);
+        self.wy = pop_u8(d);
+        self.wx = pop_u8(d);
+        self.vram.copy_from_slice(&d[..0x2000]);
+        *d = &d[0x2000..];
+        self.oam.copy_from_slice(&d[..0xA0]);
+        *d = &d[0xA0..];
     }
 
     pub fn write_register(&mut self, addr: u16, val: u8) {
