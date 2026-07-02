@@ -142,7 +142,7 @@ body {
     position: relative;
     background: #c8c4be;
     border-radius: 16px 16px 16px 80px;
-    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.07) calc(var(--gb-w) * 0.22);
+    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.07) calc(var(--gb-w) * 0.1);
     box-shadow:
         6px 10px 30px rgba(0, 0, 0, 0.7),
         inset 0 2px 0 rgba(255,255,255,0.25),
@@ -192,7 +192,6 @@ body {
 .gameboy.screen-only .gb-name-label { display: none; }
 .gameboy.screen-only .gb-controls { display: none; }
 .gameboy.screen-only .gb-meta-area { display: none; }
-.gameboy.screen-only .gb-speaker { display: none; }
 .gameboy.screen-only .gb-power-switch { display: none; }
 .gameboy.screen-only .gb-volume-wheel { display: none; }
 
@@ -511,26 +510,6 @@ canvas.drag-over {
     background: linear-gradient(to bottom, #666, #555);
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
     transform: translateY(2px);
-}
-
-/* --- Speaker grille --- */
-
-.gb-speaker {
-    position: absolute;
-    bottom: calc(var(--gb-w) * 0.05);
-    right: calc(var(--gb-w) * 0.1);
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--gb-w) * 0.015);
-}
-
-.gb-speaker-slot {
-    width: calc(var(--gb-w) * 0.22);
-    height: calc(var(--gb-w) * 0.01);
-    background: #9a9690;
-    border-radius: calc(var(--gb-w) * 0.005);
-    box-shadow: inset 0 2px 3px rgba(0,0,0,0.45);
-    transform: rotate(-25deg);
 }
 
 /* ===================== Overlays ===================== */
