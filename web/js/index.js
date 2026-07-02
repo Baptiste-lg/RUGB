@@ -55,7 +55,8 @@ viewScreenBtn.addEventListener('click', () => {
 // --- Resize observer: keep --gb-w in sync with actual width ---
 const resizeObs = new ResizeObserver(entries => {
     for (const entry of entries) {
-        const w = entry.contentRect.width;
+        const box = entry.borderBoxSize?.[0];
+        const w = box ? box.inlineSize : entry.target.offsetWidth;
         gameboy.style.setProperty('--gb-w', w + 'px');
     }
 });
