@@ -346,7 +346,11 @@ impl Apu {
             // NR10 — CH1 sweep
             0xFF10 => {
                 0x80 | (self.ch1.sweep_period << 4)
-                    | if self.ch1.sweep_direction < 0 { 0x08 } else { 0 }
+                    | if self.ch1.sweep_direction < 0 {
+                        0x08
+                    } else {
+                        0
+                    }
                     | self.ch1.sweep_shift
             }
             // NR11 — CH1 duty + length (only duty readable)
