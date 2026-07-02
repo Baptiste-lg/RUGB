@@ -357,7 +357,7 @@ canvas.addEventListener('drop', (e) => {
 pauseBtn.addEventListener('click', () => {
     paused = !paused;
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-    if (!paused) requestAnimationFrame(frame);
+    if (!paused) animationId = requestAnimationFrame(frame);
 });
 
 resetBtn.addEventListener('click', () => {
