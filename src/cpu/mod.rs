@@ -3,6 +3,7 @@ mod opcodes;
 pub mod registers;
 
 use crate::mmu::Mmu;
+use crate::savestate::*;
 use registers::Registers;
 
 pub struct Cpu {
@@ -314,6 +315,40 @@ impl Cpu {
         self.regs.set_flag_n(false);
         self.regs.set_flag_h(true);
         // C flag not affected
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_u8(d, self.regs.a);
+        push_u8(d, self.regs.f);
+        push_u8(d, self.regs.b);
+        push_u8(d, self.regs.c);
+        push_u8(d, self.regs.d);
+        push_u8(d, self.regs.e);
+        push_u8(d, self.regs.h);
+        push_u8(d, self.regs.l);
+        push_u16(d, self.regs.sp);
+        push_u16(d, self.regs.pc);
+        push_bool(d, self.halted);
+        push_bool(d, self.ime);
+        push_bool(d, self.ime_scheduled);
+        push_bool(d, self.halt_bug);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.regs.a = pop_u8(d);
+        self.regs.f = pop_u8(d);
+        self.regs.b = pop_u8(d);
+        self.regs.c = pop_u8(d);
+        self.regs.d = pop_u8(d);
+        self.regs.e = pop_u8(d);
+        self.regs.h = pop_u8(d);
+        self.regs.l = pop_u8(d);
+        self.regs.sp = pop_u16(d);
+        self.regs.pc = pop_u16(d);
+        self.halted = pop_bool(d);
+        self.ime = pop_bool(d);
+        self.ime_scheduled = pop_bool(d);
+        self.halt_bug = pop_bool(d);
     }
 }
 
