@@ -466,8 +466,8 @@ document.addEventListener('keydown', (e) => {
         if (e.key === keyMap.quickload) { e.preventDefault(); doQuickLoad(); return; }
     }
     const btn = BUTTON_MAP[e.key];
-    if (btn !== undefined && emu) {
-        emu.set_button(btn, true);
+    if (btn !== undefined) {
+        if (emu) emu.set_button(btn, true);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.add('pressed');
         e.preventDefault();
     }
@@ -476,8 +476,8 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
-    if (btn !== undefined && emu) {
-        emu.set_button(btn, false);
+    if (btn !== undefined) {
+        if (emu) emu.set_button(btn, false);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.remove('pressed');
         e.preventDefault();
     }
