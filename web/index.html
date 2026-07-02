@@ -7,115 +7,143 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>RUGB</h1>
-        <canvas id="screen" width="160" height="144"></canvas>
+    <!-- Floating menu button -->
+    <button id="menu-toggle" class="menu-toggle" aria-label="Menu">&#9776;</button>
 
-        <div class="controls">
-            <label class="file-btn">
+    <!-- Side menu -->
+    <div id="side-menu" class="side-menu">
+        <div class="side-menu-content">
+            <h2>RUGB</h2>
+            <label class="file-btn menu-item">
                 Load ROM
                 <input type="file" id="rom-input" accept=".gb,.bin" hidden>
             </label>
-            <button id="pause-btn" disabled>Pause</button>
-            <button id="reset-btn" disabled>Reset</button>
-            <button id="mute-btn" disabled>Mute</button>
-            <button id="remap-btn">Remap</button>
+            <button id="pause-btn" class="menu-item" disabled>Pause</button>
+            <button id="reset-btn" class="menu-item" disabled>Reset</button>
+            <button id="mute-btn" class="menu-item" disabled>Mute</button>
+            <hr>
+            <div class="menu-group">
+                <span>Speed</span>
+                <div class="menu-row">
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="4">4x</button>
+                </div>
+            </div>
+            <div class="menu-group">
+                <span>Palette</span>
+                <div class="menu-row">
+                    <button class="palette-btn" data-palette="green">Green</button>
+                    <button class="palette-btn" data-palette="gray">Gray</button>
+                    <button class="palette-btn" data-palette="bw">B&W</button>
+                </div>
+            </div>
+            <hr>
+            <button id="remap-btn" class="menu-item">Remap Keys</button>
+            <button id="help-btn" class="menu-item">Help (?)</button>
+        </div>
+    </div>
+
+    <!-- Game Boy shell -->
+    <div class="gameboy">
+        <!-- Screen bezel -->
+        <div class="gb-bezel">
+            <div class="gb-screen-label">RUGB</div>
+            <div class="gb-screen-frame">
+                <canvas id="screen" width="160" height="144"></canvas>
+            </div>
         </div>
 
-        <div class="options">
-            <div class="option-group">
-                <span>Speed:</span>
-                <button class="speed-btn active" data-speed="1">1x</button>
-                <button class="speed-btn" data-speed="2">2x</button>
-                <button class="speed-btn" data-speed="4">4x</button>
+        <!-- Controls area -->
+        <div class="gb-controls">
+            <!-- D-pad -->
+            <div class="gb-dpad-area">
+                <div class="gb-dpad">
+                    <div class="dpad-v">
+                        <div class="dpad-arm dpad-up gb-input" data-btn="2"></div>
+                        <div class="dpad-arm dpad-down gb-input" data-btn="3"></div>
+                    </div>
+                    <div class="dpad-h">
+                        <div class="dpad-arm dpad-left gb-input" data-btn="1"></div>
+                        <div class="dpad-arm dpad-right gb-input" data-btn="0"></div>
+                    </div>
+                    <div class="dpad-center"></div>
+                </div>
             </div>
-            <div class="option-group">
-                <span>Palette:</span>
-                <button class="palette-btn" data-palette="green">Green</button>
-                <button class="palette-btn" data-palette="gray">Gray</button>
-                <button class="palette-btn" data-palette="bw">B&W</button>
-            </div>
-        </div>
 
-        <p class="help">Arrow keys = D-pad | Z = A | X = B | Enter = Start | Shift = Select | ? = Help</p>
-
-        <!-- Game Boy body with interactive buttons -->
-        <div class="gb-body">
-            <div class="gb-controls">
-                <!-- D-pad -->
-                <div class="gb-dpad-area">
-                    <div class="gb-dpad">
-                        <div class="dpad-v">
-                            <div class="dpad-arm dpad-up gb-input" data-btn="2"></div>
-                            <div class="dpad-arm dpad-down gb-input" data-btn="3"></div>
-                        </div>
-                        <div class="dpad-h">
-                            <div class="dpad-arm dpad-left gb-input" data-btn="1"></div>
-                            <div class="dpad-arm dpad-right gb-input" data-btn="0"></div>
-                        </div>
-                        <div class="dpad-center"></div>
+            <!-- A / B buttons -->
+            <div class="gb-ab-area">
+                <div class="gb-ab">
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gb-input btn-b" data-btn="5"></div>
+                        <span class="gb-btn-label">B</span>
+                    </div>
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gb-input btn-a" data-btn="4"></div>
+                        <span class="gb-btn-label">A</span>
                     </div>
                 </div>
-
-                <!-- A / B buttons -->
-                <div class="gb-ab-area">
-                    <div class="gb-ab">
-                        <div class="gb-round-btn gb-input btn-b" data-btn="5"><span>B</span></div>
-                        <div class="gb-round-btn gb-input btn-a" data-btn="4"><span>A</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Start / Select -->
-            <div class="gb-meta-area">
-                <div class="gb-pill-btn gb-input btn-select" data-btn="7"><span>SELECT</span></div>
-                <div class="gb-pill-btn gb-input btn-start" data-btn="6"><span>START</span></div>
             </div>
         </div>
 
-        <!-- Help overlay -->
-        <div id="help-overlay" class="overlay">
-            <div class="overlay-content">
-                <h2>Keyboard Shortcuts</h2>
-                <table id="help-keybinds">
-                    <tr><td class="kb-right">Arrow keys</td><td>D-pad</td></tr>
-                    <tr><td class="kb-a">Z</td><td>A button</td></tr>
-                    <tr><td class="kb-b">X</td><td>B button</td></tr>
-                    <tr><td class="kb-start">Enter</td><td>Start</td></tr>
-                    <tr><td class="kb-select">Shift</td><td>Select</td></tr>
-                    <tr><td>P</td><td>Pause / Resume</td></tr>
-                    <tr><td>M</td><td>Mute / Unmute</td></tr>
-                    <tr><td>1 / 2 / 4</td><td>Speed</td></tr>
-                    <tr><td>?</td><td>Toggle this help</td></tr>
-                </table>
-                <p class="close-hint">Press ? to close</p>
+        <!-- Start / Select -->
+        <div class="gb-meta-area">
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gb-input btn-select" data-btn="7"></div>
+                <span class="gb-meta-label">SELECT</span>
             </div>
-        </div>
-
-        <!-- Key remap overlay -->
-        <div id="remap-overlay" class="overlay">
-            <div class="overlay-content">
-                <h2>Remap Keys</h2>
-                <table class="remap-table">
-                    <tr><td>D-pad Right</td><td><button class="remap-btn" data-action="right">ArrowRight</button></td></tr>
-                    <tr><td>D-pad Left</td><td><button class="remap-btn" data-action="left">ArrowLeft</button></td></tr>
-                    <tr><td>D-pad Up</td><td><button class="remap-btn" data-action="up">ArrowUp</button></td></tr>
-                    <tr><td>D-pad Down</td><td><button class="remap-btn" data-action="down">ArrowDown</button></td></tr>
-                    <tr><td>A</td><td><button class="remap-btn" data-action="a">z</button></td></tr>
-                    <tr><td>B</td><td><button class="remap-btn" data-action="b">x</button></td></tr>
-                    <tr><td>Start</td><td><button class="remap-btn" data-action="start">Enter</button></td></tr>
-                    <tr><td>Select</td><td><button class="remap-btn" data-action="select">Shift</button></td></tr>
-                </table>
-                <div class="remap-actions">
-                    <button id="remap-export">Export</button>
-                    <button id="remap-import">Import</button>
-                    <button id="remap-reset">Reset defaults</button>
-                    <button id="remap-close">Done</button>
-                    <input type="file" id="remap-file" accept=".json" hidden>
-                </div>
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gb-input btn-start" data-btn="6"></div>
+                <span class="gb-meta-label">START</span>
             </div>
         </div>
     </div>
+
+    <p class="help-hint">? = Help | P = Pause | M = Mute</p>
+
+    <!-- Help overlay -->
+    <div id="help-overlay" class="overlay">
+        <div class="overlay-content">
+            <h2>Keyboard Shortcuts</h2>
+            <table id="help-keybinds">
+                <tr><td>Arrow keys</td><td>D-pad</td></tr>
+                <tr><td>Z</td><td>A button</td></tr>
+                <tr><td>X</td><td>B button</td></tr>
+                <tr><td>Enter</td><td>Start</td></tr>
+                <tr><td>Shift</td><td>Select</td></tr>
+                <tr><td>P</td><td>Pause / Resume</td></tr>
+                <tr><td>M</td><td>Mute / Unmute</td></tr>
+                <tr><td>1 / 2 / 4</td><td>Speed</td></tr>
+                <tr><td>?</td><td>Toggle this help</td></tr>
+            </table>
+            <p class="close-hint">Press ? or click outside to close</p>
+        </div>
+    </div>
+
+    <!-- Key remap overlay -->
+    <div id="remap-overlay" class="overlay">
+        <div class="overlay-content">
+            <h2>Remap Keys</h2>
+            <table class="remap-table">
+                <tr><td>D-pad Right</td><td><button class="remap-btn" data-action="right">ArrowRight</button></td></tr>
+                <tr><td>D-pad Left</td><td><button class="remap-btn" data-action="left">ArrowLeft</button></td></tr>
+                <tr><td>D-pad Up</td><td><button class="remap-btn" data-action="up">ArrowUp</button></td></tr>
+                <tr><td>D-pad Down</td><td><button class="remap-btn" data-action="down">ArrowDown</button></td></tr>
+                <tr><td>A</td><td><button class="remap-btn" data-action="a">z</button></td></tr>
+                <tr><td>B</td><td><button class="remap-btn" data-action="b">x</button></td></tr>
+                <tr><td>Start</td><td><button class="remap-btn" data-action="start">Enter</button></td></tr>
+                <tr><td>Select</td><td><button class="remap-btn" data-action="select">Shift</button></td></tr>
+            </table>
+            <div class="remap-actions">
+                <button id="remap-export">Export</button>
+                <button id="remap-import">Import</button>
+                <button id="remap-reset">Reset</button>
+                <button id="remap-close">Done</button>
+                <input type="file" id="remap-file" accept=".json" hidden>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/index.js"></script>
 </body>
 </html>

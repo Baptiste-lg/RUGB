@@ -17,6 +17,21 @@ const romInput = document.getElementById('rom-input');
 const speedBtns = document.querySelectorAll('.speed-btn');
 const paletteBtns = document.querySelectorAll('.palette-btn');
 const helpOverlay = document.getElementById('help-overlay');
+const menuToggle = document.getElementById('menu-toggle');
+const sideMenu = document.getElementById('side-menu');
+const helpBtn = document.getElementById('help-btn');
+
+// --- Side menu toggle ---
+menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
+document.addEventListener('click', (e) => {
+    if (sideMenu.classList.contains('open') && !sideMenu.contains(e.target) && e.target !== menuToggle) {
+        sideMenu.classList.remove('open');
+    }
+});
+helpBtn.addEventListener('click', () => {
+    sideMenu.classList.remove('open');
+    helpOverlay.classList.add('visible');
+});
 
 // --- Audio setup ---
 
@@ -256,6 +271,7 @@ function updateRemapButtons() {
 }
 
 remapBtn.addEventListener('click', () => {
+    sideMenu.classList.remove('open');
     updateRemapButtons();
     remapOverlay.classList.add('visible');
 });
