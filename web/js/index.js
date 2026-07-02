@@ -180,7 +180,7 @@ const PALETTES = {
     bw:     { colors: ['#ffffff', '#b0b0b0', '#404040', '#000000'] },
 };
 
-let currentPalette = localStorage.getItem('ob-palette') || 'gray';
+let currentPalette = localStorage.getItem('rugb-palette') || 'gray';
 
 function applyPalette(imageData) {
     if (currentPalette === 'gray') return imageData; // Default shades match gray
@@ -388,7 +388,7 @@ speedBtns.forEach(btn => {
 paletteBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         currentPalette = btn.dataset.palette;
-        localStorage.setItem('ob-palette', currentPalette);
+        localStorage.setItem('rugb-palette', currentPalette);
         paletteBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     });
@@ -497,7 +497,7 @@ remapFileInput.addEventListener('change', (e) => {
             BUTTON_MAP = buildButtonMap();
             updateRemapButtons();
         } catch {
-            alert('Invalid keybinds file');
+            showToast('Invalid keybinds file');
         }
     };
     reader.readAsText(file);
