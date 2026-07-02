@@ -383,15 +383,6 @@ canvas.drag-over {
     transform: translateY(1px);
 }
 
-/* ===================== Help hint ===================== */
-
-.help-hint {
-    font-size: 0.7rem;
-    color: #555;
-    margin: 0.5rem 0;
-    text-align: center;
-}
-
 /* ===================== Overlays ===================== */
 
 .overlay {

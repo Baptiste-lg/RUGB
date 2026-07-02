@@ -56,7 +56,6 @@
             </div>
             <button id="savestates-btn" class="menu-item">Save States</button>
             <button id="remap-btn" class="menu-item">Remap Keys</button>
-            <button id="help-btn" class="menu-item">Help (?)</button>
         </div>
     </div>
 
@@ -115,27 +114,6 @@
         </div>
     </div>
 
-    <p class="help-hint">? = Help | P = Pause | M = Mute</p>
-
-    <!-- Help overlay -->
-    <div id="help-overlay" class="overlay">
-        <div class="overlay-content">
-            <h2>Keyboard Shortcuts</h2>
-            <table id="help-keybinds">
-                <tr><td>Arrow keys</td><td>D-pad</td></tr>
-                <tr><td>Z</td><td>A button</td></tr>
-                <tr><td>X</td><td>B button</td></tr>
-                <tr><td>Enter</td><td>Start</td></tr>
-                <tr><td>Shift</td><td>Select</td></tr>
-                <tr><td>P</td><td>Pause / Resume</td></tr>
-                <tr><td>M</td><td>Mute / Unmute</td></tr>
-                <tr><td>1 / 2 / 4</td><td>Speed</td></tr>
-                <tr><td>?</td><td>Toggle this help</td></tr>
-            </table>
-            <p class="close-hint">Press ? or click outside to close</p>
-        </div>
-    </div>
-
     <!-- Key remap overlay -->
     <div id="remap-overlay" class="overlay">
         <div class="overlay-content">
@@ -149,6 +127,8 @@
                 <tr><td>B</td><td><button class="remap-btn" data-action="b">x</button></td></tr>
                 <tr><td>Start</td><td><button class="remap-btn" data-action="start">Enter</button></td></tr>
                 <tr><td>Select</td><td><button class="remap-btn" data-action="select">Shift</button></td></tr>
+                <tr><td>Pause</td><td><button class="remap-btn" data-action="pause">p</button></td></tr>
+                <tr><td>Mute</td><td><button class="remap-btn" data-action="mute">m</button></td></tr>
                 <tr class="remap-quicksave"><td>Quick Save</td><td><button class="remap-btn" data-action="quicksave">F5</button></td></tr>
                 <tr class="remap-quicksave"><td>Quick Load</td><td><button class="remap-btn" data-action="quickload">F8</button></td></tr>
             </table>
