@@ -162,6 +162,50 @@ button.active {
     color: #666;
 }
 
+/* --- Remap overlay --- */
+
+.remap-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.remap-table td {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+.remap-table td:first-child {
+    color: #8be9fd;
+    text-align: right;
+    width: 40%;
+}
+
+.remap-btn {
+    min-width: 100px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.remap-btn.listening {
+    background: #2a1a4e;
+    border-color: #bd93f9;
+    color: #bd93f9;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.remap-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+}
+
 /* --- Touch controls (mobile only) --- */
 
 .touch-controls {
