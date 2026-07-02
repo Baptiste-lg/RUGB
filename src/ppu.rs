@@ -24,17 +24,17 @@ pub struct Ppu {
     /// Internal window line counter — only incremented on lines where window was drawn
     window_line: u8,
     // LCD registers
-    lcdc: u8,  // 0xFF40 — LCD Control
-    stat: u8,  // 0xFF41 — LCD Status (mode bits are read-only)
-    scy: u8,   // 0xFF42 — Scroll Y
-    scx: u8,   // 0xFF43 — Scroll X
-    ly: u8,    // 0xFF44 — Current scanline
-    lyc: u8,   // 0xFF45 — LY Compare
-    bgp: u8,   // 0xFF47 — BG Palette
-    obp0: u8,  // 0xFF48 — Sprite Palette 0
-    obp1: u8,  // 0xFF49 — Sprite Palette 1
-    wy: u8,    // 0xFF4A — Window Y
-    wx: u8,    // 0xFF4B — Window X
+    lcdc: u8, // 0xFF40 — LCD Control
+    stat: u8, // 0xFF41 — LCD Status (mode bits are read-only)
+    scy: u8,  // 0xFF42 — Scroll Y
+    scx: u8,  // 0xFF43 — Scroll X
+    ly: u8,   // 0xFF44 — Current scanline
+    lyc: u8,  // 0xFF45 — LY Compare
+    bgp: u8,  // 0xFF47 — BG Palette
+    obp0: u8, // 0xFF48 — Sprite Palette 0
+    obp1: u8, // 0xFF49 — Sprite Palette 1
+    wy: u8,   // 0xFF4A — Window Y
+    wx: u8,   // 0xFF4B — Window X
 
     vram: [u8; 0x2000],
     oam: [u8; 0xA0],
@@ -168,8 +168,16 @@ impl Ppu {
     }
 
     fn render_bg(&mut self) {
-        let tile_data_base: u16 = if self.lcdc & 0x10 != 0 { 0x8000 } else { 0x8800 };
-        let tile_map_base: u16 = if self.lcdc & 0x08 != 0 { 0x9C00 } else { 0x9800 };
+        let tile_data_base: u16 = if self.lcdc & 0x10 != 0 {
+            0x8000
+        } else {
+            0x8800
+        };
+        let tile_map_base: u16 = if self.lcdc & 0x08 != 0 {
+            0x9C00
+        } else {
+            0x9800
+        };
         let signed_tile_ids = self.lcdc & 0x10 == 0;
 
         let y = self.ly.wrapping_add(self.scy);
@@ -205,8 +213,16 @@ impl Ppu {
         }
         let wx = self.wx.wrapping_sub(7);
 
-        let tile_data_base: u16 = if self.lcdc & 0x10 != 0 { 0x8000 } else { 0x8800 };
-        let tile_map_base: u16 = if self.lcdc & 0x40 != 0 { 0x9C00 } else { 0x9800 };
+        let tile_data_base: u16 = if self.lcdc & 0x10 != 0 {
+            0x8000
+        } else {
+            0x8800
+        };
+        let tile_map_base: u16 = if self.lcdc & 0x40 != 0 {
+            0x9C00
+        } else {
+            0x9800
+        };
         let signed_tile_ids = self.lcdc & 0x10 == 0;
 
         let win_y = self.window_line;
@@ -272,7 +288,11 @@ impl Ppu {
 
         // Render in reverse order so higher-priority sprites overwrite lower
         for &(sy, sx, mut tile, attr, _) in sprites.iter().rev() {
-            let palette = if attr & 0x10 != 0 { self.obp1 } else { self.obp0 };
+            let palette = if attr & 0x10 != 0 {
+                self.obp1
+            } else {
+                self.obp0
+            };
             let x_flip = attr & 0x20 != 0;
             let y_flip = attr & 0x40 != 0;
             let bg_priority = attr & 0x80 != 0;
@@ -346,10 +366,10 @@ impl Ppu {
     fn set_pixel(&mut self, x: usize, y: usize, shade: u8) {
         let idx = (y * SCREEN_W + x) * 4;
         if idx + 3 < self.framebuffer.len() {
-            self.framebuffer[idx] = shade;     // R
+            self.framebuffer[idx] = shade; // R
             self.framebuffer[idx + 1] = shade; // G
             self.framebuffer[idx + 2] = shade; // B
-            self.framebuffer[idx + 3] = 0xFF;  // A
+            self.framebuffer[idx + 3] = 0xFF; // A
         }
     }
 
