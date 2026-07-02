@@ -318,12 +318,12 @@ canvas.drag-over {
     width: calc(var(--gb-w) * 0.108);
     height: calc(var(--gb-w) * 0.108);
     border-radius: 50%;
-    background: #8b2252;
-    border: 2px solid #7a1e48;
+    background: #92216a;
+    border: 2px solid #7a1c5a;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, transform 0.05s, box-shadow 0.05s;
-    box-shadow: 0 3px 0 #5a1535, 0 4px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 3px 0 #5a1545, 0 4px 6px rgba(0, 0, 0, 0.25);
 }
 
 .gb-btn-label {
@@ -336,8 +336,8 @@ canvas.drag-over {
 }
 
 .gb-round-btn.pressed {
-    background: #6b1a42;
-    box-shadow: 0 1px 0 #5a1535, inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    background: #6b1a52;
+    box-shadow: 0 1px 0 #5a1545, inset 0 2px 4px rgba(0, 0, 0, 0.3);
     transform: translateY(2px);
 }
 
