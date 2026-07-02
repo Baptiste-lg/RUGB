@@ -141,7 +141,7 @@ body {
     width: var(--gb-w);
     background: #c8c4be;
     border-radius: 16px 16px 16px 80px;
-    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.063);
+    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.1);
     box-shadow: 4px 8px 24px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.1);
     margin: 1rem 0 0.5rem;
     resize: horizontal;
@@ -166,27 +166,39 @@ body {
     margin: 0;
 }
 
-.gameboy.screen-only .gb-screen-label { display: none; }
+.gameboy.screen-only .gb-screen-subtitle { display: none; }
 .gameboy.screen-only .gb-screen-frame { border: none; padding: 0; background: none; }
+.gameboy.screen-only .gb-name-label { display: none; }
 .gameboy.screen-only .gb-controls { display: none; }
 .gameboy.screen-only .gb-meta-area { display: none; }
+.gameboy.screen-only .gb-speaker { display: none; }
 
 /* --- Screen bezel --- */
 
 .gb-bezel {
     background: #8b8986;
     border-radius: 12px 12px 40px 12px;
-    padding: calc(var(--gb-w) * 0.025) calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.063);
-    margin-bottom: calc(var(--gb-w) * 0.042);
+    padding: calc(var(--gb-w) * 0.04) calc(var(--gb-w) * 0.06) calc(var(--gb-w) * 0.08);
+    margin-bottom: calc(var(--gb-w) * 0.012);
 }
 
-.gb-screen-label {
-    font-size: calc(var(--gb-w) * 0.015);
+.gb-screen-subtitle {
+    font-size: calc(var(--gb-w) * 0.013);
     font-weight: bold;
     color: #555;
-    letter-spacing: 0.15rem;
+    letter-spacing: 0.1rem;
     margin-bottom: calc(var(--gb-w) * 0.012);
     text-align: center;
+}
+
+.gb-name-label {
+    font-size: calc(var(--gb-w) * 0.046);
+    font-weight: bold;
+    color: #2b2b80;
+    letter-spacing: 0.15rem;
+    text-align: left;
+    padding: calc(var(--gb-w) * 0.015) 0 calc(var(--gb-w) * 0.02) calc(var(--gb-w) * 0.04);
+    font-family: 'Courier New', monospace;
 }
 
 .gb-screen-frame {
@@ -392,6 +404,26 @@ canvas.drag-over {
     background: #555;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
     transform: translateY(2px);
+}
+
+/* --- Speaker grille --- */
+
+.gb-speaker {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--gb-w) * 0.012);
+    align-items: flex-end;
+    padding-right: calc(var(--gb-w) * 0.08);
+    margin-top: calc(var(--gb-w) * 0.02);
+}
+
+.gb-speaker-slot {
+    width: calc(var(--gb-w) * 0.08);
+    height: calc(var(--gb-w) * 0.006);
+    background: #a8a4a0;
+    border-radius: calc(var(--gb-w) * 0.003);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    transform: rotate(-25deg);
 }
 
 /* ===================== Overlays ===================== */
