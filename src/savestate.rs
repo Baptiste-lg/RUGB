@@ -53,12 +53,6 @@ pub fn pop_i8(data: &mut &[u8]) -> i8 {
     pop_u8(data) as i8
 }
 
-pub fn pop_slice(data: &mut &[u8], dest: &mut [u8]) {
-    let len = pop_u32(data) as usize;
-    dest[..len].copy_from_slice(&data[..len]);
-    *data = &data[len..];
-}
-
 pub fn pop_vec(data: &mut &[u8]) -> Vec<u8> {
     let len = pop_u32(data) as usize;
     let v = data[..len].to_vec();
