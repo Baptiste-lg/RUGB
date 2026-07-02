@@ -511,22 +511,6 @@ canvas.drag-over {
     border-color: #8be9fd;
 }
 
-/* --- Menu toggle row (checkbox) --- */
-
-.menu-toggle-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: #aaa;
-    cursor: pointer;
-    padding: 0.3rem 0;
-}
-
-.menu-toggle-row input[type="checkbox"] {
-    accent-color: #8be9fd;
-}
-
 /* --- Save states --- */
 
 .savestates-content {

@@ -385,7 +385,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === '2') { document.querySelector('.speed-btn[data-speed="2"]')?.click(); return; }
     if (e.key === '4') { document.querySelector('.speed-btn[data-speed="4"]')?.click(); return; }
     // Quick save/load
-    if (quicksaveEnabled && emu) {
+    if (emu) {
         if (e.key === keyMap.quicksave) { e.preventDefault(); doQuickSave(); return; }
         if (e.key === keyMap.quickload) { e.preventDefault(); doQuickLoad(); return; }
     }
@@ -443,11 +443,7 @@ gbInputBtns.forEach(el => {
 const savestatesBtn = document.getElementById('savestates-btn');
 const savestatesOverlay = document.getElementById('savestates-overlay');
 const savestatesClose = document.getElementById('savestates-close');
-const quicksaveToggle = document.getElementById('quicksave-toggle');
 const toast = document.getElementById('toast');
-
-let quicksaveEnabled = localStorage.getItem('rugb-quicksave') === 'true';
-quicksaveToggle.checked = quicksaveEnabled;
 
 let quickSaveData = null;
 const saveSlots = {}; // slot number -> { data: Uint8Array, timestamp: string }
@@ -514,11 +510,6 @@ function updateSlotUI() {
         }
     }
 }
-
-quicksaveToggle.addEventListener('change', () => {
-    quicksaveEnabled = quicksaveToggle.checked;
-    localStorage.setItem('rugb-quicksave', quicksaveEnabled);
-});
 
 savestatesBtn.addEventListener('click', () => {
     sideMenu.classList.remove('open');
