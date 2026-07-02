@@ -530,7 +530,7 @@ for (let i = 1; i <= 5; i++) {
     if (stored) {
         try {
             const parsed = JSON.parse(stored);
-            saveSlots[i] = { data: Uint8Array.from(atob(parsed.data), c => c.charCodeAt(0)), timestamp: parsed.timestamp };
+            saveSlots[i] = { data: Uint8Array.from(atob(parsed.data), c => c.charCodeAt(0)), timestamp: parsed.timestamp, title: parsed.title || '' };
         } catch {}
     }
 }
@@ -557,10 +557,11 @@ function saveToSlot(slot) {
     if (!emu) return;
     const data = emu.save_state();
     const timestamp = new Date().toLocaleString();
-    saveSlots[slot] = { data, timestamp };
+    const title = emu.title() || '';
+    saveSlots[slot] = { data, timestamp, title };
     // Store as base64 in localStorage
     const b64 = btoa(String.fromCharCode(...data));
-    localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp }));
+    localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp, title }));
     updateSlotUI();
     showToast(`Saved to Slot ${slot}`);
 }
@@ -575,14 +576,20 @@ function updateSlotUI() {
     for (let i = 1; i <= 5; i++) {
         const info = document.getElementById(`slot-info-${i}`);
         const loadBtn = document.querySelector(`.slot-load[data-slot="${i}"]`);
+        const exportBtn = document.querySelector(`.slot-export[data-slot="${i}"]`);
+        const importBtn = document.querySelector(`.slot-import[data-slot="${i}"]`);
         if (saveSlots[i]) {
             info.textContent = saveSlots[i].timestamp;
             info.classList.add('has-data');
             loadBtn.disabled = false;
+            exportBtn.disabled = false;
+            importBtn.disabled = true;
         } else {
             info.textContent = 'Empty';
             info.classList.remove('has-data');
             loadBtn.disabled = true;
+            exportBtn.disabled = true;
+            importBtn.disabled = false;
         }
     }
 }
@@ -603,6 +610,65 @@ document.querySelectorAll('.slot-save').forEach(btn => {
 
 document.querySelectorAll('.slot-load').forEach(btn => {
     btn.addEventListener('click', () => loadFromSlot(parseInt(btn.dataset.slot)));
+});
+
+// Export save state as JSON
+document.querySelectorAll('.slot-export').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const slot = parseInt(btn.dataset.slot);
+        const s = saveSlots[slot];
+        if (!s) return;
+        const b64 = btoa(String.fromCharCode(...s.data));
+        const json = JSON.stringify({ title: s.title, timestamp: s.timestamp, data: b64 }, null, 2);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        a.download = `rugb-save-${(s.title || 'unknown').replace(/[^a-zA-Z0-9]/g, '_')}-slot${slot}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+});
+
+// Import save state from JSON into an empty slot
+const savestateFileInput = document.getElementById('savestate-file');
+let importTargetSlot = null;
+
+document.querySelectorAll('.slot-import').forEach(btn => {
+    btn.addEventListener('click', () => {
+        importTargetSlot = parseInt(btn.dataset.slot);
+        savestateFileInput.click();
+    });
+});
+
+savestateFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || importTargetSlot === null) return;
+    const slot = importTargetSlot;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const imported = JSON.parse(reader.result);
+            if (!imported.data || !imported.title) {
+                showToast('Invalid save state file');
+                return;
+            }
+            const currentTitle = emu ? (emu.title() || '') : '';
+            if (imported.title !== currentTitle) {
+                showToast(`Wrong ROM: expected "${imported.title}", loaded "${currentTitle || 'none'}"`);
+                return;
+            }
+            const data = Uint8Array.from(atob(imported.data), c => c.charCodeAt(0));
+            const timestamp = imported.timestamp || new Date().toLocaleString();
+            saveSlots[slot] = { data, timestamp, title: imported.title };
+            const b64 = imported.data;
+            localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp, title: imported.title }));
+            updateSlotUI();
+            showToast(`Imported to Slot ${slot}`);
+        } catch {
+            showToast('Invalid save state file');
+        }
+    };
+    reader.readAsText(file);
+    savestateFileInput.value = '';
 });
 
 // Initialize slot UI
