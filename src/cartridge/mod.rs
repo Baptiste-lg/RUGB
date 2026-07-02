@@ -1,6 +1,6 @@
-pub mod no_mbc;
 pub mod mbc1;
 pub mod mbc3;
+pub mod no_mbc;
 
 pub trait Cartridge {
     fn read(&self, addr: u16) -> u8;
@@ -25,7 +25,10 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
         _ => {
             // Fall back to NoMBC for unsupported mappers
             #[cfg(debug_assertions)]
-            eprintln!("Unsupported cartridge type 0x{:02X}, falling back to NoMBC", cart_type);
+            eprintln!(
+                "Unsupported cartridge type 0x{:02X}, falling back to NoMBC",
+                cart_type
+            );
             Box::new(no_mbc::NoMbc::new(data))
         }
     }

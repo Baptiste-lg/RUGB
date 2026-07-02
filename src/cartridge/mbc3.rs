@@ -28,9 +28,7 @@ impl Mbc3 {
 impl Cartridge for Mbc3 {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x3FFF => {
-                *self.rom.get(addr as usize).unwrap_or(&0xFF)
-            }
+            0x0000..=0x3FFF => *self.rom.get(addr as usize).unwrap_or(&0xFF),
             0x4000..=0x7FFF => {
                 let bank = self.rom_bank.max(1) as usize;
                 let offset = bank * 0x4000 + (addr as usize - 0x4000);
@@ -58,7 +56,9 @@ impl Cartridge for Mbc3 {
             }
             0x2000..=0x3FFF => {
                 self.rom_bank = val & 0x7F;
-                if self.rom_bank == 0 { self.rom_bank = 1; }
+                if self.rom_bank == 0 {
+                    self.rom_bank = 1;
+                }
             }
             0x4000..=0x5FFF => {
                 self.ram_bank = val;

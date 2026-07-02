@@ -1,9 +1,9 @@
-pub mod registers;
-mod opcodes;
 mod cb_opcodes;
+mod opcodes;
+pub mod registers;
 
-use registers::Registers;
 use crate::mmu::Mmu;
+use registers::Registers;
 
 pub struct Cpu {
     pub regs: Registers,
@@ -100,7 +100,8 @@ impl Cpu {
         self.regs.a = result as u8;
         self.regs.set_flag_z(self.regs.a == 0);
         self.regs.set_flag_n(false);
-        self.regs.set_flag_h((a & 0x0F) + (val & 0x0F) + carry > 0x0F);
+        self.regs
+            .set_flag_h((a & 0x0F) + (val & 0x0F) + carry > 0x0F);
         self.regs.set_flag_c(result > 0xFF);
     }
 
@@ -121,7 +122,8 @@ impl Cpu {
         self.regs.a = result as u8;
         self.regs.set_flag_z((result as u8) == 0);
         self.regs.set_flag_n(true);
-        self.regs.set_flag_h((a as i16 & 0x0F) - (val as i16 & 0x0F) - (carry as i16) < 0);
+        self.regs
+            .set_flag_h((a as i16 & 0x0F) - (val as i16 & 0x0F) - (carry as i16) < 0);
         self.regs.set_flag_c(result < 0);
     }
 
@@ -180,7 +182,8 @@ impl Cpu {
         let result = hl as u32 + val as u32;
         self.regs.set_hl(result as u16);
         self.regs.set_flag_n(false);
-        self.regs.set_flag_h((hl & 0x0FFF) + (val & 0x0FFF) > 0x0FFF);
+        self.regs
+            .set_flag_h((hl & 0x0FFF) + (val & 0x0FFF) > 0x0FFF);
         self.regs.set_flag_c(result > 0xFFFF);
     }
 

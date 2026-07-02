@@ -63,7 +63,11 @@ impl Cartridge for Mbc1 {
                 if !self.ram_enabled || self.ram.is_empty() {
                     return 0xFF;
                 }
-                let bank = if self.banking_mode == 1 { self.ram_bank as usize } else { 0 };
+                let bank = if self.banking_mode == 1 {
+                    self.ram_bank as usize
+                } else {
+                    0
+                };
                 let offset = bank * 0x2000 + (addr as usize - 0xA000);
                 *self.ram.get(offset).unwrap_or(&0xFF)
             }
@@ -78,7 +82,9 @@ impl Cartridge for Mbc1 {
             }
             0x2000..=0x3FFF => {
                 let mut bank = val & 0x1F;
-                if bank == 0 { bank = 1; } // Bank 0 is never mapped to 0x4000-0x7FFF
+                if bank == 0 {
+                    bank = 1;
+                } // Bank 0 is never mapped to 0x4000-0x7FFF
                 self.rom_bank = bank;
             }
             0x4000..=0x5FFF => {
@@ -91,7 +97,11 @@ impl Cartridge for Mbc1 {
                 if !self.ram_enabled || self.ram.is_empty() {
                     return;
                 }
-                let bank = if self.banking_mode == 1 { self.ram_bank as usize } else { 0 };
+                let bank = if self.banking_mode == 1 {
+                    self.ram_bank as usize
+                } else {
+                    0
+                };
                 let offset = bank * 0x2000 + (addr as usize - 0xA000);
                 if offset < self.ram.len() {
                     self.ram[offset] = val;

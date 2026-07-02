@@ -56,7 +56,11 @@ impl Cpu {
         self.cb_write_reg(reg_idx, result, mmu);
 
         // (HL) operations take 16 cycles, register ops take 8
-        if reg_idx == 6 { 16 } else { 8 }
+        if reg_idx == 6 {
+            16
+        } else {
+            8
+        }
     }
 
     fn cb_read_reg(&self, idx: u8, mmu: &Mmu) -> u8 {
