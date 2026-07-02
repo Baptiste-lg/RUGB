@@ -213,7 +213,7 @@ function applyPalette(imageData) {
 // --- Emulator lifecycle ---
 
 async function startEmulator(bytes) {
-    wasm = await init();
+    if (!wasm) wasm = await init();
     romBytes = bytes;
     emu = new WasmEmulator(new Uint8Array(bytes));
 
@@ -229,7 +229,7 @@ async function startEmulator(bytes) {
     initAudio();
 
     if (animationId) cancelAnimationFrame(animationId);
-    requestAnimationFrame(frame);
+    animationId = requestAnimationFrame(frame);
 }
 
 function frame() {
@@ -370,6 +370,8 @@ muteBtn.addEventListener('click', () => {
     if (muted && gains[0]) {
         gains[0].gain.value = 0;
         gains[1].gain.value = 0;
+    } else if (!muted) {
+        updateAudio();
     }
 });
 
@@ -398,7 +400,6 @@ document.querySelector(`.palette-btn[data-palette="${currentPalette}"]`)?.classL
 // --- Key remapping ---
 
 const ACTIONS = ['right', 'left', 'up', 'down', 'a', 'b', 'start', 'select'];
-const ALL_ACTIONS = [...ACTIONS, 'pause', 'mute', 'quicksave', 'quickload'];
 const ACTION_TO_BTN = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, start: 6, select: 7 };
 const DEFAULT_KEYS = {
     right: 'ArrowRight', left: 'ArrowLeft', up: 'ArrowUp', down: 'ArrowDown',
@@ -632,14 +633,21 @@ function doQuickLoad() {
     showToast('Quick Load');
 }
 
+function uint8ToBase64(data) {
+    let binary = '';
+    for (let i = 0; i < data.length; i++) {
+        binary += String.fromCharCode(data[i]);
+    }
+    return btoa(binary);
+}
+
 function saveToSlot(slot) {
     if (!emu) return;
     const data = emu.save_state();
     const timestamp = new Date().toLocaleString();
     const title = emu.title() || '';
     saveSlots[slot] = { data, timestamp, title };
-    // Store as base64 in localStorage
-    const b64 = btoa(String.fromCharCode(...data));
+    const b64 = uint8ToBase64(data);
     localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp, title }));
     updateSlotUI();
     showToast(`Saved to Slot ${slot}`);
@@ -697,7 +705,7 @@ document.querySelectorAll('.slot-export').forEach(btn => {
         const slot = parseInt(btn.dataset.slot);
         const s = saveSlots[slot];
         if (!s) return;
-        const b64 = btoa(String.fromCharCode(...s.data));
+        const b64 = uint8ToBase64(s.data);
         const json = JSON.stringify({ title: s.title, timestamp: s.timestamp, data: b64 }, null, 2);
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
