@@ -583,6 +583,7 @@ gbInputBtns.forEach(el => {
     };
     const release = (e) => {
         e.preventDefault();
+        if (!el.classList.contains('pressed')) return;
         el.classList.remove('pressed');
         if (emu) emu.set_button(gbBtn, false);
     };
