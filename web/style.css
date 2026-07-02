@@ -516,3 +516,107 @@ canvas.drag-over {
     background: #1a3a5c;
     border-color: #8be9fd;
 }
+
+/* --- Menu toggle row (checkbox) --- */
+
+.menu-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0.3rem 0;
+}
+
+.menu-toggle-row input[type="checkbox"] {
+    accent-color: #8be9fd;
+}
+
+/* --- Save states --- */
+
+.savestates-content {
+    max-width: 460px;
+}
+
+.save-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 1rem;
+}
+
+.save-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.4rem 0.6rem;
+    background: #0f1528;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+.slot-label {
+    font-size: 0.85rem;
+    color: #8be9fd;
+    min-width: 50px;
+}
+
+.slot-info {
+    flex: 1;
+    font-size: 0.75rem;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slot-info.has-data {
+    color: #8be9fd;
+}
+
+.save-slot button {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.save-slot button:hover:not(:disabled) {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+}
+
+.save-slot button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* --- Toast notification --- */
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #16213e;
+    border: 1px solid #8be9fd;
+    color: #8be9fd;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    z-index: 400;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

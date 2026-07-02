@@ -47,6 +47,14 @@
                 </div>
             </div>
             <hr>
+            <div class="menu-group">
+                <span>Quick Save / Load</span>
+                <label class="menu-toggle-row">
+                    <input type="checkbox" id="quicksave-toggle">
+                    Show quick save/load keys
+                </label>
+            </div>
+            <button id="savestates-btn" class="menu-item">Save States</button>
             <button id="remap-btn" class="menu-item">Remap Keys</button>
             <button id="help-btn" class="menu-item">Help (?)</button>
         </div>
@@ -141,6 +149,8 @@
                 <tr><td>B</td><td><button class="remap-btn" data-action="b">x</button></td></tr>
                 <tr><td>Start</td><td><button class="remap-btn" data-action="start">Enter</button></td></tr>
                 <tr><td>Select</td><td><button class="remap-btn" data-action="select">Shift</button></td></tr>
+                <tr class="remap-quicksave"><td>Quick Save</td><td><button class="remap-btn" data-action="quicksave">F5</button></td></tr>
+                <tr class="remap-quicksave"><td>Quick Load</td><td><button class="remap-btn" data-action="quickload">F8</button></td></tr>
             </table>
             <div class="remap-actions">
                 <button id="remap-export">Export</button>
@@ -151,6 +161,51 @@
             </div>
         </div>
     </div>
+
+    <!-- Save states overlay -->
+    <div id="savestates-overlay" class="overlay">
+        <div class="overlay-content savestates-content">
+            <h2>Save States</h2>
+            <div class="save-slots">
+                <div class="save-slot" data-slot="1">
+                    <span class="slot-label">Slot 1</span>
+                    <span class="slot-info" id="slot-info-1">Empty</span>
+                    <button class="slot-save" data-slot="1">Save</button>
+                    <button class="slot-load" data-slot="1" disabled>Load</button>
+                </div>
+                <div class="save-slot" data-slot="2">
+                    <span class="slot-label">Slot 2</span>
+                    <span class="slot-info" id="slot-info-2">Empty</span>
+                    <button class="slot-save" data-slot="2">Save</button>
+                    <button class="slot-load" data-slot="2" disabled>Load</button>
+                </div>
+                <div class="save-slot" data-slot="3">
+                    <span class="slot-label">Slot 3</span>
+                    <span class="slot-info" id="slot-info-3">Empty</span>
+                    <button class="slot-save" data-slot="3">Save</button>
+                    <button class="slot-load" data-slot="3" disabled>Load</button>
+                </div>
+                <div class="save-slot" data-slot="4">
+                    <span class="slot-label">Slot 4</span>
+                    <span class="slot-info" id="slot-info-4">Empty</span>
+                    <button class="slot-save" data-slot="4">Save</button>
+                    <button class="slot-load" data-slot="4" disabled>Load</button>
+                </div>
+                <div class="save-slot" data-slot="5">
+                    <span class="slot-label">Slot 5</span>
+                    <span class="slot-info" id="slot-info-5">Empty</span>
+                    <button class="slot-save" data-slot="5">Save</button>
+                    <button class="slot-load" data-slot="5" disabled>Load</button>
+                </div>
+            </div>
+            <div class="remap-actions">
+                <button id="savestates-close">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick save/load toast -->
+    <div id="toast" class="toast"></div>
 
     <script type="module" src="js/index.js"></script>
 </body>
