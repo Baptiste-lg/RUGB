@@ -346,11 +346,7 @@ impl Apu {
             // NR10 — CH1 sweep
             0xFF10 => {
                 0x80 | (self.ch1.sweep_period << 4)
-                    | if self.ch1.sweep_direction < 0 {
-                        0x08
-                    } else {
-                        0
-                    }
+                    | if self.ch1.sweep_direction < 0 { 0x08 } else { 0 }
                     | self.ch1.sweep_shift
             }
             // NR11 — CH1 duty + length (only duty readable)
@@ -358,43 +354,23 @@ impl Apu {
             // NR12 — CH1 volume envelope
             0xFF12 => {
                 (self.ch1.env_initial << 4)
-                    | if self.ch1.env_direction > 0 {
-                        0x08
-                    } else {
-                        0
-                    }
+                    | if self.ch1.env_direction > 0 { 0x08 } else { 0 }
                     | self.ch1.env_period
             }
             // NR13 — CH1 freq low (write-only)
             0xFF13 => 0xFF,
             // NR14 — CH1 freq high + trigger + length enable
-            0xFF14 => {
-                0xBF | if self.ch1.length_enabled {
-                    0x40
-                } else {
-                    0
-                }
-            }
+            0xFF14 => 0xBF | if self.ch1.length_enabled { 0x40 } else { 0 },
 
             // NR21-NR24 — CH2
             0xFF16 => (self.ch2.duty << 6) | 0x3F,
             0xFF17 => {
                 (self.ch2.env_initial << 4)
-                    | if self.ch2.env_direction > 0 {
-                        0x08
-                    } else {
-                        0
-                    }
+                    | if self.ch2.env_direction > 0 { 0x08 } else { 0 }
                     | self.ch2.env_period
             }
             0xFF18 => 0xFF,
-            0xFF19 => {
-                0xBF | if self.ch2.length_enabled {
-                    0x40
-                } else {
-                    0
-                }
-            }
+            0xFF19 => 0xBF | if self.ch2.length_enabled { 0x40 } else { 0 },
 
             // NR30-NR34 — CH3
             0xFF1A => {
@@ -407,41 +383,21 @@ impl Apu {
             0xFF1B => 0xFF,
             0xFF1C => (self.ch3.volume_shift << 5) | 0x9F,
             0xFF1D => 0xFF,
-            0xFF1E => {
-                0xBF | if self.ch3.length_enabled {
-                    0x40
-                } else {
-                    0
-                }
-            }
+            0xFF1E => 0xBF | if self.ch3.length_enabled { 0x40 } else { 0 },
 
             // NR41-NR44 — CH4
             0xFF20 => 0xFF,
             0xFF21 => {
                 (self.ch4.env_initial << 4)
-                    | if self.ch4.env_direction > 0 {
-                        0x08
-                    } else {
-                        0
-                    }
+                    | if self.ch4.env_direction > 0 { 0x08 } else { 0 }
                     | self.ch4.env_period
             }
             0xFF22 => {
                 (self.ch4.clock_shift << 4)
-                    | if self.ch4.width_mode {
-                        0x08
-                    } else {
-                        0
-                    }
+                    | if self.ch4.width_mode { 0x08 } else { 0 }
                     | self.ch4.divisor_code
             }
-            0xFF23 => {
-                0xBF | if self.ch4.length_enabled {
-                    0x40
-                } else {
-                    0
-                }
-            }
+            0xFF23 => 0xBF | if self.ch4.length_enabled { 0x40 } else { 0 },
 
             // NR50/NR51/NR52
             0xFF24 => self.nr50,
@@ -516,8 +472,7 @@ impl Apu {
                 self.ch1.freq_raw = (self.ch1.freq_raw & 0x700) | val as u16;
             }
             0xFF14 => {
-                self.ch1.freq_raw =
-                    (self.ch1.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
+                self.ch1.freq_raw = (self.ch1.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
                 self.ch1.length_enabled = val & 0x40 != 0;
                 if val & 0x80 != 0 {
                     self.ch1.trigger();
@@ -542,8 +497,7 @@ impl Apu {
                 self.ch2.freq_raw = (self.ch2.freq_raw & 0x700) | val as u16;
             }
             0xFF19 => {
-                self.ch2.freq_raw =
-                    (self.ch2.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
+                self.ch2.freq_raw = (self.ch2.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
                 self.ch2.length_enabled = val & 0x40 != 0;
                 if val & 0x80 != 0 {
                     self.ch2.trigger();
@@ -567,8 +521,7 @@ impl Apu {
                 self.ch3.freq_raw = (self.ch3.freq_raw & 0x700) | val as u16;
             }
             0xFF1E => {
-                self.ch3.freq_raw =
-                    (self.ch3.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
+                self.ch3.freq_raw = (self.ch3.freq_raw & 0xFF) | ((val as u16 & 0x07) << 8);
                 self.ch3.length_enabled = val & 0x40 != 0;
                 if val & 0x80 != 0 {
                     self.ch3.trigger();
