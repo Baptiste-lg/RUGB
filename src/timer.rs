@@ -3,6 +3,8 @@
 //! DIV is the upper 8 bits of a free-running 16-bit counter.
 //! TIMA increments at a rate selected by TAC and triggers an interrupt on overflow.
 
+use crate::savestate::*;
+
 pub struct Timer {
     /// Internal 16-bit counter. DIV register = upper 8 bits (bits 8-15).
     div_counter: u16,
@@ -60,6 +62,20 @@ impl Timer {
             3 => 1 << 7,
             _ => unreachable!(),
         }
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_u16(d, self.div_counter);
+        push_u8(d, self.tima);
+        push_u8(d, self.tma);
+        push_u8(d, self.tac);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.div_counter = pop_u16(d);
+        self.tima = pop_u8(d);
+        self.tma = pop_u8(d);
+        self.tac = pop_u8(d);
     }
 
     pub fn read(&self, addr: u16) -> u8 {
