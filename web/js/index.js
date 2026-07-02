@@ -547,7 +547,7 @@ document.addEventListener('keydown', (e) => {
     }
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
-        if (emu) emu.set_button(btn, true);
+        if (!e.repeat && emu) emu.set_button(btn, true);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.add('pressed');
         e.preventDefault();
     }
