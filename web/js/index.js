@@ -181,8 +181,84 @@ romInput.addEventListener('change', (e) => {
 
 function loadFile(file) {
     const reader = new FileReader();
-    reader.onload = () => startEmulator(reader.result);
+    reader.onload = async () => {
+        const buf = reader.result;
+        const view = new DataView(buf);
+        // ZIP magic: PK\x03\x04
+        if (view.byteLength >= 4 && view.getUint32(0, true) === 0x04034b50) {
+            const rom = await extractRomFromZip(buf);
+            if (rom) startEmulator(rom);
+        } else {
+            startEmulator(buf);
+        }
+    };
     reader.readAsArrayBuffer(file);
+}
+
+async function extractRomFromZip(buffer) {
+    const view = new DataView(buffer);
+    const bytes = new Uint8Array(buffer);
+
+    // Find End of Central Directory record (search backwards from end)
+    let eocd = -1;
+    for (let i = bytes.length - 22; i >= 0; i--) {
+        if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd === -1) { showToast('Invalid zip file'); return null; }
+
+    const entryCount = view.getUint16(eocd + 10, true);
+    const cdOffset = view.getUint32(eocd + 16, true);
+
+    // Walk central directory entries looking for a ROM file
+    let off = cdOffset;
+    for (let i = 0; i < entryCount; i++) {
+        if (view.getUint32(off, true) !== 0x02014b50) break;
+
+        const method = view.getUint16(off + 10, true);
+        const compSize = view.getUint32(off + 20, true);
+        const nameLen = view.getUint16(off + 28, true);
+        const extraLen = view.getUint16(off + 30, true);
+        const commentLen = view.getUint16(off + 32, true);
+        const localOff = view.getUint32(off + 42, true);
+        const name = new TextDecoder().decode(bytes.slice(off + 46, off + 46 + nameLen));
+
+        if (/\.(gb|gbc|bin)$/i.test(name)) {
+            // Read past the local file header to reach the raw data
+            const localNameLen = view.getUint16(localOff + 26, true);
+            const localExtraLen = view.getUint16(localOff + 28, true);
+            const dataOff = localOff + 30 + localNameLen + localExtraLen;
+            const compData = bytes.slice(dataOff, dataOff + compSize);
+
+            if (method === 0) return compData.buffer;          // stored
+            if (method === 8) return deflateRaw(compData);     // deflate
+            showToast('Unsupported zip compression');
+            return null;
+        }
+
+        off += 46 + nameLen + extraLen + commentLen;
+    }
+
+    showToast('No .gb ROM found in zip');
+    return null;
+}
+
+async function deflateRaw(compressed) {
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(compressed);
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+    }
+    const total = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(total);
+    let pos = 0;
+    for (const c of chunks) { result.set(c, pos); pos += c.length; }
+    return result.buffer;
 }
 
 // Drag & drop
