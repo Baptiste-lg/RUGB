@@ -34,6 +34,14 @@ impl NoMbc {
 }
 
 impl Cartridge for NoMbc {
+    fn save_state(&self, _data: &mut Vec<u8>) {
+        // ROM-only: no mutable state to save
+    }
+
+    fn load_state(&mut self, _data: &mut &[u8]) {
+        // ROM-only: nothing to restore
+    }
+
     fn read(&self, addr: u16) -> u8 {
         let idx = addr as usize;
         if idx < self.rom.len() {

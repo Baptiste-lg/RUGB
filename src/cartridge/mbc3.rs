@@ -1,4 +1,5 @@
 use super::Cartridge;
+use crate::savestate::*;
 
 /// MBC3 — used by Pokemon Gold/Silver/Crystal and other later titles.
 ///
@@ -26,6 +27,20 @@ impl Mbc3 {
 }
 
 impl Cartridge for Mbc3 {
+    fn save_state(&self, d: &mut Vec<u8>) {
+        push_bool(d, self.ram_enabled);
+        push_u8(d, self.rom_bank);
+        push_u8(d, self.ram_bank);
+        push_slice(d, &self.ram);
+    }
+
+    fn load_state(&mut self, d: &mut &[u8]) {
+        self.ram_enabled = pop_bool(d);
+        self.rom_bank = pop_u8(d);
+        self.ram_bank = pop_u8(d);
+        self.ram = pop_vec(d);
+    }
+
     fn read(&self, addr: u16) -> u8 {
         match addr {
             0x0000..=0x3FFF => *self.rom.get(addr as usize).unwrap_or(&0xFF),

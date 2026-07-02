@@ -6,6 +6,8 @@ pub trait Cartridge {
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, val: u8);
     fn title(&self) -> &str;
+    fn save_state(&self, data: &mut Vec<u8>);
+    fn load_state(&mut self, data: &mut &[u8]);
 }
 
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
