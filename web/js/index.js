@@ -24,11 +24,6 @@ const gameboy = document.querySelector('.gameboy');
 
 // --- Side menu toggle ---
 menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
-document.addEventListener('click', (e) => {
-    if (sideMenu.classList.contains('open') && !sideMenu.contains(e.target) && e.target !== menuToggle) {
-        sideMenu.classList.remove('open');
-    }
-});
 
 // --- View toggle (Game Boy / Screen Only) ---
 const savedView = localStorage.getItem('rugb-view') || 'gb';
@@ -456,6 +451,7 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
+    if (e.key === 'Escape') { sideMenu.classList.toggle('open'); return; }
     if (e.key === keyMap.pause) { pauseBtn.click(); return; }
     if (e.key === keyMap.mute) { muteBtn.click(); return; }
     if (e.key === '1') { document.querySelector('.speed-btn[data-speed="1"]')?.click(); return; }
