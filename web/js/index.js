@@ -242,6 +242,9 @@ const remapOverlay = document.getElementById('remap-overlay');
 const remapBtns = document.querySelectorAll('.remap-btn');
 const remapResetBtn = document.getElementById('remap-reset');
 const remapCloseBtn = document.getElementById('remap-close');
+const remapExportBtn = document.getElementById('remap-export');
+const remapImportBtn = document.getElementById('remap-import');
+const remapFileInput = document.getElementById('remap-file');
 const remapBtn = document.getElementById('remap-btn');
 let remapListening = null;
 
@@ -268,6 +271,36 @@ remapResetBtn.addEventListener('click', () => {
     saveKeyMap();
     BUTTON_MAP = buildButtonMap();
     updateRemapButtons();
+});
+
+remapExportBtn.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(keyMap, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rugb-keybinds.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+remapImportBtn.addEventListener('click', () => remapFileInput.click());
+
+remapFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const imported = JSON.parse(reader.result);
+            keyMap = { ...DEFAULT_KEYS, ...imported };
+            saveKeyMap();
+            BUTTON_MAP = buildButtonMap();
+            updateRemapButtons();
+        } catch {
+            alert('Invalid keybinds file');
+        }
+    };
+    reader.readAsText(file);
+    remapFileInput.value = '';
 });
 
 remapBtns.forEach(btn => {
