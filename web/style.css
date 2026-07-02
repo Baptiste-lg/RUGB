@@ -142,7 +142,7 @@ body {
     position: relative;
     background: #c8c4be;
     border-radius: 16px 16px 16px 80px;
-    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.1);
+    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.07) calc(var(--gb-w) * 0.22);
     box-shadow:
         6px 10px 30px rgba(0, 0, 0, 0.7),
         inset 0 2px 0 rgba(255,255,255,0.25),
@@ -186,7 +186,8 @@ body {
     margin: 0;
 }
 
-.gameboy.screen-only .gb-bezel-top { display: none; }
+.gameboy.screen-only .gb-screen-subtitle { display: none; }
+.gameboy.screen-only .gb-battery { display: none; }
 .gameboy.screen-only .gb-screen-frame { border: none; padding: 0; background: none; }
 .gameboy.screen-only .gb-name-label { display: none; }
 .gameboy.screen-only .gb-controls { display: none; }
@@ -198,29 +199,25 @@ body {
 /* --- Screen bezel --- */
 
 .gb-bezel {
+    position: relative;
     background: #8b8986;
     border-radius: 12px 12px 40px 12px;
-    padding: calc(var(--gb-w) * 0.025) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
+    padding: calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
+    padding-left: calc(var(--gb-w) * 0.09);
     margin-bottom: calc(var(--gb-w) * 0.012);
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
 }
 
-/* Bezel top area: battery LED left, dot matrix lines right */
-
-.gb-bezel-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: calc(var(--gb-w) * 0.02);
-    padding: 0 calc(var(--gb-w) * 0.01);
-}
+/* Battery LED — left side of bezel */
 
 .gb-battery {
+    position: absolute;
+    left: calc(var(--gb-w) * 0.02);
+    top: calc(var(--gb-w) * 0.12);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: calc(var(--gb-w) * 0.004);
-    padding-top: calc(var(--gb-w) * 0.01);
 }
 
 .gb-battery-led {
@@ -238,28 +235,26 @@ body {
     letter-spacing: 0.05rem;
 }
 
-.gb-bezel-lines {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: calc(var(--gb-w) * 0.004);
-    padding-top: calc(var(--gb-w) * 0.006);
-}
-
-.gb-line {
-    width: calc(var(--gb-w) * 0.4);
-    height: 2px;
-}
-
-.gb-line-blue { background: #3535a0; }
-.gb-line-red { background: #a03545; }
+/* DOT MATRIX text with colored lines on each side */
 
 .gb-screen-subtitle {
-    font-size: calc(var(--gb-w) * 0.017);
+    display: flex;
+    align-items: center;
+    gap: calc(var(--gb-w) * 0.01);
+    margin-bottom: calc(var(--gb-w) * 0.015);
+    font-size: calc(var(--gb-w) * 0.013);
     font-weight: bold;
-    color: #e8e8e8;
-    letter-spacing: 0.08rem;
-    text-align: right;
+    color: #e0e0e0;
+    letter-spacing: 0.06rem;
+    white-space: nowrap;
+}
+
+.gb-screen-subtitle::before,
+.gb-screen-subtitle::after {
+    content: '';
+    flex: 1;
+    height: 3px;
+    background: linear-gradient(to bottom, #3535a0 0px, #3535a0 1px, transparent 1px, transparent 2px, #a03545 2px, #a03545 3px);
 }
 
 .gb-name-label {
@@ -431,20 +426,10 @@ canvas.drag-over {
 
 .gb-ab-area {
     flex-shrink: 0;
-    position: relative;
-    padding: calc(var(--gb-w) * 0.03);
-}
-
-/* Oval recess behind A/B buttons */
-.gb-ab-recess {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse 100% 80% at center, #b5b2ac 0%, #bab7b2 75%, transparent 76%);
-    border-radius: 50%;
+    padding-right: calc(var(--gb-w) * 0.02);
 }
 
 .gb-ab {
-    position: relative;
     display: flex;
     gap: calc(var(--gb-w) * 0.025);
     transform: rotate(-25deg);
@@ -530,20 +515,20 @@ canvas.drag-over {
 /* --- Speaker grille --- */
 
 .gb-speaker {
+    position: absolute;
+    bottom: calc(var(--gb-w) * 0.04);
+    right: calc(var(--gb-w) * 0.07);
     display: flex;
     flex-direction: column;
-    gap: calc(var(--gb-w) * 0.014);
-    align-items: flex-end;
-    padding-right: calc(var(--gb-w) * 0.06);
-    margin-top: calc(var(--gb-w) * 0.03);
+    gap: calc(var(--gb-w) * 0.013);
 }
 
 .gb-speaker-slot {
-    width: calc(var(--gb-w) * 0.15);
-    height: calc(var(--gb-w) * 0.008);
-    background: #a8a4a0;
-    border-radius: calc(var(--gb-w) * 0.004);
-    box-shadow: inset 0 2px 3px rgba(0,0,0,0.35);
+    width: calc(var(--gb-w) * 0.18);
+    height: calc(var(--gb-w) * 0.009);
+    background: #9a9690;
+    border-radius: calc(var(--gb-w) * 0.005);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.4);
     transform: rotate(-30deg);
 }
 
