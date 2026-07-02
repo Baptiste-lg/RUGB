@@ -137,35 +137,61 @@ body {
 /* ===================== Game Boy shell ===================== */
 
 .gameboy {
+    --gb-w: 480px;
+    width: var(--gb-w);
     background: #c8c4be;
     border-radius: 16px 16px 16px 80px;
-    padding: 20px 24px 30px;
-    width: 480px;
+    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.063);
     box-shadow: 4px 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.15);
     margin: 1rem 0 0.5rem;
+    resize: horizontal;
+    overflow: hidden;
+    min-width: 280px;
+    max-width: 95vw;
 }
+
+/* Screen-only mode */
+.gameboy.screen-only {
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    resize: both;
+}
+
+.gameboy.screen-only .gb-bezel {
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.gameboy.screen-only .gb-screen-label { display: none; }
+.gameboy.screen-only .gb-screen-frame { border: none; padding: 0; background: none; }
+.gameboy.screen-only .gb-controls { display: none; }
+.gameboy.screen-only .gb-meta-area { display: none; }
 
 /* --- Screen bezel --- */
 
 .gb-bezel {
     background: #8b8986;
     border-radius: 12px 12px 40px 12px;
-    padding: 12px 20px 30px;
-    margin-bottom: 20px;
+    padding: calc(var(--gb-w) * 0.025) calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.063);
+    margin-bottom: calc(var(--gb-w) * 0.042);
 }
 
 .gb-screen-label {
-    font-size: 0.7rem;
+    font-size: calc(var(--gb-w) * 0.015);
     font-weight: bold;
     color: #555;
     letter-spacing: 0.15rem;
-    margin-bottom: 6px;
+    margin-bottom: calc(var(--gb-w) * 0.012);
     text-align: center;
 }
 
 .gb-screen-frame {
     background: #0f380f;
-    padding: 8px;
+    padding: calc(var(--gb-w) * 0.017);
     border-radius: 4px;
     border: 2px solid #555;
 }
@@ -191,24 +217,25 @@ canvas.drag-over {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 8px;
-    margin-bottom: 12px;
+    padding: 0 calc(var(--gb-w) * 0.017);
+    margin-bottom: calc(var(--gb-w) * 0.025);
 }
 
 /* --- D-pad --- */
 
 .gb-dpad-area {
-    width: 120px;
-    height: 120px;
+    width: calc(var(--gb-w) * 0.25);
+    height: calc(var(--gb-w) * 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .gb-dpad {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: calc(var(--gb-w) * 0.21);
+    height: calc(var(--gb-w) * 0.21);
 }
 
 .dpad-v, .dpad-h {
@@ -221,7 +248,7 @@ canvas.drag-over {
     left: 50%;
     top: 0;
     transform: translateX(-50%);
-    width: 34px;
+    width: calc(var(--gb-w) * 0.071);
     height: 100%;
 }
 
@@ -231,7 +258,7 @@ canvas.drag-over {
     left: 0;
     transform: translateY(-50%);
     width: 100%;
-    height: 34px;
+    height: calc(var(--gb-w) * 0.071);
 }
 
 .dpad-arm {
@@ -252,8 +279,8 @@ canvas.drag-over {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 34px;
-    height: 34px;
+    width: calc(var(--gb-w) * 0.071);
+    height: calc(var(--gb-w) * 0.071);
     background: #333;
     z-index: 1;
     pointer-events: none;
@@ -268,12 +295,12 @@ canvas.drag-over {
 
 .gb-ab-area {
     flex-shrink: 0;
-    padding-right: 10px;
+    padding-right: calc(var(--gb-w) * 0.02);
 }
 
 .gb-ab {
     display: flex;
-    gap: 12px;
+    gap: calc(var(--gb-w) * 0.025);
     transform: rotate(-25deg);
 }
 
@@ -281,12 +308,12 @@ canvas.drag-over {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: calc(var(--gb-w) * 0.008);
 }
 
 .gb-round-btn {
-    width: 52px;
-    height: 52px;
+    width: calc(var(--gb-w) * 0.108);
+    height: calc(var(--gb-w) * 0.108);
     border-radius: 50%;
     background: #8b2252;
     border: 2px solid #7a1e48;
@@ -297,7 +324,7 @@ canvas.drag-over {
 }
 
 .gb-btn-label {
-    font-size: 0.65rem;
+    font-size: calc(var(--gb-w) * 0.027);
     font-weight: bold;
     color: #666;
     text-transform: uppercase;
@@ -315,23 +342,23 @@ canvas.drag-over {
 
 .gb-meta-area {
     display: flex;
-    gap: 24px;
+    gap: calc(var(--gb-w) * 0.05);
     justify-content: center;
     transform: rotate(-25deg);
-    padding: 4px 0 8px;
+    padding: calc(var(--gb-w) * 0.008) 0 calc(var(--gb-w) * 0.017);
 }
 
 .gb-meta-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: calc(var(--gb-w) * 0.008);
 }
 
 .gb-pill-btn {
-    width: 48px;
-    height: 14px;
-    border-radius: 7px;
+    width: calc(var(--gb-w) * 0.1);
+    height: calc(var(--gb-w) * 0.029);
+    border-radius: calc(var(--gb-w) * 0.015);
     background: #777;
     border: 1px solid #666;
     cursor: pointer;
@@ -341,8 +368,8 @@ canvas.drag-over {
 }
 
 .gb-meta-label {
-    font-size: 0.45rem;
-    letter-spacing: 0.1rem;
+    font-size: calc(var(--gb-w) * 0.019);
+    letter-spacing: 0.08rem;
     color: #777;
     text-transform: uppercase;
     font-weight: bold;
@@ -488,36 +515,4 @@ canvas.drag-over {
 .remap-actions button:hover {
     background: #1a3a5c;
     border-color: #8be9fd;
-}
-
-/* ===================== Responsive ===================== */
-
-@media (max-width: 520px) {
-    .gameboy {
-        width: 98vw;
-        padding: 14px 14px 24px;
-        border-radius: 12px 12px 12px 50px;
-    }
-    .gb-bezel {
-        padding: 8px 12px 20px;
-    }
-    .gb-dpad-area {
-        width: 90px;
-        height: 90px;
-    }
-    .gb-dpad {
-        width: 80px;
-        height: 80px;
-    }
-    .dpad-v { width: 28px; }
-    .dpad-h { height: 28px; }
-    .dpad-center { width: 28px; height: 28px; }
-    .gb-round-btn {
-        width: 42px;
-        height: 42px;
-    }
-    .gb-pill-btn {
-        width: 40px;
-        height: 12px;
-    }
 }

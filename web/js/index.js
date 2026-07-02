@@ -20,6 +20,9 @@ const helpOverlay = document.getElementById('help-overlay');
 const menuToggle = document.getElementById('menu-toggle');
 const sideMenu = document.getElementById('side-menu');
 const helpBtn = document.getElementById('help-btn');
+const viewGbBtn = document.getElementById('view-gb');
+const viewScreenBtn = document.getElementById('view-screen');
+const gameboy = document.querySelector('.gameboy');
 
 // --- Side menu toggle ---
 menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
@@ -32,6 +35,37 @@ helpBtn.addEventListener('click', () => {
     sideMenu.classList.remove('open');
     helpOverlay.classList.add('visible');
 });
+
+// --- View toggle (Game Boy / Screen Only) ---
+const savedView = localStorage.getItem('rugb-view') || 'gb';
+if (savedView === 'screen') {
+    gameboy.classList.add('screen-only');
+    viewGbBtn.classList.remove('active');
+    viewScreenBtn.classList.add('active');
+}
+
+viewGbBtn.addEventListener('click', () => {
+    gameboy.classList.remove('screen-only');
+    viewGbBtn.classList.add('active');
+    viewScreenBtn.classList.remove('active');
+    localStorage.setItem('rugb-view', 'gb');
+});
+
+viewScreenBtn.addEventListener('click', () => {
+    gameboy.classList.add('screen-only');
+    viewScreenBtn.classList.add('active');
+    viewGbBtn.classList.remove('active');
+    localStorage.setItem('rugb-view', 'screen');
+});
+
+// --- Resize observer: keep --gb-w in sync with actual width ---
+const resizeObs = new ResizeObserver(entries => {
+    for (const entry of entries) {
+        const w = entry.contentRect.width;
+        gameboy.style.setProperty('--gb-w', w + 'px');
+    }
+});
+resizeObs.observe(gameboy);
 
 // --- Audio setup ---
 
