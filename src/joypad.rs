@@ -22,8 +22,14 @@ pub struct Joypad {
 impl Joypad {
     pub fn new() -> Self {
         Joypad {
-            right: false, left: false, up: false, down: false,
-            a: false, b: false, select: false, start: false,
+            right: false,
+            left: false,
+            up: false,
+            down: false,
+            a: false,
+            b: false,
+            select: false,
+            start: false,
             select_bits: 0x30,
         }
     }
@@ -68,18 +74,34 @@ impl Joypad {
 
         if self.select_bits & 0x10 == 0 {
             // D-pad selected
-            if self.right  { result &= !0x01; }
-            if self.left   { result &= !0x02; }
-            if self.up     { result &= !0x04; }
-            if self.down   { result &= !0x08; }
+            if self.right {
+                result &= !0x01;
+            }
+            if self.left {
+                result &= !0x02;
+            }
+            if self.up {
+                result &= !0x04;
+            }
+            if self.down {
+                result &= !0x08;
+            }
         }
 
         if self.select_bits & 0x20 == 0 {
             // Action buttons selected
-            if self.a      { result &= !0x01; }
-            if self.b      { result &= !0x02; }
-            if self.select { result &= !0x04; }
-            if self.start  { result &= !0x08; }
+            if self.a {
+                result &= !0x01;
+            }
+            if self.b {
+                result &= !0x02;
+            }
+            if self.select {
+                result &= !0x04;
+            }
+            if self.start {
+                result &= !0x08;
+            }
         }
 
         result

@@ -1,15 +1,15 @@
+mod apu;
+mod cartridge;
 mod cpu;
+mod interrupt;
+mod joypad;
 mod mmu;
 mod ppu;
-mod apu;
 mod timer;
-mod joypad;
-mod cartridge;
-mod interrupt;
 
 use cpu::Cpu;
-use mmu::Mmu;
 use interrupt::handle_interrupts;
+use mmu::Mmu;
 
 use wasm_bindgen::prelude::*;
 
@@ -37,8 +37,12 @@ impl Emulator {
     pub fn step(&mut self) -> u32 {
         let interrupt_cycles = handle_interrupts(&mut self.cpu, &mut self.mmu);
         if interrupt_cycles > 0 {
-            self.mmu.ppu.tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
-            self.mmu.timer.tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
+            self.mmu
+                .ppu
+                .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
+            self.mmu
+                .timer
+                .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
             self.mmu.apu.tick(interrupt_cycles);
             return interrupt_cycles;
         }
@@ -87,7 +91,10 @@ impl WasmEmulator {
     }
 
     pub fn set_button(&mut self, button: u8, pressed: bool) {
-        self.emu.mmu.joypad.set_button(button, pressed, &mut self.emu.mmu.interrupt_flag);
+        self.emu
+            .mmu
+            .joypad
+            .set_button(button, pressed, &mut self.emu.mmu.interrupt_flag);
     }
 
     pub fn title(&self) -> String {
@@ -109,14 +116,12 @@ impl WasmEmulator {
         match ch {
             1 if self.emu.mmu.apu.ch1.enabled => self.emu.mmu.apu.ch1.volume as f64 / 15.0,
             2 if self.emu.mmu.apu.ch2.enabled => self.emu.mmu.apu.ch2.volume as f64 / 15.0,
-            3 if self.emu.mmu.apu.ch3.enabled => {
-                match self.emu.mmu.apu.ch3.volume_shift {
-                    1 => 1.0,
-                    2 => 0.5,
-                    3 => 0.25,
-                    _ => 0.0,
-                }
-            }
+            3 if self.emu.mmu.apu.ch3.enabled => match self.emu.mmu.apu.ch3.volume_shift {
+                1 => 1.0,
+                2 => 0.5,
+                3 => 0.25,
+                _ => 0.0,
+            },
             4 if self.emu.mmu.apu.ch4.enabled => self.emu.mmu.apu.ch4.volume as f64 / 15.0,
             _ => 0.0,
         }

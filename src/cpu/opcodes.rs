@@ -410,8 +410,10 @@ impl Cpu {
                 self.regs.set_flag_z(false);
                 self.regs.set_flag_n(false);
                 // H and C are computed on the unsigned low-byte addition
-                self.regs.set_flag_h((sp & 0x0F) + (offset as u16 & 0x0F) > 0x0F);
-                self.regs.set_flag_c((sp & 0xFF) + (offset as u16 & 0xFF) > 0xFF);
+                self.regs
+                    .set_flag_h((sp & 0x0F) + (offset as u16 & 0x0F) > 0x0F);
+                self.regs
+                    .set_flag_c((sp & 0xFF) + (offset as u16 & 0xFF) > 0xFF);
                 12
             }
 
@@ -422,18 +424,29 @@ impl Cpu {
                 let result = sp.wrapping_add(offset as u16);
                 self.regs.set_flag_z(false);
                 self.regs.set_flag_n(false);
-                self.regs.set_flag_h((sp & 0x0F) + (offset as u16 & 0x0F) > 0x0F);
-                self.regs.set_flag_c((sp & 0xFF) + (offset as u16 & 0xFF) > 0xFF);
+                self.regs
+                    .set_flag_h((sp & 0x0F) + (offset as u16 & 0x0F) > 0x0F);
+                self.regs
+                    .set_flag_c((sp & 0xFF) + (offset as u16 & 0xFF) > 0xFF);
                 self.regs.sp = result;
                 16
             }
 
             // --- DI / EI ---
-            0xF3 => { self.ime = false; 4 }
-            0xFB => { self.ime_scheduled = true; 4 }
+            0xF3 => {
+                self.ime = false;
+                4
+            }
+            0xFB => {
+                self.ime_scheduled = true;
+                4
+            }
 
             // --- STOP ---
-            0x10 => { let _ = self.fetch_byte(mmu); 4 }
+            0x10 => {
+                let _ = self.fetch_byte(mmu);
+                4
+            }
 
             // --- CB prefix ---
             0xCB => {
@@ -445,7 +458,11 @@ impl Cpu {
             // Treat them as NOP to keep the emulator running.
             0xD3 | 0xDB | 0xDD | 0xE3 | 0xE4 | 0xEB | 0xEC | 0xED | 0xF4 | 0xFC | 0xFD => {
                 #[cfg(debug_assertions)]
-                eprintln!("Illegal opcode: 0x{:02X} at PC=0x{:04X}", opcode, self.regs.pc.wrapping_sub(1));
+                eprintln!(
+                    "Illegal opcode: 0x{:02X} at PC=0x{:04X}",
+                    opcode,
+                    self.regs.pc.wrapping_sub(1)
+                );
                 4
             }
         }

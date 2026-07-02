@@ -1,8 +1,8 @@
+use crate::apu::Apu;
 use crate::cartridge::{self, Cartridge};
+use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::timer::Timer;
-use crate::joypad::Joypad;
-use crate::apu::Apu;
 
 pub struct Mmu {
     cartridge: Box<dyn Cartridge>,
