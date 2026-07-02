@@ -10,6 +10,8 @@
 //!   Steps 2,6     — frequency sweep (CH1 only)
 //!   Step 7        — volume envelope (CH1, CH2, CH4)
 
+use crate::savestate::*;
+
 pub struct Apu {
     pub enabled: bool,
     pub ch1: SquareChannel,
@@ -186,6 +188,46 @@ impl SquareChannel {
         }
     }
 
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_bool(d, self.enabled);
+        push_u8(d, self.duty);
+        push_u8(d, self.volume);
+        push_u16(d, self.freq_raw);
+        push_u16(d, self.length_counter);
+        push_bool(d, self.length_enabled);
+        push_u8(d, self.env_initial);
+        push_i8(d, self.env_direction);
+        push_u8(d, self.env_period);
+        push_u8(d, self.env_timer);
+        push_u8(d, self.sweep_period);
+        push_i8(d, self.sweep_direction);
+        push_u8(d, self.sweep_shift);
+        push_u8(d, self.sweep_timer);
+        push_bool(d, self.sweep_enabled);
+        push_u16(d, self.sweep_shadow);
+        push_bool(d, self.has_sweep);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.enabled = pop_bool(d);
+        self.duty = pop_u8(d);
+        self.volume = pop_u8(d);
+        self.freq_raw = pop_u16(d);
+        self.length_counter = pop_u16(d);
+        self.length_enabled = pop_bool(d);
+        self.env_initial = pop_u8(d);
+        self.env_direction = pop_i8(d);
+        self.env_period = pop_u8(d);
+        self.env_timer = pop_u8(d);
+        self.sweep_period = pop_u8(d);
+        self.sweep_direction = pop_i8(d);
+        self.sweep_shift = pop_u8(d);
+        self.sweep_timer = pop_u8(d);
+        self.sweep_enabled = pop_bool(d);
+        self.sweep_shadow = pop_u16(d);
+        self.has_sweep = pop_bool(d);
+    }
+
     /// Frequency in Hz for use by Web Audio oscillators
     pub fn frequency_hz(&self) -> f64 {
         if self.freq_raw >= 2048 {
@@ -221,6 +263,24 @@ impl WaveChannel {
                 self.enabled = false;
             }
         }
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_bool(d, self.enabled);
+        push_u8(d, self.volume_shift);
+        push_u16(d, self.freq_raw);
+        push_u16(d, self.length_counter);
+        push_bool(d, self.length_enabled);
+        push_bool(d, self.dac_enabled);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.enabled = pop_bool(d);
+        self.volume_shift = pop_u8(d);
+        self.freq_raw = pop_u16(d);
+        self.length_counter = pop_u16(d);
+        self.length_enabled = pop_bool(d);
+        self.dac_enabled = pop_bool(d);
     }
 
     pub fn frequency_hz(&self) -> f64 {
@@ -284,6 +344,34 @@ impl NoiseChannel {
             self.volume = new_vol as u8;
         }
     }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_bool(d, self.enabled);
+        push_u8(d, self.volume);
+        push_u16(d, self.length_counter);
+        push_bool(d, self.length_enabled);
+        push_u8(d, self.env_initial);
+        push_i8(d, self.env_direction);
+        push_u8(d, self.env_period);
+        push_u8(d, self.env_timer);
+        push_u8(d, self.clock_shift);
+        push_u8(d, self.divisor_code);
+        push_bool(d, self.width_mode);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.enabled = pop_bool(d);
+        self.volume = pop_u8(d);
+        self.length_counter = pop_u16(d);
+        self.length_enabled = pop_bool(d);
+        self.env_initial = pop_u8(d);
+        self.env_direction = pop_i8(d);
+        self.env_period = pop_u8(d);
+        self.env_timer = pop_u8(d);
+        self.clock_shift = pop_u8(d);
+        self.divisor_code = pop_u8(d);
+        self.width_mode = pop_bool(d);
+    }
 }
 
 impl Apu {
@@ -339,6 +427,33 @@ impl Apu {
             _ => {}
         }
         self.frame_step = (self.frame_step + 1) & 7;
+    }
+
+    pub fn save_state(&self, d: &mut Vec<u8>) {
+        push_bool(d, self.enabled);
+        self.ch1.save_state(d);
+        self.ch2.save_state(d);
+        self.ch3.save_state(d);
+        self.ch4.save_state(d);
+        push_u8(d, self.nr50);
+        push_u8(d, self.nr51);
+        push_u8(d, self.frame_step);
+        push_u32(d, self.frame_cycles);
+        d.extend_from_slice(&self.wave_ram);
+    }
+
+    pub fn load_state(&mut self, d: &mut &[u8]) {
+        self.enabled = pop_bool(d);
+        self.ch1.load_state(d);
+        self.ch2.load_state(d);
+        self.ch3.load_state(d);
+        self.ch4.load_state(d);
+        self.nr50 = pop_u8(d);
+        self.nr51 = pop_u8(d);
+        self.frame_step = pop_u8(d);
+        self.frame_cycles = pop_u32(d);
+        self.wave_ram.copy_from_slice(&d[..16]);
+        *d = &d[16..];
     }
 
     pub fn read(&self, addr: u16) -> u8 {
