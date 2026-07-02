@@ -57,6 +57,88 @@ const resizeObs = new ResizeObserver(entries => {
 });
 resizeObs.observe(gameboy);
 
+// --- Edge/corner resize ---
+const EDGE = 8; // px from edge to trigger resize cursor
+
+function getResizeEdge(e) {
+    const r = gameboy.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const onLeft = x < EDGE;
+    const onRight = x > r.width - EDGE;
+    const onTop = y < EDGE;
+    const onBottom = y > r.height - EDGE;
+    if (!onLeft && !onRight && !onTop && !onBottom) return null;
+    return { onLeft, onRight, onTop, onBottom };
+}
+
+function getCursorStyle(edge) {
+    if (!edge) return '';
+    const { onLeft, onRight, onTop, onBottom } = edge;
+    if ((onTop && onLeft) || (onBottom && onRight)) return 'nwse-resize';
+    if ((onTop && onRight) || (onBottom && onLeft)) return 'nesw-resize';
+    if (onLeft || onRight) return 'ew-resize';
+    if (onTop || onBottom) return 'ns-resize';
+    return '';
+}
+
+let resizeDrag = null;
+
+gameboy.addEventListener('mousemove', (e) => {
+    if (resizeDrag) return;
+    const edge = getResizeEdge(e);
+    gameboy.style.cursor = getCursorStyle(edge);
+});
+
+gameboy.addEventListener('mouseleave', () => {
+    if (!resizeDrag) gameboy.style.cursor = '';
+});
+
+gameboy.addEventListener('mousedown', (e) => {
+    const edge = getResizeEdge(e);
+    if (!edge) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = gameboy.offsetWidth;
+    const isScreenOnly = gameboy.classList.contains('screen-only');
+
+    const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        let newW = startW;
+        if (edge.onRight) newW = startW + dx;
+        else if (edge.onLeft) newW = startW - dx;
+        if (!isScreenOnly) {
+            // Game Boy mode: width only
+            newW = Math.max(280, Math.min(newW, window.innerWidth * 0.95));
+            gameboy.style.width = newW + 'px';
+        } else {
+            // Screen-only: free resize via width (height follows aspect ratio)
+            if (edge.onTop || edge.onBottom) {
+                const startH = gameboy.offsetHeight;
+                const dh = edge.onBottom ? dy : -dy;
+                const newH = Math.max(100, startH + dh);
+                // Convert height to width using 160:144 aspect
+                newW = newH * 160 / 144;
+            }
+            newW = Math.max(160, Math.min(newW, window.innerWidth * 0.95));
+            gameboy.style.width = newW + 'px';
+        }
+    };
+
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        resizeDrag = null;
+        gameboy.style.cursor = '';
+    };
+
+    resizeDrag = edge;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+});
+
 // --- Audio setup ---
 
 let audioCtx = null;

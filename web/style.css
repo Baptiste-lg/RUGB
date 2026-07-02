@@ -148,7 +148,6 @@ body {
         inset 0 2px 0 rgba(255,255,255,0.25),
         inset 0 -3px 6px rgba(0,0,0,0.12);
     margin: 1rem 0 0.5rem;
-    resize: horizontal;
     overflow: hidden;
     min-width: 280px;
     max-width: 95vw;
@@ -175,7 +174,6 @@ body {
     border-radius: 0;
     padding: 0;
     box-shadow: none;
-    resize: both;
 }
 .gameboy.screen-only::before { display: none; }
 
