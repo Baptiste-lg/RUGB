@@ -250,10 +250,12 @@ document.querySelector(`.palette-btn[data-palette="${currentPalette}"]`)?.classL
 // --- Key remapping ---
 
 const ACTIONS = ['right', 'left', 'up', 'down', 'a', 'b', 'start', 'select'];
+const ALL_ACTIONS = [...ACTIONS, 'quicksave', 'quickload'];
 const ACTION_TO_BTN = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, start: 6, select: 7 };
 const DEFAULT_KEYS = {
     right: 'ArrowRight', left: 'ArrowLeft', up: 'ArrowUp', down: 'ArrowDown',
     a: 'z', b: 'x', start: 'Enter', select: 'Shift',
+    quicksave: 'F5', quickload: 'F8',
 };
 
 function loadKeyMap() {
@@ -389,6 +391,11 @@ document.addEventListener('keydown', (e) => {
     if (e.key === '1') { document.querySelector('.speed-btn[data-speed="1"]')?.click(); return; }
     if (e.key === '2') { document.querySelector('.speed-btn[data-speed="2"]')?.click(); return; }
     if (e.key === '4') { document.querySelector('.speed-btn[data-speed="4"]')?.click(); return; }
+    // Quick save/load
+    if (quicksaveEnabled && emu) {
+        if (e.key === keyMap.quicksave) { e.preventDefault(); doQuickSave(); return; }
+        if (e.key === keyMap.quickload) { e.preventDefault(); doQuickLoad(); return; }
+    }
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined && emu) {
         emu.set_button(btn, true);
@@ -437,5 +444,108 @@ gbInputBtns.forEach(el => {
     el.addEventListener('touchend', release);
     el.addEventListener('touchcancel', release);
 });
+
+// --- Save States ---
+
+const savestatesBtn = document.getElementById('savestates-btn');
+const savestatesOverlay = document.getElementById('savestates-overlay');
+const savestatesClose = document.getElementById('savestates-close');
+const quicksaveToggle = document.getElementById('quicksave-toggle');
+const toast = document.getElementById('toast');
+
+let quicksaveEnabled = localStorage.getItem('rugb-quicksave') === 'true';
+quicksaveToggle.checked = quicksaveEnabled;
+
+let quickSaveData = null;
+const saveSlots = {}; // slot number -> { data: Uint8Array, timestamp: string }
+
+// Load saved slots from localStorage
+for (let i = 1; i <= 5; i++) {
+    const stored = localStorage.getItem(`rugb-slot-${i}`);
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored);
+            saveSlots[i] = { data: Uint8Array.from(atob(parsed.data), c => c.charCodeAt(0)), timestamp: parsed.timestamp };
+        } catch {}
+    }
+}
+
+function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1500);
+}
+
+function doQuickSave() {
+    if (!emu) return;
+    quickSaveData = emu.save_state();
+    showToast('Quick Save');
+}
+
+function doQuickLoad() {
+    if (!emu || !quickSaveData) { showToast('No quick save'); return; }
+    emu.load_state(quickSaveData);
+    showToast('Quick Load');
+}
+
+function saveToSlot(slot) {
+    if (!emu) return;
+    const data = emu.save_state();
+    const timestamp = new Date().toLocaleString();
+    saveSlots[slot] = { data, timestamp };
+    // Store as base64 in localStorage
+    const b64 = btoa(String.fromCharCode(...data));
+    localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp }));
+    updateSlotUI();
+    showToast(`Saved to Slot ${slot}`);
+}
+
+function loadFromSlot(slot) {
+    if (!emu || !saveSlots[slot]) return;
+    emu.load_state(saveSlots[slot].data);
+    showToast(`Loaded Slot ${slot}`);
+}
+
+function updateSlotUI() {
+    for (let i = 1; i <= 5; i++) {
+        const info = document.getElementById(`slot-info-${i}`);
+        const loadBtn = document.querySelector(`.slot-load[data-slot="${i}"]`);
+        if (saveSlots[i]) {
+            info.textContent = saveSlots[i].timestamp;
+            info.classList.add('has-data');
+            loadBtn.disabled = false;
+        } else {
+            info.textContent = 'Empty';
+            info.classList.remove('has-data');
+            loadBtn.disabled = true;
+        }
+    }
+}
+
+quicksaveToggle.addEventListener('change', () => {
+    quicksaveEnabled = quicksaveToggle.checked;
+    localStorage.setItem('rugb-quicksave', quicksaveEnabled);
+});
+
+savestatesBtn.addEventListener('click', () => {
+    sideMenu.classList.remove('open');
+    updateSlotUI();
+    savestatesOverlay.classList.add('visible');
+});
+
+savestatesClose.addEventListener('click', () => {
+    savestatesOverlay.classList.remove('visible');
+});
+
+document.querySelectorAll('.slot-save').forEach(btn => {
+    btn.addEventListener('click', () => saveToSlot(parseInt(btn.dataset.slot)));
+});
+
+document.querySelectorAll('.slot-load').forEach(btn => {
+    btn.addEventListener('click', () => loadFromSlot(parseInt(btn.dataset.slot)));
+});
+
+// Initialize slot UI
+updateSlotUI();
 
 console.log('RUGB ready — load a ROM to start');
