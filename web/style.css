@@ -202,7 +202,7 @@ body {
     position: relative;
     background: #8b8986;
     border-radius: 12px 12px 40px 12px;
-    padding: calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
+    padding: calc(var(--gb-w) * 0.038) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.1);
     padding-left: calc(var(--gb-w) * 0.09);
     margin-bottom: calc(var(--gb-w) * 0.012);
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
@@ -212,8 +212,9 @@ body {
 
 .gb-battery {
     position: absolute;
-    left: calc(var(--gb-w) * 0.02);
-    top: calc(var(--gb-w) * 0.12);
+    left: calc(var(--gb-w) * 0.025);
+    top: 50%;
+    transform: translateY(-30%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -242,7 +243,7 @@ body {
     align-items: center;
     gap: calc(var(--gb-w) * 0.01);
     margin-bottom: calc(var(--gb-w) * 0.015);
-    font-size: calc(var(--gb-w) * 0.013);
+    font-size: calc(var(--gb-w) * 0.016);
     font-weight: bold;
     color: #e0e0e0;
     letter-spacing: 0.06rem;
@@ -516,20 +517,20 @@ canvas.drag-over {
 
 .gb-speaker {
     position: absolute;
-    bottom: calc(var(--gb-w) * 0.04);
-    right: calc(var(--gb-w) * 0.07);
+    bottom: calc(var(--gb-w) * 0.05);
+    right: calc(var(--gb-w) * 0.1);
     display: flex;
     flex-direction: column;
-    gap: calc(var(--gb-w) * 0.013);
+    gap: calc(var(--gb-w) * 0.015);
 }
 
 .gb-speaker-slot {
-    width: calc(var(--gb-w) * 0.18);
-    height: calc(var(--gb-w) * 0.009);
+    width: calc(var(--gb-w) * 0.22);
+    height: calc(var(--gb-w) * 0.01);
     background: #9a9690;
     border-radius: calc(var(--gb-w) * 0.005);
-    box-shadow: inset 0 2px 3px rgba(0,0,0,0.4);
-    transform: rotate(-30deg);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.45);
+    transform: rotate(-25deg);
 }
 
 /* ===================== Overlays ===================== */
