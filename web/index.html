@@ -63,7 +63,17 @@
 
         <!-- Screen bezel -->
         <div class="gb-bezel">
-            <div class="gb-screen-subtitle">DOT MATRIX WITH STEREO SOUND</div>
+            <div class="gb-bezel-top">
+                <div class="gb-battery">
+                    <div class="gb-battery-led"></div>
+                    <span class="gb-battery-label">BATTERY</span>
+                </div>
+                <div class="gb-bezel-lines">
+                    <div class="gb-line gb-line-blue"></div>
+                    <span class="gb-screen-subtitle">DOT MATRIX WITH STEREO SOUND</span>
+                    <div class="gb-line gb-line-red"></div>
+                </div>
+            </div>
             <div class="gb-screen-frame">
                 <canvas id="screen" width="160" height="144"></canvas>
             </div>
@@ -90,6 +100,7 @@
 
             <!-- A / B buttons -->
             <div class="gb-ab-area">
+                <div class="gb-ab-recess"></div>
                 <div class="gb-ab">
                     <div class="gb-ab-col">
                         <div class="gb-round-btn gb-input btn-b" data-btn="5"></div>

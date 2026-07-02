@@ -143,12 +143,30 @@ body {
     background: #c8c4be;
     border-radius: 16px 16px 16px 80px;
     padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.1);
-    box-shadow: 4px 8px 24px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.1);
+    box-shadow:
+        6px 10px 30px rgba(0, 0, 0, 0.7),
+        inset 0 2px 0 rgba(255,255,255,0.25),
+        inset 0 -3px 6px rgba(0,0,0,0.12);
     margin: 1rem 0 0.5rem;
     resize: horizontal;
     overflow: hidden;
     min-width: 280px;
     max-width: 95vw;
+}
+
+/* Top ridge / seam line */
+.gameboy::before {
+    content: '';
+    position: absolute;
+    top: calc(var(--gb-w) * 0.033);
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(to right,
+        transparent 5%,
+        rgba(0,0,0,0.08) 10%,
+        rgba(0,0,0,0.08) 90%,
+        transparent 95%);
 }
 
 /* Screen-only mode */
@@ -159,6 +177,7 @@ body {
     box-shadow: none;
     resize: both;
 }
+.gameboy.screen-only::before { display: none; }
 
 .gameboy.screen-only .gb-bezel {
     background: none;
@@ -167,7 +186,7 @@ body {
     margin: 0;
 }
 
-.gameboy.screen-only .gb-screen-subtitle { display: none; }
+.gameboy.screen-only .gb-bezel-top { display: none; }
 .gameboy.screen-only .gb-screen-frame { border: none; padding: 0; background: none; }
 .gameboy.screen-only .gb-name-label { display: none; }
 .gameboy.screen-only .gb-controls { display: none; }
@@ -181,17 +200,66 @@ body {
 .gb-bezel {
     background: #8b8986;
     border-radius: 12px 12px 40px 12px;
-    padding: calc(var(--gb-w) * 0.04) calc(var(--gb-w) * 0.06) calc(var(--gb-w) * 0.08);
+    padding: calc(var(--gb-w) * 0.025) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
     margin-bottom: calc(var(--gb-w) * 0.012);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
 }
 
-.gb-screen-subtitle {
-    font-size: calc(var(--gb-w) * 0.013);
+/* Bezel top area: battery LED left, dot matrix lines right */
+
+.gb-bezel-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: calc(var(--gb-w) * 0.02);
+    padding: 0 calc(var(--gb-w) * 0.01);
+}
+
+.gb-battery {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--gb-w) * 0.004);
+    padding-top: calc(var(--gb-w) * 0.01);
+}
+
+.gb-battery-led {
+    width: calc(var(--gb-w) * 0.013);
+    height: calc(var(--gb-w) * 0.013);
+    border-radius: 50%;
+    background: #c44;
+    box-shadow: 0 0 4px rgba(204, 68, 68, 0.6), inset 0 1px 1px rgba(255,255,255,0.3);
+}
+
+.gb-battery-label {
+    font-size: calc(var(--gb-w) * 0.01);
     font-weight: bold;
     color: #555;
-    letter-spacing: 0.1rem;
-    margin-bottom: calc(var(--gb-w) * 0.012);
-    text-align: center;
+    letter-spacing: 0.05rem;
+}
+
+.gb-bezel-lines {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: calc(var(--gb-w) * 0.004);
+    padding-top: calc(var(--gb-w) * 0.006);
+}
+
+.gb-line {
+    width: calc(var(--gb-w) * 0.4);
+    height: 2px;
+}
+
+.gb-line-blue { background: #3535a0; }
+.gb-line-red { background: #a03545; }
+
+.gb-screen-subtitle {
+    font-size: calc(var(--gb-w) * 0.017);
+    font-weight: bold;
+    color: #e8e8e8;
+    letter-spacing: 0.08rem;
+    text-align: right;
 }
 
 .gb-name-label {
@@ -220,7 +288,7 @@ body {
     height: calc(var(--gb-w) * 0.02);
     background: linear-gradient(to bottom, #aaa8a2, #9a9790);
     border-radius: 0 0 3px 3px;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.25), 0 2px 3px rgba(0,0,0,0.1);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.25), 0 2px 3px rgba(0,0,0,0.15);
 }
 
 .gb-power-label {
@@ -241,21 +309,22 @@ body {
     height: calc(var(--gb-w) * 0.1);
     background: linear-gradient(to right, #b5b2ac, #a8a5a0);
     border-radius: 0 0 0 4px;
-    box-shadow: inset 1px 0 2px rgba(0,0,0,0.15);
+    box-shadow: inset 1px 0 2px rgba(0,0,0,0.2);
     background-image: repeating-linear-gradient(
         to bottom,
         transparent,
         transparent calc(var(--gb-w) * 0.007),
-        rgba(0,0,0,0.15) calc(var(--gb-w) * 0.007),
-        rgba(0,0,0,0.15) calc(var(--gb-w) * 0.009)
+        rgba(0,0,0,0.18) calc(var(--gb-w) * 0.007),
+        rgba(0,0,0,0.18) calc(var(--gb-w) * 0.009)
     );
 }
 
 .gb-screen-frame {
     background: #0f380f;
-    padding: calc(var(--gb-w) * 0.017);
+    padding: calc(var(--gb-w) * 0.02);
     border-radius: 4px;
     border: 2px solid #555;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
 }
 
 canvas {
@@ -327,11 +396,11 @@ canvas.drag-over {
 
 .dpad-arm {
     flex: 1;
-    background: #333;
+    background: #2a2a2a;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, box-shadow 0.05s;
-    box-shadow: 0 2px 0 #1a1a1a, 0 3px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 3px 0 #111, 0 4px 6px rgba(0,0,0,0.4);
 }
 
 .dpad-up { border-radius: 4px 4px 0 0; }
@@ -346,29 +415,39 @@ canvas.drag-over {
     transform: translate(-50%, -50%);
     width: calc(var(--gb-w) * 0.071);
     height: calc(var(--gb-w) * 0.071);
-    background: #333;
+    background: #2a2a2a;
     z-index: 1;
     pointer-events: none;
     border-radius: 50%;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .dpad-arm.pressed {
     background: #444;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
 
 /* --- A / B buttons --- */
 
 .gb-ab-area {
     flex-shrink: 0;
-    padding-right: calc(var(--gb-w) * 0.02);
+    position: relative;
+    padding: calc(var(--gb-w) * 0.03);
+}
+
+/* Oval recess behind A/B buttons */
+.gb-ab-recess {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 100% 80% at center, #b5b2ac 0%, #bab7b2 75%, transparent 76%);
+    border-radius: 50%;
 }
 
 .gb-ab {
+    position: relative;
     display: flex;
     gap: calc(var(--gb-w) * 0.025);
-    align-items: flex-start;
+    transform: rotate(-25deg);
 }
 
 .gb-ab-col {
@@ -378,20 +457,16 @@ canvas.drag-over {
     gap: calc(var(--gb-w) * 0.008);
 }
 
-.gb-ab-col:first-child {
-    margin-top: calc(var(--gb-w) * 0.06);
-}
-
 .gb-round-btn {
     width: calc(var(--gb-w) * 0.108);
     height: calc(var(--gb-w) * 0.108);
     border-radius: 50%;
-    background: #92216a;
-    border: 2px solid #7a1c5a;
+    background: radial-gradient(circle at 35% 35%, #a82878, #92216a 50%, #7a1c5a);
+    border: 2px solid #6a1850;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, transform 0.05s, box-shadow 0.05s;
-    box-shadow: 0 4px 0 #5a1545, 0 5px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 5px 0 #4a1035, 0 6px 10px rgba(0, 0, 0, 0.4);
 }
 
 .gb-btn-label {
@@ -403,9 +478,9 @@ canvas.drag-over {
 }
 
 .gb-round-btn.pressed {
-    background: #6b1a52;
-    box-shadow: 0 1px 0 #5a1545, inset 0 3px 6px rgba(0, 0, 0, 0.4);
-    transform: translateY(3px);
+    background: radial-gradient(circle at 50% 60%, #7a1858, #6b1a52);
+    box-shadow: 0 1px 0 #4a1035, inset 0 4px 8px rgba(0, 0, 0, 0.5);
+    transform: translateY(4px);
 }
 
 /* --- Start / Select --- */
@@ -414,7 +489,7 @@ canvas.drag-over {
     display: flex;
     gap: calc(var(--gb-w) * 0.05);
     justify-content: center;
-    align-items: flex-start;
+    transform: rotate(-25deg);
     padding: calc(var(--gb-w) * 0.008) 0 calc(var(--gb-w) * 0.017);
 }
 
@@ -425,20 +500,16 @@ canvas.drag-over {
     gap: calc(var(--gb-w) * 0.008);
 }
 
-.gb-meta-col:first-child {
-    margin-top: calc(var(--gb-w) * 0.025);
-}
-
 .gb-pill-btn {
     width: calc(var(--gb-w) * 0.063);
     height: calc(var(--gb-w) * 0.025);
     border-radius: calc(var(--gb-w) * 0.015);
-    background: #777;
+    background: linear-gradient(to bottom, #888, #777);
     border: 1px solid #666;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, transform 0.05s;
-    box-shadow: 0 3px 0 #555, 0 3px 6px rgba(0,0,0,0.2);
+    box-shadow: 0 3px 0 #555, 0 4px 8px rgba(0,0,0,0.25);
 }
 
 .gb-meta-label {
@@ -451,8 +522,8 @@ canvas.drag-over {
 }
 
 .gb-pill-btn.pressed {
-    background: #555;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(to bottom, #666, #555);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
     transform: translateY(2px);
 }
 
@@ -461,19 +532,19 @@ canvas.drag-over {
 .gb-speaker {
     display: flex;
     flex-direction: column;
-    gap: calc(var(--gb-w) * 0.012);
+    gap: calc(var(--gb-w) * 0.014);
     align-items: flex-end;
-    padding-right: calc(var(--gb-w) * 0.08);
-    margin-top: calc(var(--gb-w) * 0.02);
+    padding-right: calc(var(--gb-w) * 0.06);
+    margin-top: calc(var(--gb-w) * 0.03);
 }
 
 .gb-speaker-slot {
-    width: calc(var(--gb-w) * 0.08);
-    height: calc(var(--gb-w) * 0.006);
+    width: calc(var(--gb-w) * 0.15);
+    height: calc(var(--gb-w) * 0.008);
     background: #a8a4a0;
-    border-radius: calc(var(--gb-w) * 0.003);
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
-    transform: rotate(-25deg);
+    border-radius: calc(var(--gb-w) * 0.004);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.35);
+    transform: rotate(-30deg);
 }
 
 /* ===================== Overlays ===================== */
