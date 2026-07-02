@@ -70,7 +70,7 @@ impl Joypad {
     }
 
     pub fn read(&self) -> u8 {
-        let mut result = self.select_bits | 0xC0; // Bits 6-7 always 1
+        let mut result = self.select_bits | 0xCF; // Bits 6-7 always 1, bits 0-3 start high (not pressed)
 
         if self.select_bits & 0x10 == 0 {
             // D-pad selected
