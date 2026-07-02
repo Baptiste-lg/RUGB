@@ -557,12 +557,6 @@ canvas.drag-over {
     width: 40%;
 }
 
-.close-hint {
-    margin-top: 1rem;
-    font-size: 0.75rem;
-    color: #666;
-}
-
 /* --- Remap --- */
 
 .remap-table {
