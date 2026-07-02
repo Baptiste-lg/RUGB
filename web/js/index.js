@@ -1,4 +1,4 @@
-import init, { WasmEmulator } from '../pkg/oxide_boy.js';
+import init, { WasmEmulator } from '../pkg/rugb.js';
 
 let emu = null;
 let animationId = null;
@@ -97,7 +97,7 @@ async function startEmulator(bytes) {
     emu = new WasmEmulator(new Uint8Array(bytes));
 
     const title = emu.title();
-    if (title) document.title = `OxideBoy — ${title}`;
+    if (title) document.title = `RUGB — ${title}`;
 
     pauseBtn.disabled = false;
     resetBtn.disabled = false;
@@ -198,14 +198,108 @@ paletteBtns.forEach(btn => {
 // Set initial active palette button
 document.querySelector(`.palette-btn[data-palette="${currentPalette}"]`)?.classList.add('active');
 
-// --- Keyboard ---
+// --- Key remapping ---
 
-const BUTTON_MAP = {
-    'ArrowRight': 0, 'ArrowLeft': 1, 'ArrowUp': 2, 'ArrowDown': 3,
-    'z': 4, 'x': 5, 'Enter': 6, 'Shift': 7,
+const ACTIONS = ['right', 'left', 'up', 'down', 'a', 'b', 'start', 'select'];
+const ACTION_TO_BTN = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, start: 6, select: 7 };
+const DEFAULT_KEYS = {
+    right: 'ArrowRight', left: 'ArrowLeft', up: 'ArrowUp', down: 'ArrowDown',
+    a: 'z', b: 'x', start: 'Enter', select: 'Shift',
 };
 
+function loadKeyMap() {
+    const saved = localStorage.getItem('rugb-keymap');
+    if (saved) {
+        try { return { ...DEFAULT_KEYS, ...JSON.parse(saved) }; } catch {}
+    }
+    return { ...DEFAULT_KEYS };
+}
+
+let keyMap = loadKeyMap();
+
+function saveKeyMap() {
+    localStorage.setItem('rugb-keymap', JSON.stringify(keyMap));
+}
+
+function buildButtonMap() {
+    const map = {};
+    for (const action of ACTIONS) {
+        map[keyMap[action]] = ACTION_TO_BTN[action];
+    }
+    return map;
+}
+
+let BUTTON_MAP = buildButtonMap();
+
+function keyDisplayName(key) {
+    const names = { ' ': 'Space', 'ArrowUp': '\u2191', 'ArrowDown': '\u2193', 'ArrowLeft': '\u2190', 'ArrowRight': '\u2192' };
+    return names[key] || key;
+}
+
+// --- Remap overlay ---
+
+const remapOverlay = document.getElementById('remap-overlay');
+const remapBtns = document.querySelectorAll('.remap-btn');
+const remapResetBtn = document.getElementById('remap-reset');
+const remapCloseBtn = document.getElementById('remap-close');
+const remapBtn = document.getElementById('remap-btn');
+let remapListening = null;
+
+function updateRemapButtons() {
+    remapBtns.forEach(btn => {
+        const action = btn.dataset.action;
+        btn.textContent = keyDisplayName(keyMap[action]);
+    });
+}
+
+remapBtn.addEventListener('click', () => {
+    updateRemapButtons();
+    remapOverlay.classList.add('visible');
+});
+
+remapCloseBtn.addEventListener('click', () => {
+    remapListening = null;
+    remapBtns.forEach(b => b.classList.remove('listening'));
+    remapOverlay.classList.remove('visible');
+});
+
+remapResetBtn.addEventListener('click', () => {
+    keyMap = { ...DEFAULT_KEYS };
+    saveKeyMap();
+    BUTTON_MAP = buildButtonMap();
+    updateRemapButtons();
+});
+
+remapBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        remapBtns.forEach(b => b.classList.remove('listening'));
+        btn.classList.add('listening');
+        btn.textContent = 'Press a key...';
+        remapListening = btn.dataset.action;
+    });
+});
+
+// --- Keyboard ---
+
 document.addEventListener('keydown', (e) => {
+    // Remap mode: capture the key for the selected action
+    if (remapListening) {
+        e.preventDefault();
+        if (e.key === 'Escape') {
+            remapBtns.forEach(b => b.classList.remove('listening'));
+            updateRemapButtons();
+            remapListening = null;
+            return;
+        }
+        keyMap[remapListening] = e.key;
+        saveKeyMap();
+        BUTTON_MAP = buildButtonMap();
+        remapBtns.forEach(b => b.classList.remove('listening'));
+        updateRemapButtons();
+        remapListening = null;
+        return;
+    }
+
     if (e.key === 'p') { pauseBtn.click(); return; }
     if (e.key === 'm') { muteBtn.click(); return; }
     if (e.key === '?') { helpOverlay.classList.toggle('visible'); return; }
@@ -220,6 +314,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => {
+    if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined && emu) {
         emu.set_button(btn, false);
@@ -241,4 +336,4 @@ document.querySelectorAll('.touch-btn').forEach(btn => {
     });
 });
 
-console.log('OxideBoy ready — load a ROM to start');
+console.log('RUGB ready — load a ROM to start');

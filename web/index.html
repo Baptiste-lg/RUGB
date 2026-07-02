@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OxideBoy</title>
+    <title>RUGB</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>OXIDE BOY</h1>
+        <h1>RUGB</h1>
         <canvas id="screen" width="160" height="144"></canvas>
 
         <div class="controls">
@@ -19,6 +19,7 @@
             <button id="pause-btn" disabled>Pause</button>
             <button id="reset-btn" disabled>Reset</button>
             <button id="mute-btn" disabled>Mute</button>
+            <button id="remap-btn">Remap</button>
         </div>
 
         <div class="options">
@@ -64,18 +65,39 @@
         <div id="help-overlay" class="overlay">
             <div class="overlay-content">
                 <h2>Keyboard Shortcuts</h2>
-                <table>
-                    <tr><td>Arrow keys</td><td>D-pad</td></tr>
-                    <tr><td>Z</td><td>A button</td></tr>
-                    <tr><td>X</td><td>B button</td></tr>
-                    <tr><td>Enter</td><td>Start</td></tr>
-                    <tr><td>Shift</td><td>Select</td></tr>
+                <table id="help-keybinds">
+                    <tr><td class="kb-right">Arrow keys</td><td>D-pad</td></tr>
+                    <tr><td class="kb-a">Z</td><td>A button</td></tr>
+                    <tr><td class="kb-b">X</td><td>B button</td></tr>
+                    <tr><td class="kb-start">Enter</td><td>Start</td></tr>
+                    <tr><td class="kb-select">Shift</td><td>Select</td></tr>
                     <tr><td>P</td><td>Pause / Resume</td></tr>
                     <tr><td>M</td><td>Mute / Unmute</td></tr>
                     <tr><td>1 / 2 / 4</td><td>Speed</td></tr>
                     <tr><td>?</td><td>Toggle this help</td></tr>
                 </table>
                 <p class="close-hint">Press ? to close</p>
+            </div>
+        </div>
+
+        <!-- Key remap overlay -->
+        <div id="remap-overlay" class="overlay">
+            <div class="overlay-content">
+                <h2>Remap Keys</h2>
+                <table class="remap-table">
+                    <tr><td>D-pad Right</td><td><button class="remap-btn" data-action="right">ArrowRight</button></td></tr>
+                    <tr><td>D-pad Left</td><td><button class="remap-btn" data-action="left">ArrowLeft</button></td></tr>
+                    <tr><td>D-pad Up</td><td><button class="remap-btn" data-action="up">ArrowUp</button></td></tr>
+                    <tr><td>D-pad Down</td><td><button class="remap-btn" data-action="down">ArrowDown</button></td></tr>
+                    <tr><td>A</td><td><button class="remap-btn" data-action="a">z</button></td></tr>
+                    <tr><td>B</td><td><button class="remap-btn" data-action="b">x</button></td></tr>
+                    <tr><td>Start</td><td><button class="remap-btn" data-action="start">Enter</button></td></tr>
+                    <tr><td>Select</td><td><button class="remap-btn" data-action="select">Shift</button></td></tr>
+                </table>
+                <div class="remap-actions">
+                    <button id="remap-reset">Reset defaults</button>
+                    <button id="remap-close">Done</button>
+                </div>
             </div>
         </div>
     </div>
