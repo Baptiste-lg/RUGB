@@ -175,9 +175,9 @@ function updateAudio() {
 // --- Palettes ---
 
 const PALETTES = {
-    green:  { name: 'green',  colors: ['#9bbc0f', '#8bac0f', '#306230', '#0f380f'] },
-    gray:   { name: 'gray',   colors: ['#ffffff', '#aaaaaa', '#555555', '#000000'] },
-    bw:     { name: 'bw',     colors: ['#ffffff', '#b0b0b0', '#404040', '#000000'] },
+    green:  { colors: ['#9bbc0f', '#8bac0f', '#306230', '#0f380f'] },
+    gray:   { colors: ['#ffffff', '#aaaaaa', '#555555', '#000000'] },
+    bw:     { colors: ['#ffffff', '#b0b0b0', '#404040', '#000000'] },
 };
 
 let currentPalette = localStorage.getItem('ob-palette') || 'gray';
