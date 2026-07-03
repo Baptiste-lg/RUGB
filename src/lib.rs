@@ -109,15 +109,16 @@ impl WasmEmulator {
         self.emu.mmu.cartridge_title()
     }
 
-    /// Returns channel state as [freq_hz, volume, enabled] for Web Audio.
-    /// ch: 1-4
-    pub fn channel_freq(&self, ch: u8) -> f64 {
-        match ch {
-            1 if self.emu.mmu.apu.ch1.enabled => self.emu.mmu.apu.ch1.frequency_hz(),
-            2 if self.emu.mmu.apu.ch2.enabled => self.emu.mmu.apu.ch2.frequency_hz(),
-            3 if self.emu.mmu.apu.ch3.enabled => self.emu.mmu.apu.ch3.frequency_hz(),
-            _ => 0.0,
-        }
+    pub fn audio_buffer_ptr(&self) -> *const f32 {
+        self.emu.mmu.apu.sample_buffer_ptr()
+    }
+
+    pub fn audio_buffer_len(&self) -> usize {
+        self.emu.mmu.apu.sample_buffer_len()
+    }
+
+    pub fn audio_buffer_drain(&mut self) {
+        self.emu.mmu.apu.drain_samples();
     }
 
     pub fn save_state(&self) -> Vec<u8> {
@@ -126,20 +127,5 @@ impl WasmEmulator {
 
     pub fn load_state(&mut self, data: &[u8]) {
         self.emu.load_state(data);
-    }
-
-    pub fn channel_volume(&self, ch: u8) -> f64 {
-        match ch {
-            1 if self.emu.mmu.apu.ch1.enabled => self.emu.mmu.apu.ch1.volume as f64 / 15.0,
-            2 if self.emu.mmu.apu.ch2.enabled => self.emu.mmu.apu.ch2.volume as f64 / 15.0,
-            3 if self.emu.mmu.apu.ch3.enabled => match self.emu.mmu.apu.ch3.volume_shift {
-                1 => 1.0,
-                2 => 0.5,
-                3 => 0.25,
-                _ => 0.0,
-            },
-            4 if self.emu.mmu.apu.ch4.enabled => self.emu.mmu.apu.ch4.volume as f64 / 15.0,
-            _ => 0.0,
-        }
     }
 }
