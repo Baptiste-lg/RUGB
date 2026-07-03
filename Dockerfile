@@ -3,7 +3,7 @@
 # Compiles the Rust source into a WASM binary using wasm-pack.
 # Specific version pinning ensures reproducible builds.
 # ============================================================
-FROM rust:1.83 AS builder
+FROM rust:1.88 AS builder
 
 # Install wasm-pack for building the WASM module
 RUN cargo install wasm-pack
