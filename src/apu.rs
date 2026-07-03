@@ -12,6 +12,19 @@
 
 use crate::savestate::*;
 
+const CPU_CLOCK: u32 = 4_194_304;
+const SAMPLE_RATE: u32 = 48_000;
+const MAX_BUFFER_SAMPLES: usize = 4096;
+
+const DUTY_TABLE: [[u8; 8]; 4] = [
+    [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
+    [1, 0, 0, 0, 0, 0, 0, 1], // 25%
+    [1, 0, 0, 0, 0, 1, 1, 1], // 50%
+    [0, 1, 1, 1, 1, 1, 1, 0], // 75%
+];
+
+const NOISE_DIVISORS: [u32; 8] = [8, 16, 32, 48, 64, 80, 96, 112];
+
 pub struct Apu {
     pub enabled: bool,
     pub ch1: SquareChannel,
@@ -28,6 +41,10 @@ pub struct Apu {
     frame_cycles: u32,
     /// Wave RAM (16 bytes at 0xFF30-0xFF3F), holds 32 4-bit samples
     wave_ram: [u8; 16],
+    /// Audio sample buffer (interleaved L/R f32 pairs)
+    pub sample_buffer: Vec<f32>,
+    /// Accumulator for sample timing
+    sample_clock: u32,
 }
 
 pub struct SquareChannel {
@@ -54,6 +71,10 @@ pub struct SquareChannel {
     sweep_enabled: bool,
     sweep_shadow: u16,
     has_sweep: bool,
+    /// Frequency timer — counts down each T-cycle, reloads from (2048 - freq_raw) * 4
+    freq_timer: u32,
+    /// Current position in the 8-step duty cycle pattern (0-7)
+    duty_position: u8,
 }
 
 pub struct WaveChannel {
@@ -63,6 +84,10 @@ pub struct WaveChannel {
     length_counter: u16,
     length_enabled: bool,
     dac_enabled: bool,
+    /// Frequency timer — counts down each T-cycle, reloads from (2048 - freq_raw) * 2
+    freq_timer: u32,
+    /// Current position in the 32-sample wave (0-31)
+    wave_position: u8,
 }
 
 pub struct NoiseChannel {
@@ -78,6 +103,10 @@ pub struct NoiseChannel {
     pub clock_shift: u8,
     pub divisor_code: u8,
     pub width_mode: bool, // false=15-bit LFSR, true=7-bit
+    /// Frequency timer — counts down each T-cycle
+    freq_timer: u32,
+    /// 15-bit Linear Feedback Shift Register
+    lfsr: u16,
 }
 
 impl SquareChannel {
@@ -100,6 +129,8 @@ impl SquareChannel {
             sweep_enabled: false,
             sweep_shadow: 0,
             has_sweep,
+            freq_timer: 0,
+            duty_position: 0,
         }
     }
 
@@ -114,6 +145,8 @@ impl SquareChannel {
         }
         self.volume = self.env_initial;
         self.env_timer = self.env_period;
+        self.freq_timer = (2048 - self.freq_raw as u32) * 4;
+        self.duty_position = 0;
         if self.has_sweep {
             self.sweep_shadow = self.freq_raw;
             self.sweep_timer = if self.sweep_period > 0 {
@@ -188,6 +221,25 @@ impl SquareChannel {
         }
     }
 
+    fn tick_freq(&mut self) {
+        if self.freq_timer > 0 {
+            self.freq_timer -= 1;
+        }
+        if self.freq_timer == 0 {
+            self.freq_timer = (2048 - self.freq_raw as u32) * 4;
+            self.duty_position = (self.duty_position + 1) & 7;
+        }
+    }
+
+    fn output(&self) -> f32 {
+        if !self.enabled || !self.dac_enabled() {
+            return 0.0;
+        }
+        let dac_input =
+            DUTY_TABLE[self.duty as usize][self.duty_position as usize] * self.volume;
+        dac_input as f32 / 7.5 - 1.0
+    }
+
     pub fn save_state(&self, d: &mut Vec<u8>) {
         push_bool(d, self.enabled);
         push_u8(d, self.duty);
@@ -206,6 +258,8 @@ impl SquareChannel {
         push_bool(d, self.sweep_enabled);
         push_u16(d, self.sweep_shadow);
         push_bool(d, self.has_sweep);
+        push_u32(d, self.freq_timer);
+        push_u8(d, self.duty_position);
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
@@ -226,14 +280,8 @@ impl SquareChannel {
         self.sweep_enabled = pop_bool(d);
         self.sweep_shadow = pop_u16(d);
         self.has_sweep = pop_bool(d);
-    }
-
-    /// Frequency in Hz for use by Web Audio oscillators
-    pub fn frequency_hz(&self) -> f64 {
-        if self.freq_raw >= 2048 {
-            return 0.0;
-        }
-        131072.0 / (2048.0 - self.freq_raw as f64)
+        self.freq_timer = pop_u32(d);
+        self.duty_position = pop_u8(d);
     }
 }
 
@@ -246,6 +294,8 @@ impl WaveChannel {
             length_counter: 0,
             length_enabled: false,
             dac_enabled: false,
+            freq_timer: 0,
+            wave_position: 0,
         }
     }
 
@@ -254,6 +304,8 @@ impl WaveChannel {
         if self.length_counter == 0 {
             self.length_counter = 256;
         }
+        self.freq_timer = (2048 - self.freq_raw as u32) * 2;
+        self.wave_position = 0;
     }
 
     fn clock_length(&mut self) {
@@ -265,6 +317,36 @@ impl WaveChannel {
         }
     }
 
+    fn tick_freq(&mut self) {
+        if self.freq_timer > 0 {
+            self.freq_timer -= 1;
+        }
+        if self.freq_timer == 0 {
+            self.freq_timer = (2048 - self.freq_raw as u32) * 2;
+            self.wave_position = (self.wave_position + 1) & 31;
+        }
+    }
+
+    fn output(&self, wave_ram: &[u8; 16]) -> f32 {
+        if !self.enabled || !self.dac_enabled {
+            return 0.0;
+        }
+        let byte = wave_ram[self.wave_position as usize / 2];
+        let sample = if self.wave_position & 1 == 0 {
+            byte >> 4
+        } else {
+            byte & 0x0F
+        };
+        let shifted = match self.volume_shift {
+            0 => 0,
+            1 => sample,
+            2 => sample >> 1,
+            3 => sample >> 2,
+            _ => 0,
+        };
+        shifted as f32 / 7.5 - 1.0
+    }
+
     pub fn save_state(&self, d: &mut Vec<u8>) {
         push_bool(d, self.enabled);
         push_u8(d, self.volume_shift);
@@ -272,6 +354,8 @@ impl WaveChannel {
         push_u16(d, self.length_counter);
         push_bool(d, self.length_enabled);
         push_bool(d, self.dac_enabled);
+        push_u32(d, self.freq_timer);
+        push_u8(d, self.wave_position);
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
@@ -281,13 +365,8 @@ impl WaveChannel {
         self.length_counter = pop_u16(d);
         self.length_enabled = pop_bool(d);
         self.dac_enabled = pop_bool(d);
-    }
-
-    pub fn frequency_hz(&self) -> f64 {
-        if self.freq_raw >= 2048 {
-            return 0.0;
-        }
-        65536.0 / (2048.0 - self.freq_raw as f64)
+        self.freq_timer = pop_u32(d);
+        self.wave_position = pop_u8(d);
     }
 }
 
@@ -305,6 +384,8 @@ impl NoiseChannel {
             clock_shift: 0,
             divisor_code: 0,
             width_mode: false,
+            freq_timer: 0,
+            lfsr: 0x7FFF,
         }
     }
 
@@ -319,6 +400,8 @@ impl NoiseChannel {
         }
         self.volume = self.env_initial;
         self.env_timer = self.env_period;
+        self.lfsr = 0x7FFF;
+        self.freq_timer = NOISE_DIVISORS[self.divisor_code as usize] << self.clock_shift;
     }
 
     fn clock_length(&mut self) {
@@ -345,6 +428,31 @@ impl NoiseChannel {
         }
     }
 
+    fn tick_freq(&mut self) {
+        if self.freq_timer > 0 {
+            self.freq_timer -= 1;
+        }
+        if self.freq_timer == 0 {
+            self.freq_timer = NOISE_DIVISORS[self.divisor_code as usize] << self.clock_shift;
+            // Clock the LFSR
+            let xor_bit = (self.lfsr & 1) ^ ((self.lfsr >> 1) & 1);
+            self.lfsr >>= 1;
+            self.lfsr |= xor_bit << 14;
+            if self.width_mode {
+                self.lfsr = (self.lfsr & !(1 << 6)) | (xor_bit << 6);
+            }
+        }
+    }
+
+    fn output(&self) -> f32 {
+        if !self.enabled || !self.dac_enabled() {
+            return 0.0;
+        }
+        let bit = (self.lfsr & 1) ^ 1; // inverted bit 0
+        let dac_input = bit as u8 * self.volume;
+        dac_input as f32 / 7.5 - 1.0
+    }
+
     pub fn save_state(&self, d: &mut Vec<u8>) {
         push_bool(d, self.enabled);
         push_u8(d, self.volume);
@@ -357,6 +465,8 @@ impl NoiseChannel {
         push_u8(d, self.clock_shift);
         push_u8(d, self.divisor_code);
         push_bool(d, self.width_mode);
+        push_u32(d, self.freq_timer);
+        push_u16(d, self.lfsr);
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
@@ -371,6 +481,8 @@ impl NoiseChannel {
         self.clock_shift = pop_u8(d);
         self.divisor_code = pop_u8(d);
         self.width_mode = pop_bool(d);
+        self.freq_timer = pop_u32(d);
+        self.lfsr = pop_u16(d);
     }
 }
 
@@ -387,20 +499,42 @@ impl Apu {
             frame_step: 0,
             frame_cycles: 0,
             wave_ram: [0; 16],
+            sample_buffer: Vec::with_capacity(MAX_BUFFER_SAMPLES * 2),
+            sample_clock: 0,
         }
     }
 
-    /// Advance frame sequencer. Called from the main emulation loop.
+    /// Advance APU by the given number of T-cycles. Generates audio samples.
     pub fn tick(&mut self, cycles: u32) {
-        if !self.enabled {
-            return;
-        }
+        for _ in 0..cycles {
+            if self.enabled {
+                // Frame sequencer ticks every 8192 T-cycles (512 Hz)
+                self.frame_cycles += 1;
+                if self.frame_cycles >= 8192 {
+                    self.frame_cycles = 0;
+                    self.clock_frame_sequencer();
+                }
 
-        self.frame_cycles += cycles;
-        // Frame sequencer ticks every 8192 T-cycles (512 Hz)
-        while self.frame_cycles >= 8192 {
-            self.frame_cycles -= 8192;
-            self.clock_frame_sequencer();
+                // Tick channel frequency timers
+                self.ch1.tick_freq();
+                self.ch2.tick_freq();
+                self.ch3.tick_freq();
+                self.ch4.tick_freq();
+            }
+
+            // Always generate samples at the target rate
+            self.sample_clock += SAMPLE_RATE;
+            if self.sample_clock >= CPU_CLOCK {
+                self.sample_clock -= CPU_CLOCK;
+                if self.sample_buffer.len() < MAX_BUFFER_SAMPLES * 2 {
+                    if self.enabled {
+                        self.generate_sample();
+                    } else {
+                        self.sample_buffer.push(0.0);
+                        self.sample_buffer.push(0.0);
+                    }
+                }
+            }
         }
     }
 
@@ -429,6 +563,50 @@ impl Apu {
         self.frame_step = (self.frame_step + 1) & 7;
     }
 
+    fn generate_sample(&mut self) {
+        let ch1_out = self.ch1.output();
+        let ch2_out = self.ch2.output();
+        let ch3_out = self.ch3.output(&self.wave_ram);
+        let ch4_out = self.ch4.output();
+
+        let left_vol = ((self.nr50 >> 4) & 7) as f32 + 1.0;
+        let right_vol = (self.nr50 & 7) as f32 + 1.0;
+
+        let mut left = 0.0f32;
+        let mut right = 0.0f32;
+
+        // NR51 panning: bits 7-4 = left ch4-ch1, bits 3-0 = right ch4-ch1
+        if self.nr51 & 0x10 != 0 { left += ch1_out; }
+        if self.nr51 & 0x20 != 0 { left += ch2_out; }
+        if self.nr51 & 0x40 != 0 { left += ch3_out; }
+        if self.nr51 & 0x80 != 0 { left += ch4_out; }
+
+        if self.nr51 & 0x01 != 0 { right += ch1_out; }
+        if self.nr51 & 0x02 != 0 { right += ch2_out; }
+        if self.nr51 & 0x04 != 0 { right += ch3_out; }
+        if self.nr51 & 0x08 != 0 { right += ch4_out; }
+
+        // Apply master volume, normalize to roughly -1.0..1.0
+        // Max per side: 4 channels * 1.0 amplitude * 8.0 master = 32.0
+        left *= left_vol / 32.0;
+        right *= right_vol / 32.0;
+
+        self.sample_buffer.push(left);
+        self.sample_buffer.push(right);
+    }
+
+    pub fn sample_buffer_ptr(&self) -> *const f32 {
+        self.sample_buffer.as_ptr()
+    }
+
+    pub fn sample_buffer_len(&self) -> usize {
+        self.sample_buffer.len()
+    }
+
+    pub fn drain_samples(&mut self) {
+        self.sample_buffer.clear();
+    }
+
     pub fn save_state(&self, d: &mut Vec<u8>) {
         push_bool(d, self.enabled);
         self.ch1.save_state(d);
@@ -440,6 +618,7 @@ impl Apu {
         push_u8(d, self.frame_step);
         push_u32(d, self.frame_cycles);
         d.extend_from_slice(&self.wave_ram);
+        push_u32(d, self.sample_clock);
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
@@ -454,6 +633,7 @@ impl Apu {
         self.frame_cycles = pop_u32(d);
         self.wave_ram.copy_from_slice(&d[..16]);
         *d = &d[16..];
+        self.sample_clock = pop_u32(d);
     }
 
     pub fn read(&self, addr: u16) -> u8 {
