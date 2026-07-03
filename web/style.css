@@ -140,32 +140,54 @@ body {
     --gb-w: 540px;
     width: var(--gb-w);
     position: relative;
-    background: #c8c4be;
-    border-radius: 16px 16px 16px 80px;
-    padding: calc(var(--gb-w) * 0.042) calc(var(--gb-w) * 0.07) calc(var(--gb-w) * 0.1);
+    background: linear-gradient(175deg, #d0ccc6 0%, #c8c4be 35%, #c0bcb4 100%);
+    border-radius: 10px 10px 10px 70px;
+    padding: calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.065) calc(var(--gb-w) * 0.14);
     box-shadow:
-        6px 10px 30px rgba(0, 0, 0, 0.7),
-        inset 0 2px 0 rgba(255,255,255,0.25),
-        inset 0 -3px 6px rgba(0,0,0,0.12);
+        5px 8px 25px rgba(0, 0, 0, 0.65),
+        inset 0 2px 0 rgba(255,255,255,0.3),
+        inset 0 -2px 4px rgba(0,0,0,0.08),
+        inset 2px 0 3px rgba(255,255,255,0.08),
+        inset -2px 0 3px rgba(0,0,0,0.04);
     margin: 1rem 0 0.5rem;
     overflow: hidden;
     min-width: 280px;
     max-width: 95vw;
 }
 
-/* Top ridge / seam line */
+/* Horizontal seam line across upper body */
 .gameboy::before {
     content: '';
     position: absolute;
-    top: calc(var(--gb-w) * 0.033);
+    top: calc(var(--gb-w) * 0.05);
     left: 0;
     right: 0;
     height: 2px;
     background: linear-gradient(to right,
-        transparent 5%,
-        rgba(0,0,0,0.08) 10%,
-        rgba(0,0,0,0.08) 90%,
-        transparent 95%);
+        transparent 3%,
+        rgba(0,0,0,0.07) 8%,
+        rgba(0,0,0,0.07) 92%,
+        transparent 97%);
+    z-index: 2;
+}
+
+/* Bottom ridged texture (horizontal grooves on lower-left area) */
+.gameboy::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: calc(var(--gb-w) * 0.48);
+    height: calc(var(--gb-w) * 0.1);
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.035) 3px,
+        rgba(0,0,0,0.035) 4.5px
+    );
+    border-radius: 0 0 0 70px;
+    pointer-events: none;
 }
 
 /* Screen-only mode */
@@ -175,7 +197,8 @@ body {
     padding: 0;
     box-shadow: none;
 }
-.gameboy.screen-only::before { display: none; }
+.gameboy.screen-only::before,
+.gameboy.screen-only::after { display: none; }
 
 .gameboy.screen-only .gb-bezel {
     background: none;
@@ -192,17 +215,20 @@ body {
 .gameboy.screen-only .gb-meta-area { display: none; }
 .gameboy.screen-only .gb-power-switch { display: none; }
 .gameboy.screen-only .gb-volume-wheel { display: none; }
+.gameboy.screen-only .gb-speaker-grille { display: none; }
 
 /* --- Screen bezel --- */
 
 .gb-bezel {
     position: relative;
-    background: #8b8986;
-    border-radius: 12px 12px 40px 12px;
-    padding: calc(var(--gb-w) * 0.038) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.1);
-    padding-left: calc(var(--gb-w) * 0.09);
-    margin-bottom: calc(var(--gb-w) * 0.012);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+    background: linear-gradient(175deg, #9a9790 0%, #8b8986 40%, #84827f 100%);
+    border-radius: 10px 10px 40px 10px;
+    padding: calc(var(--gb-w) * 0.035) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
+    padding-left: calc(var(--gb-w) * 0.085);
+    margin-bottom: calc(var(--gb-w) * 0.008);
+    box-shadow:
+        inset 0 2px 4px rgba(0,0,0,0.18),
+        inset 0 -1px 2px rgba(255,255,255,0.08);
 }
 
 /* Battery LED — left side of bezel */
@@ -215,19 +241,22 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: calc(var(--gb-w) * 0.004);
+    gap: calc(var(--gb-w) * 0.005);
 }
 
 .gb-battery-led {
-    width: calc(var(--gb-w) * 0.013);
-    height: calc(var(--gb-w) * 0.013);
+    width: calc(var(--gb-w) * 0.014);
+    height: calc(var(--gb-w) * 0.014);
     border-radius: 50%;
-    background: #c44;
-    box-shadow: 0 0 4px rgba(204, 68, 68, 0.6), inset 0 1px 1px rgba(255,255,255,0.3);
+    background: radial-gradient(circle at 40% 40%, #ff4444, #cc3333 60%, #aa2222);
+    box-shadow:
+        0 0 6px rgba(255, 68, 68, 0.5),
+        0 0 12px rgba(255, 68, 68, 0.2),
+        inset 0 1px 1px rgba(255,255,255,0.4);
 }
 
 .gb-battery-label {
-    font-size: calc(var(--gb-w) * 0.01);
+    font-size: calc(var(--gb-w) * 0.011);
     font-weight: bold;
     color: #555;
     letter-spacing: 0.05rem;
@@ -238,12 +267,12 @@ body {
 .gb-screen-subtitle {
     display: flex;
     align-items: center;
-    gap: calc(var(--gb-w) * 0.01);
+    gap: calc(var(--gb-w) * 0.012);
     margin-bottom: calc(var(--gb-w) * 0.015);
-    font-size: calc(var(--gb-w) * 0.016);
+    font-size: calc(var(--gb-w) * 0.0155);
     font-weight: bold;
-    color: #e0e0e0;
-    letter-spacing: 0.06rem;
+    color: #ddd;
+    letter-spacing: 0.07rem;
     white-space: nowrap;
 }
 
@@ -252,17 +281,44 @@ body {
     content: '';
     flex: 1;
     height: 3px;
-    background: linear-gradient(to bottom, #3535a0 0px, #3535a0 1px, transparent 1px, transparent 2px, #a03545 2px, #a03545 3px);
+    background: linear-gradient(to bottom,
+        #2828a0 0px, #2828a0 1px,
+        transparent 1px, transparent 2px,
+        #a02838 2px, #a02838 3px);
 }
 
+/* --- Logo / Name label (Nintendo + GAME BOY) --- */
+
 .gb-name-label {
-    font-size: calc(var(--gb-w) * 0.046);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: calc(var(--gb-w) * 0.012) 0 calc(var(--gb-w) * 0.015) calc(var(--gb-w) * 0.04);
+}
+
+.gb-brand-text {
+    font-size: calc(var(--gb-w) * 0.024);
+    font-style: italic;
     font-weight: bold;
-    color: #2b2b80;
-    letter-spacing: 0.15rem;
-    text-align: left;
-    padding: calc(var(--gb-w) * 0.015) 0 calc(var(--gb-w) * 0.02) calc(var(--gb-w) * 0.04);
-    font-family: 'Courier New', monospace;
+    color: #444;
+    letter-spacing: 0.04rem;
+    font-family: 'Times New Roman', 'Georgia', serif;
+    line-height: 1.2;
+}
+
+.gb-model-text {
+    font-size: calc(var(--gb-w) * 0.052);
+    font-weight: 900;
+    color: #1a1a6e;
+    letter-spacing: 0.2rem;
+    font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.1;
+}
+
+.gb-model-text sup {
+    font-size: 0.35em;
+    vertical-align: super;
+    font-weight: normal;
 }
 
 /* --- Power switch (top edge) --- */
@@ -277,18 +333,18 @@ body {
 }
 
 .gb-power-slider {
-    width: calc(var(--gb-w) * 0.07);
-    height: calc(var(--gb-w) * 0.02);
-    background: linear-gradient(to bottom, #aaa8a2, #9a9790);
+    width: calc(var(--gb-w) * 0.065);
+    height: calc(var(--gb-w) * 0.022);
+    background: linear-gradient(to bottom, #b0ada6, #9a9790);
     border-radius: 0 0 3px 3px;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.25), 0 2px 3px rgba(0,0,0,0.15);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2), 0 2px 3px rgba(0,0,0,0.15);
 }
 
 .gb-power-label {
-    font-size: calc(var(--gb-w) * 0.013);
+    font-size: calc(var(--gb-w) * 0.012);
     font-weight: bold;
     color: #888;
-    letter-spacing: 0.05rem;
+    letter-spacing: 0.04rem;
     padding-top: calc(var(--gb-w) * 0.005);
 }
 
@@ -298,26 +354,28 @@ body {
     position: absolute;
     right: 0;
     top: calc(var(--gb-w) * 0.45);
-    width: calc(var(--gb-w) * 0.018);
-    height: calc(var(--gb-w) * 0.1);
+    width: calc(var(--gb-w) * 0.016);
+    height: calc(var(--gb-w) * 0.09);
     background: linear-gradient(to right, #b5b2ac, #a8a5a0);
     border-radius: 0 0 0 4px;
-    box-shadow: inset 1px 0 2px rgba(0,0,0,0.2);
+    box-shadow: inset 1px 0 2px rgba(0,0,0,0.15);
     background-image: repeating-linear-gradient(
         to bottom,
         transparent,
-        transparent calc(var(--gb-w) * 0.007),
-        rgba(0,0,0,0.18) calc(var(--gb-w) * 0.007),
-        rgba(0,0,0,0.18) calc(var(--gb-w) * 0.009)
+        transparent calc(var(--gb-w) * 0.006),
+        rgba(0,0,0,0.15) calc(var(--gb-w) * 0.006),
+        rgba(0,0,0,0.15) calc(var(--gb-w) * 0.008)
     );
 }
 
+/* --- Screen frame --- */
+
 .gb-screen-frame {
     background: #0f380f;
-    padding: calc(var(--gb-w) * 0.02);
-    border-radius: 4px;
+    padding: calc(var(--gb-w) * 0.025);
+    border-radius: 5px;
     border: 2px solid #555;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.35), inset 0 -1px 3px rgba(0,0,0,0.15);
 }
 
 canvas {
@@ -328,7 +386,7 @@ canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     background: #8b956d;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 canvas.drag-over {
@@ -342,14 +400,14 @@ canvas.drag-over {
     justify-content: space-between;
     align-items: center;
     padding: 0 calc(var(--gb-w) * 0.017);
-    margin-bottom: calc(var(--gb-w) * 0.025);
+    margin-bottom: calc(var(--gb-w) * 0.015);
 }
 
 /* --- D-pad --- */
 
 .gb-dpad-area {
-    width: calc(var(--gb-w) * 0.25);
-    height: calc(var(--gb-w) * 0.25);
+    width: calc(var(--gb-w) * 0.26);
+    height: calc(var(--gb-w) * 0.26);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -358,9 +416,14 @@ canvas.drag-over {
 
 .gb-dpad {
     position: relative;
-    width: calc(var(--gb-w) * 0.21);
-    height: calc(var(--gb-w) * 0.21);
-    background: radial-gradient(circle, #b0ada8 0%, #b8b5b0 70%, transparent 71%);
+    width: calc(var(--gb-w) * 0.22);
+    height: calc(var(--gb-w) * 0.22);
+    /* Subtle circular recess in the plastic */
+    background: radial-gradient(circle,
+        rgba(0,0,0,0.06) 0%,
+        rgba(0,0,0,0.04) 55%,
+        rgba(0,0,0,0.02) 65%,
+        transparent 70%);
     border-radius: 50%;
 }
 
@@ -374,7 +437,7 @@ canvas.drag-over {
     left: 50%;
     top: 0;
     transform: translateX(-50%);
-    width: calc(var(--gb-w) * 0.071);
+    width: calc(var(--gb-w) * 0.074);
     height: 100%;
 }
 
@@ -384,7 +447,7 @@ canvas.drag-over {
     left: 0;
     transform: translateY(-50%);
     width: 100%;
-    height: calc(var(--gb-w) * 0.071);
+    height: calc(var(--gb-w) * 0.074);
 }
 
 .dpad-arm {
@@ -393,21 +456,21 @@ canvas.drag-over {
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, box-shadow 0.05s;
-    box-shadow: 0 3px 0 #111, 0 4px 6px rgba(0,0,0,0.4);
+    box-shadow: 0 3px 0 #111, 0 4px 6px rgba(0,0,0,0.35);
 }
 
-.dpad-up { border-radius: 4px 4px 0 0; }
-.dpad-down { border-radius: 0 0 4px 4px; }
-.dpad-left { border-radius: 4px 0 0 4px; }
-.dpad-right { border-radius: 0 4px 4px 0; }
+.dpad-up { border-radius: 5px 5px 0 0; }
+.dpad-down { border-radius: 0 0 5px 5px; }
+.dpad-left { border-radius: 5px 0 0 5px; }
+.dpad-right { border-radius: 0 5px 5px 0; }
 
 .dpad-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: calc(var(--gb-w) * 0.071);
-    height: calc(var(--gb-w) * 0.071);
+    width: calc(var(--gb-w) * 0.074);
+    height: calc(var(--gb-w) * 0.074);
     background: #2a2a2a;
     z-index: 1;
     pointer-events: none;
@@ -424,7 +487,7 @@ canvas.drag-over {
 
 .gb-ab-area {
     flex-shrink: 0;
-    padding-right: calc(var(--gb-w) * 0.02);
+    padding-right: calc(var(--gb-w) * 0.025);
 }
 
 .gb-ab {
@@ -441,64 +504,64 @@ canvas.drag-over {
 }
 
 .gb-round-btn {
-    width: calc(var(--gb-w) * 0.108);
-    height: calc(var(--gb-w) * 0.108);
+    width: calc(var(--gb-w) * 0.11);
+    height: calc(var(--gb-w) * 0.11);
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #a82878, #92216a 50%, #7a1c5a);
-    border: 2px solid #6a1850;
+    background: radial-gradient(circle at 38% 35%, #8a2050, #7a1c48 45%, #651840);
+    border: 2px solid #551235;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, transform 0.05s, box-shadow 0.05s;
-    box-shadow: 0 5px 0 #4a1035, 0 6px 10px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 0 #3d0c28, 0 5px 8px rgba(0, 0, 0, 0.4);
 }
 
 .gb-btn-label {
-    font-size: calc(var(--gb-w) * 0.027);
+    font-size: calc(var(--gb-w) * 0.026);
     font-weight: bold;
-    color: #2b2b80;
+    color: #1a1a6e;
     text-transform: uppercase;
     pointer-events: none;
 }
 
 .gb-round-btn.pressed {
-    background: radial-gradient(circle at 50% 60%, #7a1858, #6b1a52);
-    box-shadow: 0 1px 0 #4a1035, inset 0 4px 8px rgba(0, 0, 0, 0.5);
-    transform: translateY(4px);
+    background: radial-gradient(circle at 50% 60%, #6a1445, #5b1240);
+    box-shadow: 0 1px 0 #3d0c28, inset 0 4px 8px rgba(0, 0, 0, 0.5);
+    transform: translateY(3px);
 }
 
 /* --- Start / Select --- */
 
 .gb-meta-area {
     display: flex;
-    gap: calc(var(--gb-w) * 0.05);
+    gap: calc(var(--gb-w) * 0.055);
     justify-content: center;
     transform: rotate(-25deg);
-    padding: calc(var(--gb-w) * 0.008) 0 calc(var(--gb-w) * 0.017);
+    padding: calc(var(--gb-w) * 0.005) 0 calc(var(--gb-w) * 0.025);
 }
 
 .gb-meta-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: calc(var(--gb-w) * 0.008);
+    gap: calc(var(--gb-w) * 0.006);
 }
 
 .gb-pill-btn {
-    width: calc(var(--gb-w) * 0.063);
-    height: calc(var(--gb-w) * 0.025);
-    border-radius: calc(var(--gb-w) * 0.015);
-    background: linear-gradient(to bottom, #888, #777);
+    width: calc(var(--gb-w) * 0.065);
+    height: calc(var(--gb-w) * 0.022);
+    border-radius: calc(var(--gb-w) * 0.012);
+    background: linear-gradient(to bottom, #8a8882, #7a7874);
     border: 1px solid #666;
     cursor: pointer;
     touch-action: manipulation;
     transition: background 0.05s, transform 0.05s;
-    box-shadow: 0 3px 0 #555, 0 4px 8px rgba(0,0,0,0.25);
+    box-shadow: 0 3px 0 #555, 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .gb-meta-label {
-    font-size: calc(var(--gb-w) * 0.019);
+    font-size: calc(var(--gb-w) * 0.018);
     letter-spacing: 0.08rem;
-    color: #2b2b80;
+    color: #1a1a6e;
     text-transform: uppercase;
     font-weight: bold;
     pointer-events: none;
@@ -508,6 +571,31 @@ canvas.drag-over {
     background: linear-gradient(to bottom, #666, #555);
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
     transform: translateY(2px);
+}
+
+/* --- Speaker grille (bottom-right area) --- */
+
+.gb-speaker-grille {
+    position: absolute;
+    bottom: calc(var(--gb-w) * 0.05);
+    right: calc(var(--gb-w) * 0.065);
+    display: flex;
+    gap: calc(var(--gb-w) * 0.013);
+    transform: rotate(-25deg);
+}
+
+.gb-grille-line {
+    width: calc(var(--gb-w) * 0.009);
+    height: calc(var(--gb-w) * 0.075);
+    background: linear-gradient(to bottom,
+        rgba(0,0,0,0.08),
+        rgba(0,0,0,0.14) 20%,
+        rgba(0,0,0,0.14) 80%,
+        rgba(0,0,0,0.08));
+    border-radius: calc(var(--gb-w) * 0.005);
+    box-shadow:
+        inset 0 1px 2px rgba(0,0,0,0.15),
+        1px 0 0 rgba(255,255,255,0.08);
 }
 
 /* ===================== Overlays ===================== */
