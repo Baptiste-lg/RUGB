@@ -235,8 +235,7 @@ impl SquareChannel {
         if !self.enabled || !self.dac_enabled() {
             return 0.0;
         }
-        let dac_input =
-            DUTY_TABLE[self.duty as usize][self.duty_position as usize] * self.volume;
+        let dac_input = DUTY_TABLE[self.duty as usize][self.duty_position as usize] * self.volume;
         dac_input as f32 / 7.5 - 1.0
     }
 
@@ -576,15 +575,31 @@ impl Apu {
         let mut right = 0.0f32;
 
         // NR51 panning: bits 7-4 = left ch4-ch1, bits 3-0 = right ch4-ch1
-        if self.nr51 & 0x10 != 0 { left += ch1_out; }
-        if self.nr51 & 0x20 != 0 { left += ch2_out; }
-        if self.nr51 & 0x40 != 0 { left += ch3_out; }
-        if self.nr51 & 0x80 != 0 { left += ch4_out; }
+        if self.nr51 & 0x10 != 0 {
+            left += ch1_out;
+        }
+        if self.nr51 & 0x20 != 0 {
+            left += ch2_out;
+        }
+        if self.nr51 & 0x40 != 0 {
+            left += ch3_out;
+        }
+        if self.nr51 & 0x80 != 0 {
+            left += ch4_out;
+        }
 
-        if self.nr51 & 0x01 != 0 { right += ch1_out; }
-        if self.nr51 & 0x02 != 0 { right += ch2_out; }
-        if self.nr51 & 0x04 != 0 { right += ch3_out; }
-        if self.nr51 & 0x08 != 0 { right += ch4_out; }
+        if self.nr51 & 0x01 != 0 {
+            right += ch1_out;
+        }
+        if self.nr51 & 0x02 != 0 {
+            right += ch2_out;
+        }
+        if self.nr51 & 0x04 != 0 {
+            right += ch3_out;
+        }
+        if self.nr51 & 0x08 != 0 {
+            right += ch4_out;
+        }
 
         // Apply master volume, normalize to roughly -1.0..1.0
         // Max per side: 4 channels * 1.0 amplitude * 8.0 master = 32.0
