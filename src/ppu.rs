@@ -41,6 +41,9 @@ pub struct Ppu {
     vram: [u8; 0x2000],
     oam: [u8; 0xA0],
 
+    /// Per-scanline raw BG/window color IDs (0-3) for sprite BG priority checks
+    bg_color_ids: [u8; SCREEN_W],
+
     pub framebuffer: [u8; SCREEN_W * SCREEN_H * 4],
 }
 
@@ -63,6 +66,7 @@ impl Ppu {
             wx: 0,
             vram: [0; 0x2000],
             oam: [0; 0xA0],
+            bg_color_ids: [0; SCREEN_W],
             framebuffer: [0; SCREEN_W * SCREEN_H * 4],
         }
     }
@@ -158,6 +162,7 @@ impl Ppu {
     // -- Rendering --
 
     fn render_scanline(&mut self) {
+        self.bg_color_ids = [0; SCREEN_W];
         if self.lcdc & 0x01 != 0 {
             self.render_bg();
         }
@@ -203,6 +208,7 @@ impl Ppu {
             };
 
             let color_id = self.get_tile_pixel(tile_addr, pixel_col);
+            self.bg_color_ids[x as usize] = color_id;
             let shade = self.apply_palette(self.bgp, color_id);
             self.set_pixel(x as usize, self.ly as usize, shade);
         }
@@ -213,7 +219,7 @@ impl Ppu {
         if self.ly < self.wy {
             return;
         }
-        let wx = self.wx.wrapping_sub(7);
+        let wx = self.wx.saturating_sub(7);
 
         let tile_data_base: u16 = if self.lcdc & 0x10 != 0 {
             0x8000
@@ -254,6 +260,7 @@ impl Ppu {
             };
 
             let color_id = self.get_tile_pixel(tile_addr, pixel_col);
+            self.bg_color_ids[x as usize] = color_id;
             let shade = self.apply_palette(self.bgp, color_id);
             self.set_pixel(x as usize, self.ly as usize, shade);
         }
@@ -333,13 +340,8 @@ impl Ppu {
                 }
 
                 // BG priority: sprite only visible over BG color 0
-                if bg_priority {
-                    let fb_idx = (self.ly as usize * SCREEN_W + screen_x) * 4;
-                    // Check if the BG pixel at this position is color 0 (white)
-                    let bg_shade = self.framebuffer[fb_idx];
-                    if bg_shade != self.apply_palette(self.bgp, 0) {
-                        continue;
-                    }
+                if bg_priority && self.bg_color_ids[screen_x] != 0 {
+                    continue;
                 }
 
                 let shade = self.apply_palette(palette, color_id);
