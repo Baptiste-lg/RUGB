@@ -1,51 +1,62 @@
-# OxideBoy
+# RUGB
 
 A Game Boy (DMG) emulator written in Rust, compiled to WebAssembly, playable in the browser. Load a ROM and play — no install, no backend.
 
+**[Play it here](https://baptiste-lg.github.io/RUGB/)**
+
 ## Features
 
+### Emulation
 - Full SM83 CPU — all 512 opcodes (256 base + 256 CB-prefixed)
 - Scanline-accurate PPU — background, window, and sprite rendering
 - Cartridge support — NoMBC, MBC1, MBC3 (covers Tetris through Pokemon)
 - Timer, interrupts, and joypad input
 - APU with frame sequencer and Web Audio output (channels 1 & 2)
-- Drag-and-drop ROM loading
+
+### Interface
+- Faithful DMG-01 Game Boy shell with interactive buttons
+- Drag-and-drop ROM loading (`.gb`, `.zip`)
+- Save states — 5 slots with export/import, quick save (F5) / quick load (F8)
+- Keyboard remapping with export/import as JSON
+- Gamepad support with remappable bindings and controller auto-detection
 - Speed control (1x / 2x / 4x)
 - Color palette selector (classic green, gray, B&W)
+- Console view / screen-only display toggle
 - Mobile touch controls
 - Pause, reset, mute
+- All preferences persisted in localStorage
 
 ## Architecture
 
 ```
-+-----------------------------------------------------+
-|                    Browser (JS)                      |
-|  +-----------+  +----------+  +------------------+  |
-|  |  Canvas   |  | WebAudio |  | Keyboard / Touch |  |
-|  | (display) |  | (sound)  |  | (joypad)         |  |
-|  +-----+-----+  +----+-----+  +-------+----------+  |
-|        |              |                |             |
-|  +-----+--------------+---------------+----------+  |
-|  |              wasm-bindgen bridge               |  |
-|  +-----+--------------+---------------+----------+  |
-+--------+--------------+---------------+-------------+
-         |              |               |
-+--------+--------------+---------------+-------------+
-|                  Rust WASM Core                      |
-|                                                      |
-|  +---------+  +---------+  +---------+  +-------+   |
-|  |   CPU   |  |   PPU   |  |   APU   |  | Timer |   |
-|  | (SM83)  |  | (video) |  | (audio) |  |       |   |
-|  +----+----+  +----+----+  +----+----+  +---+---+   |
-|       |            |            |            |       |
-|  +----+------------+------------+------------+---+   |
-|  |              Memory Bus (MMU)                 |   |
-|  +---+-----+------+------+------+------+---------+  |
-|      |     |      |      |      |      |             |
-|   +--++ +--+-+ +--+-+ +--+-+ +--++ +--+-+           |
-|   |ROM| |VRAM| |WRAM| |OAM | |IO | |HRAM|           |
-|   +---+ +----+ +----+ +----+ +---+ +----+           |
-+------------------------------------------------------+
+┌─────────────────────────────────────────────────────┐
+│                    Browser (JS)                     │
+│  ┌───────────┐  ┌──────────┐  ┌──────────────────┐ │
+│  │  Canvas   │  │ WebAudio │  │ Keyboard / Touch │ │
+│  │ (display) │  │ (sound)  │  │ Gamepad (joypad) │ │
+│  └─────┬─────┘  └────┬─────┘  └───────┬──────────┘ │
+│        │              │                │            │
+│  ┌─────┴──────────────┴────────────────┴──────────┐ │
+│  │              wasm-bindgen bridge                │ │
+│  └─────┬──────────────┬────────────────┬──────────┘ │
+└────────┼──────────────┼────────────────┼────────────┘
+         │              │                │
+┌────────┼──────────────┼────────────────┼────────────┐
+│        │         Rust WASM Core        │            │
+│                                                     │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────┐ │
+│  │   CPU   │  │   PPU   │  │   APU   │  │ Timer │ │
+│  │ (SM83)  │  │ (video) │  │ (audio) │  │       │ │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └───┬───┘ │
+│       │            │            │            │      │
+│  ┌────┴────────────┴────────────┴────────────┴───┐  │
+│  │              Memory Bus (MMU)                 │  │
+│  └──┬─────┬──────┬──────┬──────┬──────┬──────────┘  │
+│     │     │      │      │      │      │             │
+│  ┌──┴─┐┌──┴──┐┌──┴──┐┌──┴──┐┌──┴─┐┌──┴──┐         │
+│  │ROM ││VRAM ││WRAM ││OAM  ││ IO ││HRAM │         │
+│  └────┘└─────┘└─────┘└─────┘└────┘└─────┘         │
+└─────────────────────────────────────────────────────┘
 ```
 
 ## Build
@@ -76,8 +87,10 @@ Then open `http://localhost:8080` and load a `.gb` ROM file.
 | Shift | Select |
 | P | Pause / Resume |
 | M | Mute / Unmute |
-| 1 / 2 / 4 | Speed |
-| ? | Help overlay |
+| F5 | Quick save |
+| F8 | Quick load |
+
+All keys are remappable from the side menu. Gamepad bindings are also fully configurable.
 
 Touch controls appear automatically on mobile devices.
 
@@ -96,6 +109,7 @@ Touch controls appear automatically on mobile devices.
 ```
 src/
   lib.rs              WASM entry point, Emulator struct
+  savestate.rs         Save state serialization helpers
   cpu/
     mod.rs             Fetch-decode-execute loop, ALU helpers
     registers.rs       Register file (AF, BC, DE, HL, SP, PC)
@@ -113,9 +127,9 @@ src/
     mbc1.rs            MBC1 mapper
     mbc3.rs            MBC3 mapper
 web/
-  index.html           Emulator UI
-  style.css            Dark theme, responsive layout
-  js/index.js          Render loop, input, audio, controls
+  index.html           Emulator UI (faithful DMG-01 shell)
+  style.css            Game Boy shell styling, responsive layout
+  js/index.js          Render loop, input, audio, save states, gamepad
 ```
 
 ## References
