@@ -331,7 +331,7 @@ impl Ppu {
                     continue;
                 }
 
-                let bit = if x_flip { pixel_x } else { 7 - pixel_x };
+                let bit = if x_flip { 7 - pixel_x } else { pixel_x };
                 let color_id = self.get_tile_pixel(tile_addr, bit);
 
                 // Color 0 is transparent for sprites
