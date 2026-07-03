@@ -563,6 +563,7 @@ canvas.drag-over {
     display: flex;
     gap: calc(var(--gb-w) * 0.013);
     transform: rotate(-25deg);
+    pointer-events: none;
 }
 
 .gb-grille-line {
