@@ -49,6 +49,7 @@
             <hr>
             <button id="savestates-btn" class="menu-item">Save States</button>
             <button id="remap-btn" class="menu-item">Remap Keys</button>
+            <button id="remap-gp-btn" class="menu-item">Remap Controller</button>
         </div>
     </div>
 
@@ -197,6 +198,28 @@
             <input type="file" id="savestate-file" accept=".json" hidden>
             <div class="remap-actions">
                 <button id="savestates-close">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gamepad remap overlay -->
+    <div id="gamepad-remap-overlay" class="overlay">
+        <div class="overlay-content">
+            <h2>Remap Controller</h2>
+            <p id="gp-status" class="gp-status">No controller detected</p>
+            <table class="remap-table">
+                <tr><td>D-pad Right</td><td><button class="gp-remap-btn" data-action="right"></button></td></tr>
+                <tr><td>D-pad Left</td><td><button class="gp-remap-btn" data-action="left"></button></td></tr>
+                <tr><td>D-pad Up</td><td><button class="gp-remap-btn" data-action="up"></button></td></tr>
+                <tr><td>D-pad Down</td><td><button class="gp-remap-btn" data-action="down"></button></td></tr>
+                <tr><td>A</td><td><button class="gp-remap-btn" data-action="a"></button></td></tr>
+                <tr><td>B</td><td><button class="gp-remap-btn" data-action="b"></button></td></tr>
+                <tr><td>Start</td><td><button class="gp-remap-btn" data-action="start"></button></td></tr>
+                <tr><td>Select</td><td><button class="gp-remap-btn" data-action="select"></button></td></tr>
+            </table>
+            <div class="remap-actions">
+                <button id="gp-remap-reset">Reset</button>
+                <button id="gp-remap-close">Done</button>
             </div>
         </div>
     </div>
