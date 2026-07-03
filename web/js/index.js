@@ -142,34 +142,41 @@ gameboy.addEventListener('mousedown', (e) => {
 // --- Audio setup ---
 
 let audioCtx = null;
-const oscillators = [null, null]; // CH1, CH2 square wave oscillators
-const gains = [null, null];
+let audioProcessor = null;
+const AUDIO_SAMPLE_RATE = 48000;
 
 function initAudio() {
     if (audioCtx) return;
-    audioCtx = new AudioContext();
-    for (let i = 0; i < 2; i++) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.value = 0;
-        gain.gain.value = 0;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        oscillators[i] = osc;
-        gains[i] = gain;
-    }
-}
-
-function updateAudio() {
-    if (!audioCtx || muted || !emu) return;
-    for (let ch = 0; ch < 2; ch++) {
-        const freq = emu.channel_freq(ch + 1);
-        const vol = emu.channel_volume(ch + 1);
-        oscillators[ch].frequency.value = freq;
-        gains[ch].gain.value = vol * 0.15; // Scale down to avoid clipping
-    }
+    audioCtx = new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE });
+    const bufferSize = 2048;
+    audioProcessor = audioCtx.createScriptProcessor(bufferSize, 0, 2);
+    audioProcessor.onaudioprocess = (e) => {
+        const left = e.outputBuffer.getChannelData(0);
+        const right = e.outputBuffer.getChannelData(1);
+        if (!emu || muted) {
+            left.fill(0);
+            right.fill(0);
+            return;
+        }
+        const len = emu.audio_buffer_len();
+        const samplePairs = Math.floor(len / 2);
+        const count = Math.min(samplePairs, left.length);
+        if (count > 0) {
+            const ptr = emu.audio_buffer_ptr();
+            const samples = new Float32Array(wasm.memory.buffer, ptr, count * 2);
+            for (let i = 0; i < count; i++) {
+                left[i] = samples[i * 2];
+                right[i] = samples[i * 2 + 1];
+            }
+        }
+        // Fill remaining with silence
+        for (let i = count; i < left.length; i++) {
+            left[i] = 0;
+            right[i] = 0;
+        }
+        emu.audio_buffer_drain();
+    };
+    audioProcessor.connect(audioCtx.destination);
 }
 
 // --- Palettes ---
@@ -244,8 +251,6 @@ function frame() {
     let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
     imageData = applyPalette(imageData);
     ctx.putImageData(imageData, 0, 0);
-
-    updateAudio();
 
     animationId = requestAnimationFrame(frame);
 }
@@ -367,12 +372,6 @@ resetBtn.addEventListener('click', () => {
 muteBtn.addEventListener('click', () => {
     muted = !muted;
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
-    if (muted && gains[0]) {
-        gains[0].gain.value = 0;
-        gains[1].gain.value = 0;
-    } else if (!muted) {
-        updateAudio();
-    }
 });
 
 // Speed buttons
