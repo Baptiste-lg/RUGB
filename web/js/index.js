@@ -241,22 +241,63 @@ async function startEmulator(bytes) {
 
 // --- Gamepad support ---
 
-const GAMEPAD_MAP = [
-    // [buttonIndex, gbButton]
-    [0, 4],  // A → GB A
-    [1, 5],  // B → GB B
-    [2, 5],  // X → GB B
-    [3, 4],  // Y → GB A
-    [8, 7],  // Back/Select → GB Select
-    [9, 6],  // Start → GB Start
-    [12, 2], // D-pad Up
-    [13, 3], // D-pad Down
-    [14, 1], // D-pad Left
-    [15, 0], // D-pad Right
-];
+// Standard Gamepad API button names (Xbox / PlayStation / Switch)
+function gpBtnName(index) {
+    const names = {
+        0: 'A / \u2A2F / B',
+        1: 'B / \u25CB / A',
+        2: 'X / \u25A1 / Y',
+        3: 'Y / \u25B3 / X',
+        4: 'LB / L1 / L',
+        5: 'RB / R1 / R',
+        6: 'LT / L2 / ZL',
+        7: 'RT / R2 / ZR',
+        8: 'Back / Share / -',
+        9: 'Start / Options / +',
+        10: 'L3 / L3 / LS',
+        11: 'R3 / R3 / RS',
+        12: 'D-pad Up',
+        13: 'D-pad Down',
+        14: 'D-pad Left',
+        15: 'D-pad Right',
+        16: 'Guide / PS / Home',
+    };
+    return names[index] || `Button ${index}`;
+}
+
+const DEFAULT_GP_MAP = {
+    a: 0, b: 1, select: 8, start: 9,
+    up: 12, down: 13, left: 14, right: 15,
+};
+
+function loadGpMap() {
+    const saved = localStorage.getItem('rugb-gpmap');
+    if (saved) {
+        try { return { ...DEFAULT_GP_MAP, ...JSON.parse(saved) }; } catch {}
+    }
+    return { ...DEFAULT_GP_MAP };
+}
+
+let gpMap = loadGpMap();
+
+function saveGpMap() {
+    localStorage.setItem('rugb-gpmap', JSON.stringify(gpMap));
+}
+
+function buildGpButtonMap() {
+    const map = {};
+    for (const action of ACTIONS) {
+        if (gpMap[action] !== undefined) {
+            map[gpMap[action]] = ACTION_TO_BTN[action];
+        }
+    }
+    return map;
+}
+
+let GP_BUTTON_MAP = buildGpButtonMap();
 
 const AXIS_THRESHOLD = 0.5;
-const gamepadPrev = {}; // track previous button states to detect edges
+const gamepadPrev = {};
 
 function pollGamepad() {
     if (!emu) return;
@@ -269,8 +310,9 @@ function pollGamepad() {
         if (!gamepadPrev[id]) gamepadPrev[id] = {};
         const prev = gamepadPrev[id];
 
-        // Mapped buttons
-        for (const [btnIdx, gbBtn] of GAMEPAD_MAP) {
+        // Mapped buttons from remap config
+        for (const [btnIdxStr, gbBtn] of Object.entries(GP_BUTTON_MAP)) {
+            const btnIdx = parseInt(btnIdxStr);
             if (btnIdx >= gp.buttons.length) continue;
             const pressed = gp.buttons[btnIdx].pressed;
             if (pressed !== prev[`b${btnIdx}`]) {
@@ -279,7 +321,7 @@ function pollGamepad() {
             }
         }
 
-        // Left stick as D-pad
+        // Left stick as D-pad (always active)
         if (gp.axes.length >= 2) {
             const lx = gp.axes[0];
             const ly = gp.axes[1];
@@ -296,6 +338,99 @@ function pollGamepad() {
         }
     }
 }
+
+// --- Gamepad remap overlay ---
+
+const gpRemapOverlay = document.getElementById('gamepad-remap-overlay');
+const gpRemapBtns = document.querySelectorAll('.gp-remap-btn');
+const gpRemapResetBtn = document.getElementById('gp-remap-reset');
+const gpRemapCloseBtn = document.getElementById('gp-remap-close');
+const gpRemapBtn = document.getElementById('remap-gp-btn');
+const gpStatus = document.getElementById('gp-status');
+let gpRemapListening = null;
+let gpRemapPollId = null;
+
+function updateGpRemapButtons() {
+    gpRemapBtns.forEach(btn => {
+        const action = btn.dataset.action;
+        btn.textContent = gpBtnName(gpMap[action]);
+    });
+}
+
+function updateGpStatus() {
+    const gamepads = navigator.getGamepads();
+    let found = null;
+    if (gamepads) {
+        for (const gp of gamepads) {
+            if (gp) { found = gp; break; }
+        }
+    }
+    if (found) {
+        gpStatus.textContent = found.id;
+        gpStatus.classList.add('connected');
+    } else {
+        gpStatus.textContent = 'No controller detected — press a button on your controller';
+        gpStatus.classList.remove('connected');
+    }
+}
+
+function gpRemapPoll() {
+    if (!gpRemapOverlay.classList.contains('visible')) return;
+
+    updateGpStatus();
+
+    if (gpRemapListening) {
+        const gamepads = navigator.getGamepads();
+        if (gamepads) {
+            for (const gp of gamepads) {
+                if (!gp) continue;
+                for (let i = 0; i < gp.buttons.length; i++) {
+                    if (gp.buttons[i].pressed) {
+                        gpMap[gpRemapListening] = i;
+                        saveGpMap();
+                        GP_BUTTON_MAP = buildGpButtonMap();
+                        gpRemapBtns.forEach(b => b.classList.remove('listening'));
+                        updateGpRemapButtons();
+                        gpRemapListening = null;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    gpRemapPollId = requestAnimationFrame(gpRemapPoll);
+}
+
+gpRemapBtn.addEventListener('click', () => {
+    sideMenu.classList.remove('open');
+    updateGpRemapButtons();
+    gpRemapOverlay.classList.add('visible');
+    gpRemapPollId = requestAnimationFrame(gpRemapPoll);
+});
+
+gpRemapCloseBtn.addEventListener('click', () => {
+    gpRemapListening = null;
+    gpRemapBtns.forEach(b => b.classList.remove('listening'));
+    gpRemapOverlay.classList.remove('visible');
+    if (gpRemapPollId) cancelAnimationFrame(gpRemapPollId);
+});
+
+gpRemapResetBtn.addEventListener('click', () => {
+    gpMap = { ...DEFAULT_GP_MAP };
+    saveGpMap();
+    GP_BUTTON_MAP = buildGpButtonMap();
+    updateGpRemapButtons();
+});
+
+gpRemapBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        gpRemapBtns.forEach(b => b.classList.remove('listening'));
+        btn.classList.add('listening');
+        btn.textContent = 'Press button...';
+        gpRemapListening = btn.dataset.action;
+    });
+});
 
 function frame() {
     if (paused || !emu) return;
