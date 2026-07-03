@@ -141,7 +141,7 @@ body {
     width: var(--gb-w);
     position: relative;
     background: linear-gradient(175deg, #d0ccc6 0%, #c8c4be 35%, #c0bcb4 100%);
-    border-radius: 10px 10px 10px 70px;
+    border-radius: 10px 10px 70px 10px;
     padding: calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.065) calc(var(--gb-w) * 0.14);
     box-shadow:
         5px 8px 25px rgba(0, 0, 0, 0.65),
@@ -171,12 +171,12 @@ body {
     z-index: 2;
 }
 
-/* Bottom ridged texture (horizontal grooves on lower-left area) */
+/* Bottom ridged texture (horizontal grooves on lower-right area) */
 .gameboy::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 0;
+    right: 0;
     width: calc(var(--gb-w) * 0.48);
     height: calc(var(--gb-w) * 0.1);
     background: repeating-linear-gradient(
@@ -186,7 +186,7 @@ body {
         rgba(0,0,0,0.035) 3px,
         rgba(0,0,0,0.035) 4.5px
     );
-    border-radius: 0 0 0 70px;
+    border-radius: 0 0 70px 0;
     pointer-events: none;
 }
 
@@ -222,7 +222,7 @@ body {
 .gb-bezel {
     position: relative;
     background: linear-gradient(175deg, #9a9790 0%, #8b8986 40%, #84827f 100%);
-    border-radius: 10px 10px 40px 10px;
+    border-radius: 10px 10px 10px 40px;
     padding: calc(var(--gb-w) * 0.035) calc(var(--gb-w) * 0.05) calc(var(--gb-w) * 0.07);
     padding-left: calc(var(--gb-w) * 0.085);
     margin-bottom: calc(var(--gb-w) * 0.008);
@@ -287,23 +287,10 @@ body {
         #a02838 2px, #a02838 3px);
 }
 
-/* --- Logo / Name label (Nintendo + GAME BOY) --- */
+/* --- Logo / Name label --- */
 
 .gb-name-label {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
     padding: calc(var(--gb-w) * 0.012) 0 calc(var(--gb-w) * 0.015) calc(var(--gb-w) * 0.04);
-}
-
-.gb-brand-text {
-    font-size: calc(var(--gb-w) * 0.024);
-    font-style: italic;
-    font-weight: bold;
-    color: #444;
-    letter-spacing: 0.04rem;
-    font-family: 'Times New Roman', 'Georgia', serif;
-    line-height: 1.2;
 }
 
 .gb-model-text {
@@ -313,12 +300,6 @@ body {
     letter-spacing: 0.2rem;
     font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
     line-height: 1.1;
-}
-
-.gb-model-text sup {
-    font-size: 0.35em;
-    vertical-align: super;
-    font-weight: normal;
 }
 
 /* --- Power switch (top edge) --- */
@@ -578,7 +559,7 @@ canvas.drag-over {
 .gb-speaker-grille {
     position: absolute;
     bottom: calc(var(--gb-w) * 0.05);
-    right: calc(var(--gb-w) * 0.065);
+    left: calc(var(--gb-w) * 0.065);
     display: flex;
     gap: calc(var(--gb-w) * 0.013);
     transform: rotate(-25deg);
