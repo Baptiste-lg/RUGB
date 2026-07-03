@@ -6,7 +6,7 @@
 FROM rust:1.88 AS builder
 
 # Install wasm-pack for building the WASM module
-RUN cargo install wasm-pack
+RUN cargo install wasm-pack --locked
 
 # Install the wasm32 compilation target
 RUN rustup target add wasm32-unknown-unknown
