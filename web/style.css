@@ -576,7 +576,7 @@ canvas.drag-over {
     width: 40%;
 }
 
-.remap-btn {
+.remap-btn, .gp-remap-btn {
     min-width: 100px;
     padding: 0.3rem 0.8rem;
     font-size: 0.85rem;
@@ -589,12 +589,12 @@ canvas.drag-over {
     font-family: inherit;
 }
 
-.remap-btn:hover {
+.remap-btn:hover, .gp-remap-btn:hover {
     background: #1a3a5c;
     border-color: #8be9fd;
 }
 
-.remap-btn.listening {
+.remap-btn.listening, .gp-remap-btn.listening {
     background: #2a1a4e;
     border-color: #bd93f9;
     color: #bd93f9;
@@ -627,6 +627,17 @@ canvas.drag-over {
 .remap-actions button:hover {
     background: #1a3a5c;
     border-color: #8be9fd;
+}
+
+.gp-status {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.8rem;
+    text-align: center;
+}
+
+.gp-status.connected {
+    color: #50fa7b;
 }
 
 /* --- Save states --- */
