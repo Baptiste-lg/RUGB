@@ -239,8 +239,68 @@ async function startEmulator(bytes) {
     animationId = requestAnimationFrame(frame);
 }
 
+// --- Gamepad support ---
+
+const GAMEPAD_MAP = [
+    // [buttonIndex, gbButton]
+    [0, 4],  // A → GB A
+    [1, 5],  // B → GB B
+    [2, 5],  // X → GB B
+    [3, 4],  // Y → GB A
+    [8, 7],  // Back/Select → GB Select
+    [9, 6],  // Start → GB Start
+    [12, 2], // D-pad Up
+    [13, 3], // D-pad Down
+    [14, 1], // D-pad Left
+    [15, 0], // D-pad Right
+];
+
+const AXIS_THRESHOLD = 0.5;
+const gamepadPrev = {}; // track previous button states to detect edges
+
+function pollGamepad() {
+    if (!emu) return;
+    const gamepads = navigator.getGamepads();
+    if (!gamepads) return;
+
+    for (const gp of gamepads) {
+        if (!gp) continue;
+        const id = gp.index;
+        if (!gamepadPrev[id]) gamepadPrev[id] = {};
+        const prev = gamepadPrev[id];
+
+        // Mapped buttons
+        for (const [btnIdx, gbBtn] of GAMEPAD_MAP) {
+            if (btnIdx >= gp.buttons.length) continue;
+            const pressed = gp.buttons[btnIdx].pressed;
+            if (pressed !== prev[`b${btnIdx}`]) {
+                emu.set_button(gbBtn, pressed);
+                prev[`b${btnIdx}`] = pressed;
+            }
+        }
+
+        // Left stick as D-pad
+        if (gp.axes.length >= 2) {
+            const lx = gp.axes[0];
+            const ly = gp.axes[1];
+
+            const left = lx < -AXIS_THRESHOLD;
+            const right = lx > AXIS_THRESHOLD;
+            const up = ly < -AXIS_THRESHOLD;
+            const down = ly > AXIS_THRESHOLD;
+
+            if (left !== prev.axL) { emu.set_button(1, left); prev.axL = left; }
+            if (right !== prev.axR) { emu.set_button(0, right); prev.axR = right; }
+            if (up !== prev.axU) { emu.set_button(2, up); prev.axU = up; }
+            if (down !== prev.axD) { emu.set_button(3, down); prev.axD = down; }
+        }
+    }
+}
+
 function frame() {
     if (paused || !emu) return;
+
+    pollGamepad();
 
     for (let i = 0; i < speed; i++) {
         emu.run_frame();
