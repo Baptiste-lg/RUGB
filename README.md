@@ -1,5 +1,9 @@
 # RUGB
 
+[![RUGB CI/CD](https://github.com/Baptiste-lg/RUGB/actions/workflows/ci.yml/badge.svg)](https://github.com/Baptiste-lg/RUGB/actions/workflows/ci.yml)
+[![Docker Build & Push](https://github.com/Baptiste-lg/RUGB/actions/workflows/Docker.yml/badge.svg)](https://github.com/Baptiste-lg/RUGB/actions/workflows/Docker.yml)
+[![Documentation](https://img.shields.io/badge/demo-GitHub%20Pages-blue)](https://baptiste-lg.github.io/RUGB/)
+
 A Game Boy (DMG) emulator written in Rust, compiled to WebAssembly, playable in the browser. Load a ROM and play — no install, no backend.
 
 **[Play it here](https://baptiste-lg.github.io/RUGB/)**
