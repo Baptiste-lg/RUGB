@@ -239,6 +239,11 @@ async function startEmulator(bytes) {
     animationId = requestAnimationFrame(frame);
 }
 
+// --- Button action constants (shared by keyboard & gamepad remapping) ---
+
+const ACTIONS = ['right', 'left', 'up', 'down', 'a', 'b', 'start', 'select'];
+const ACTION_TO_BTN = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, start: 6, select: 7 };
+
 // --- Gamepad support ---
 
 // Standard Gamepad API button names (Xbox / PlayStation / Switch)
@@ -593,8 +598,6 @@ document.querySelector(`.palette-btn[data-palette="${currentPalette}"]`)?.classL
 
 // --- Key remapping ---
 
-const ACTIONS = ['right', 'left', 'up', 'down', 'a', 'b', 'start', 'select'];
-const ACTION_TO_BTN = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, start: 6, select: 7 };
 const DEFAULT_KEYS = {
     right: 'ArrowRight', left: 'ArrowLeft', up: 'ArrowUp', down: 'ArrowDown',
     a: 'z', b: 'x', start: 'Enter', select: 'Shift',
