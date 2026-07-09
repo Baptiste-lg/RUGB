@@ -559,7 +559,7 @@ canvas.drag-over {
 .gb-speaker-grille {
     position: absolute;
     bottom: calc(var(--gb-w) * 0.05);
-    left: calc(var(--gb-w) * 0.065);
+    right: calc(var(--gb-w) * 0.065);
     display: flex;
     gap: calc(var(--gb-w) * 0.013);
     transform: rotate(-25deg);
