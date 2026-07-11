@@ -121,6 +121,10 @@ impl WasmEmulator {
         self.emu.mmu.apu.drain_samples();
     }
 
+    pub fn audio_buffer_consume(&mut self, count: usize) {
+        self.emu.mmu.apu.consume_samples(count);
+    }
+
     pub fn save_state(&self) -> Vec<u8> {
         self.emu.save_state()
     }

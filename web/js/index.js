@@ -158,8 +158,19 @@ function initAudio() {
             right.fill(0);
             return;
         }
-        const len = emu.audio_buffer_len();
-        const samplePairs = Math.floor(len / 2);
+        let len = emu.audio_buffer_len();
+        let samplePairs = Math.floor(len / 2);
+
+        // If buffer has built up too much latency (>80ms), skip ahead
+        const maxLatency = AUDIO_SAMPLE_RATE * 0.08;
+        if (samplePairs > maxLatency) {
+            const skip = samplePairs - left.length;
+            if (skip > 0) {
+                emu.audio_buffer_consume(skip * 2);
+                samplePairs = left.length;
+            }
+        }
+
         const count = Math.min(samplePairs, left.length);
         if (count > 0) {
             const ptr = emu.audio_buffer_ptr();
@@ -174,7 +185,8 @@ function initAudio() {
             left[i] = 0;
             right[i] = 0;
         }
-        emu.audio_buffer_drain();
+        // Only consume what was actually read (keep excess for next callback)
+        emu.audio_buffer_consume(count * 2);
     };
     audioProcessor.connect(audioCtx.destination);
 }
@@ -234,6 +246,10 @@ async function startEmulator(bytes) {
     pauseBtn.textContent = 'Pause';
 
     initAudio();
+
+    // Reset frame timing
+    lastFrameTs = 0;
+    frameDebt = 0;
 
     if (animationId) cancelAnimationFrame(animationId);
     animationId = requestAnimationFrame(frame);
@@ -437,20 +453,45 @@ gpRemapBtns.forEach(btn => {
     });
 });
 
-function frame() {
+// Game Boy frame time: 70224 T-cycles at 4.194304 MHz ≈ 16.74ms
+const GB_FRAME_MS = 70224 / 4194304 * 1000;
+let lastFrameTs = 0;
+let frameDebt = 0;
+
+function frame(timestamp) {
     if (paused || !emu) return;
 
-    pollGamepad();
-
-    for (let i = 0; i < speed; i++) {
-        emu.run_frame();
+    // Time-based throttle: run the correct number of frames regardless of display refresh rate
+    if (lastFrameTs === 0) {
+        lastFrameTs = timestamp;
+        animationId = requestAnimationFrame(frame);
+        return;
     }
 
-    const ptr = emu.framebuffer_ptr();
-    const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
-    let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
-    imageData = applyPalette(imageData);
-    ctx.putImageData(imageData, 0, 0);
+    let delta = timestamp - lastFrameTs;
+    lastFrameTs = timestamp;
+
+    // Cap delta to avoid spiral of death after tab was backgrounded
+    if (delta > 100) delta = GB_FRAME_MS;
+
+    frameDebt += delta * speed;
+
+    let framesRun = 0;
+    const maxFrames = 4 * speed;
+    while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
+        pollGamepad();
+        emu.run_frame();
+        frameDebt -= GB_FRAME_MS;
+        framesRun++;
+    }
+
+    if (framesRun > 0) {
+        const ptr = emu.framebuffer_ptr();
+        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
+        let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
+        imageData = applyPalette(imageData);
+        ctx.putImageData(imageData, 0, 0);
+    }
 
     animationId = requestAnimationFrame(frame);
 }
@@ -562,7 +603,11 @@ canvas.addEventListener('drop', (e) => {
 pauseBtn.addEventListener('click', () => {
     paused = !paused;
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-    if (!paused) animationId = requestAnimationFrame(frame);
+    if (!paused) {
+        lastFrameTs = 0;
+        frameDebt = 0;
+        animationId = requestAnimationFrame(frame);
+    }
 });
 
 resetBtn.addEventListener('click', () => {

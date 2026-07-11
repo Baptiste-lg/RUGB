@@ -25,6 +25,10 @@ const DUTY_TABLE: [[u8; 8]; 4] = [
 
 const NOISE_DIVISORS: [u32; 8] = [8, 16, 32, 48, 64, 80, 96, 112];
 
+/// Capacitor high-pass filter matching the Game Boy's DC-blocking output stage.
+/// Removes DC offset to prevent pops on channel enable/disable and envelope changes.
+const HIGHPASS_ALPHA: f32 = 0.999;
+
 pub struct Apu {
     pub enabled: bool,
     pub ch1: SquareChannel,
@@ -45,6 +49,11 @@ pub struct Apu {
     pub sample_buffer: Vec<f32>,
     /// Accumulator for sample timing
     sample_clock: u32,
+    // High-pass filter state (emulates the hardware coupling capacitor)
+    hp_left_in: f32,
+    hp_left_out: f32,
+    hp_right_in: f32,
+    hp_right_out: f32,
 }
 
 pub struct SquareChannel {
@@ -500,6 +509,10 @@ impl Apu {
             wave_ram: [0; 16],
             sample_buffer: Vec::with_capacity(MAX_BUFFER_SAMPLES * 2),
             sample_clock: 0,
+            hp_left_in: 0.0,
+            hp_left_out: 0.0,
+            hp_right_in: 0.0,
+            hp_right_out: 0.0,
         }
     }
 
@@ -606,8 +619,17 @@ impl Apu {
         left *= left_vol / 32.0;
         right *= right_vol / 32.0;
 
-        self.sample_buffer.push(left);
-        self.sample_buffer.push(right);
+        // High-pass filter (DC-blocking capacitor emulation)
+        let hp_left = left - self.hp_left_in + HIGHPASS_ALPHA * self.hp_left_out;
+        self.hp_left_in = left;
+        self.hp_left_out = hp_left;
+
+        let hp_right = right - self.hp_right_in + HIGHPASS_ALPHA * self.hp_right_out;
+        self.hp_right_in = right;
+        self.hp_right_out = hp_right;
+
+        self.sample_buffer.push(hp_left);
+        self.sample_buffer.push(hp_right);
     }
 
     pub fn sample_buffer_ptr(&self) -> *const f32 {
@@ -620,6 +642,13 @@ impl Apu {
 
     pub fn drain_samples(&mut self) {
         self.sample_buffer.clear();
+    }
+
+    /// Remove the first `count` f32 values from the sample buffer.
+    /// Used by the JS audio callback to consume only the samples it actually read.
+    pub fn consume_samples(&mut self, count: usize) {
+        let count = count.min(self.sample_buffer.len());
+        self.sample_buffer.drain(..count);
     }
 
     pub fn save_state(&self, d: &mut Vec<u8>) {
