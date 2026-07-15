@@ -251,14 +251,18 @@ let batterySaveTimer = null;
 
 function saveBatteryRAM() {
     if (!emu || !emu.has_battery()) return;
-    const title = emu.title();
-    if (!title) return;
-    const len = emu.battery_ram_len();
-    if (len === 0) return;
-    const ptr = emu.battery_ram_ptr();
-    const ram = new Uint8Array(wasm.memory.buffer, ptr, len);
-    const b64 = uint8ToBase64(new Uint8Array(ram));
-    localStorage.setItem(`rugb-sram-${title}`, b64);
+    try {
+        const title = emu.title();
+        if (!title) return;
+        const len = emu.battery_ram_len();
+        if (len === 0) return;
+        const ptr = emu.battery_ram_ptr();
+        const ram = new Uint8Array(wasm.memory.buffer, ptr, len);
+        const b64 = uint8ToBase64(new Uint8Array(ram));
+        localStorage.setItem(`rugb-sram-${title}`, b64);
+    } catch {
+        showToast('Storage full — cannot save game progress');
+    }
 }
 
 function loadBatteryRAM() {
@@ -1152,11 +1156,11 @@ function renderRecentRoms() {
     recentRomsEl.innerHTML = '';
     const list = getRecentRoms();
     for (const name of list) {
-        const btn = document.createElement('button');
-        btn.className = 'recent-rom';
-        btn.textContent = name;
-        btn.title = name;
-        recentRomsEl.appendChild(btn);
+        const el = document.createElement('div');
+        el.className = 'recent-rom';
+        el.textContent = name;
+        el.title = name;
+        recentRomsEl.appendChild(el);
     }
 }
 
