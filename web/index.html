@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RUGB</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
 </head>
 <body>
     <!-- Floating menu button -->
@@ -34,6 +36,7 @@
                     <button class="ch-btn active" data-ch="2">CH3</button>
                     <button class="ch-btn active" data-ch="3">CH4</button>
                 </div>
+                <canvas id="audio-viz" class="audio-viz" width="228" height="48"></canvas>
             </div>
             <hr>
             <div class="menu-group">
@@ -72,9 +75,10 @@
                 <span>Filter</span>
                 <div class="menu-row">
                     <button class="filter-btn active" data-filter="none">None</button>
-                    <button class="filter-btn" data-filter="scanlines">Scanlines</button>
+                    <button class="filter-btn" data-filter="scanlines">CRT</button>
                     <button class="filter-btn" data-filter="lcd">LCD</button>
                     <button class="filter-btn" data-filter="smooth">Smooth</button>
+                    <button class="filter-btn" data-filter="ghosting">Ghost</button>
                 </div>
             </div>
             <hr>
@@ -106,6 +110,7 @@
             <div class="gb-screen-subtitle">DOT MATRIX WITH STEREO SOUND</div>
             <div class="gb-screen-frame">
                 <canvas id="screen" width="160" height="144" role="img" aria-label="Game Boy screen"></canvas>
+                <div id="fps-overlay" class="fps-overlay" style="display:none">--</div>
             </div>
         </div>
 
@@ -286,6 +291,32 @@
         <div class="touch-meta">
             <button class="touch-btn touch-select" data-btn="7">SEL</button>
             <button class="touch-btn touch-start" data-btn="6">START</button>
+        </div>
+    </div>
+
+    <!-- Keyboard shortcut overlay -->
+    <div id="shortcuts-overlay" class="shortcuts-overlay">
+        <div class="shortcuts-content">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcuts-grid">
+                <kbd>&uarr;&darr;&larr;&rarr;</kbd><span>D-pad</span>
+                <kbd>Z</kbd><span>A button</span>
+                <kbd>X</kbd><span>B button</span>
+                <kbd>Enter</kbd><span>Start</span>
+                <kbd>Shift</kbd><span>Select</span>
+                <kbd>P</kbd><span>Pause / Resume</span>
+                <kbd>M</kbd><span>Mute / Unmute</span>
+                <kbd>Space</kbd><span>Fast forward (hold)</span>
+                <kbd>Q</kbd><span>Turbo A</span>
+                <kbd>W</kbd><span>Turbo B</span>
+                <kbd>F3</kbd><span>FPS counter</span>
+                <kbd>F5</kbd><span>Quick save</span>
+                <kbd>F8</kbd><span>Quick load</span>
+                <kbd>F11</kbd><span>Fullscreen</span>
+                <kbd>Esc</kbd><span>Side menu</span>
+                <kbd>?</kbd><span>This overlay</span>
+            </div>
+            <p class="shortcuts-hint">Press <kbd>?</kbd> to close</p>
         </div>
     </div>
 
