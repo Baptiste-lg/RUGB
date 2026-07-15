@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUGB — Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        a { color: #8be9fd; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1 {
+            color: #8be9fd;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.2rem;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        h2 {
+            color: #8be9fd;
+            font-size: 1.3rem;
+            margin: 2rem 0 0.8rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #333;
+        }
+        h3 {
+            color: #bd93f9;
+            font-size: 1rem;
+            margin: 1.2rem 0 0.5rem;
+        }
+        p { margin-bottom: 0.8rem; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.8rem 0 1.2rem;
+            font-size: 0.85rem;
+        }
+        th, td {
+            padding: 0.4rem 0.8rem;
+            text-align: left;
+            border: 1px solid #333;
+        }
+        th {
+            background: #16213e;
+            color: #8be9fd;
+        }
+        td { background: #0f1528; }
+        kbd {
+            display: inline-block;
+            padding: 0.1rem 0.45rem;
+            font-size: 0.8rem;
+            background: #16213e;
+            border: 1px solid #444;
+            border-radius: 3px;
+            color: #8be9fd;
+            font-family: inherit;
+        }
+        .tip {
+            background: #16213e;
+            border-left: 3px solid #8be9fd;
+            padding: 0.6rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+        .warning {
+            background: #2a1a1a;
+            border-left: 3px solid #ff5555;
+            padding: 0.6rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+        .section { margin-bottom: 2rem; }
+        ul { margin: 0.5rem 0 1rem 1.5rem; }
+        li { margin-bottom: 0.3rem; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 1rem 0;
+        }
+        .feature-card {
+            background: #0f1528;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 0.8rem;
+        }
+        .feature-card h4 {
+            color: #8be9fd;
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+        .feature-card p {
+            font-size: 0.8rem;
+            color: #999;
+            margin: 0;
+        }
+        @media (max-width: 600px) {
+            .feature-grid { grid-template-columns: 1fr; }
+        }
+        footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #333;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">&larr; Back to emulator</a>
+    <h1>RUGB</h1>
+    <p class="subtitle">Game Boy Emulator — User Guide</p>
+
+    <div class="section">
+        <h2>Getting Started</h2>
+        <p>RUGB is a Game Boy (DMG) emulator that runs entirely in your browser. No downloads, no plugins — just load a ROM and play.</p>
+        <ol>
+            <li>Open <a href="index.html">the emulator</a></li>
+            <li>Click <strong>Load ROM</strong> in the side menu (click the &#9776; button top-left), or <strong>drag & drop</strong> a <code>.gb</code> or <code>.zip</code> file anywhere on the page</li>
+            <li>Play!</li>
+        </ol>
+        <div class="tip">You need to provide your own ROM files. RUGB does not include any games.</div>
+    </div>
+
+    <div class="section">
+        <h2>Controls</h2>
+
+        <h3>Keyboard</h3>
+        <table>
+            <tr><th>Key</th><th>Action</th></tr>
+            <tr><td><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></td><td>D-pad</td></tr>
+            <tr><td><kbd>Z</kbd></td><td>A button</td></tr>
+            <tr><td><kbd>X</kbd></td><td>B button</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>Start</td></tr>
+            <tr><td><kbd>Shift</kbd></td><td>Select</td></tr>
+        </table>
+
+        <h3>Shortcuts</h3>
+        <table>
+            <tr><th>Key</th><th>Action</th></tr>
+            <tr><td><kbd>P</kbd></td><td>Pause / Resume</td></tr>
+            <tr><td><kbd>M</kbd></td><td>Mute / Unmute</td></tr>
+            <tr><td><kbd>Space</kbd> (hold)</td><td>Fast forward (uncapped speed)</td></tr>
+            <tr><td><kbd>Q</kbd></td><td>Toggle turbo A (auto-repeat)</td></tr>
+            <tr><td><kbd>W</kbd></td><td>Toggle turbo B (auto-repeat)</td></tr>
+            <tr><td><kbd>F5</kbd></td><td>Quick save</td></tr>
+            <tr><td><kbd>F8</kbd></td><td>Quick load</td></tr>
+            <tr><td><kbd>F11</kbd></td><td>Fullscreen</td></tr>
+            <tr><td><kbd>Escape</kbd></td><td>Toggle side menu</td></tr>
+            <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>4</kbd></td><td>Set speed 1x / 2x / 4x</td></tr>
+        </table>
+
+        <h3>Remapping</h3>
+        <p>Open the side menu and click <strong>Remap Keys</strong> to change any binding. Click a button, then press the key you want. You can export and import your bindings as JSON.</p>
+
+        <h3>Gamepad</h3>
+        <p>Connect any standard controller — it's auto-detected. Open <strong>Remap Controller</strong> in the menu to customize bindings. The left stick works as a D-pad.</p>
+
+        <h3>On-Screen Buttons</h3>
+        <p>Click or tap the buttons on the Game Boy shell. They animate when pressed, whether by mouse, touch, or keyboard.</p>
+    </div>
+
+    <div class="section">
+        <h2>Features</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h4>Save States</h4>
+                <p>5 persistent slots + quick save/load. Export and import saves as JSON files to share or backup.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Battery Save</h4>
+                <p>Games with battery backup (Pokemon, Zelda, etc.) auto-save to your browser. Progress persists between sessions.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Speed Control</h4>
+                <p>½x slow motion, 1x normal, 2x, 4x, and uncapped fast forward by holding Space.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Turbo Buttons</h4>
+                <p>Press Q or W to toggle auto-repeat for A or B. Great for rapid-fire or text-heavy games.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Color Palettes</h4>
+                <p>Classic green, gray, B&W, or define your own custom 4-color palette with color pickers.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Audio Channels</h4>
+                <p>Mute individual channels (CH1–CH4) to isolate instruments or debug audio.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Screenshot</h4>
+                <p>One click to download the current screen as a PNG image.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Fullscreen</h4>
+                <p>Press F11 or use the menu to go fullscreen. Works in both console and screen-only modes.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Display Modes</h2>
+        <p>Two display modes are available in the side menu:</p>
+        <ul>
+            <li><strong>Console</strong> — the full Game Boy shell with screen, buttons, and speaker grille. Resizable by dragging the edges.</li>
+            <li><strong>Screen Only</strong> — just the game screen, no shell. Useful for larger displays or recording.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Save System</h2>
+
+        <h3>Battery Save (In-Game Saves)</h3>
+        <p>Games with built-in save functionality (like Pokemon) store data in cartridge RAM. RUGB automatically saves this to your browser's localStorage every 5 seconds and when you close the tab. When you load the same ROM again, your save is restored.</p>
+        <div class="warning">Battery saves are tied to your browser. Clearing browser data will delete them. Use save state export for important saves.</div>
+
+        <h3>Save States</h3>
+        <p>Save states capture the <em>entire</em> emulator state — you can save and restore at any moment, not just at save points. Open <strong>Save States</strong> in the menu to manage 5 slots.</p>
+        <ul>
+            <li><strong>Save</strong> — capture current state to a slot</li>
+            <li><strong>Load</strong> — restore from a slot</li>
+            <li><strong>Export</strong> — download the save as a JSON file</li>
+            <li><strong>Import</strong> — load a previously exported save into an empty slot</li>
+        </ul>
+
+        <h3>Quick Save / Load</h3>
+        <p>Press <kbd>F5</kbd> to quick save and <kbd>F8</kbd> to quick load. This uses a separate in-memory slot (not persisted — lost when you close the tab).</p>
+    </div>
+
+    <div class="section">
+        <h2>Audio</h2>
+        <p>RUGB emulates all four Game Boy audio channels:</p>
+        <table>
+            <tr><th>Channel</th><th>Type</th><th>Typically Used For</th></tr>
+            <tr><td>CH1</td><td>Square wave + sweep</td><td>Melody, sound effects</td></tr>
+            <tr><td>CH2</td><td>Square wave</td><td>Harmony</td></tr>
+            <tr><td>CH3</td><td>Wave</td><td>Bass, custom sounds</td></tr>
+            <tr><td>CH4</td><td>Noise</td><td>Drums, percussion</td></tr>
+        </table>
+        <p>Use the <strong>Volume</strong> slider and <strong>Channels</strong> toggles in the side menu to adjust audio. Click a channel button to mute/unmute it — useful for isolating parts of the music.</p>
+    </div>
+
+    <div class="section">
+        <h2>Supported Games</h2>
+        <p>RUGB supports original Game Boy (DMG) games using the following cartridge types:</p>
+        <table>
+            <tr><th>Mapper</th><th>Example Games</th></tr>
+            <tr><td>No MBC (ROM only)</td><td>Tetris, Dr. Mario, Alleyway</td></tr>
+            <tr><td>MBC1</td><td>Super Mario Land, Kirby's Dream Land, Metroid II, Donkey Kong</td></tr>
+            <tr><td>MBC3</td><td>Pokemon Red/Blue/Yellow, Pokemon Gold/Silver (no RTC)</td></tr>
+        </table>
+        <div class="tip">Game Boy Color (GBC) games are not currently supported. DMG games that are GBC-enhanced will run in DMG mode.</div>
+    </div>
+
+    <div class="section">
+        <h2>Troubleshooting</h2>
+
+        <h3>No sound</h3>
+        <ul>
+            <li>Click anywhere on the page first — browsers require a user interaction before playing audio</li>
+            <li>Check that the volume slider isn't at 0</li>
+            <li>Make sure the Mute button isn't active</li>
+            <li>Check that at least some channels are enabled</li>
+        </ul>
+
+        <h3>Game doesn't start or shows glitches</h3>
+        <ul>
+            <li>Make sure you're loading a <code>.gb</code> file (not <code>.gbc</code>)</li>
+            <li>The game might use an unsupported mapper (MBC2, MBC5, etc.)</li>
+            <li>Try a different ROM dump — corrupted files won't work</li>
+        </ul>
+
+        <h3>Save not loading</h3>
+        <ul>
+            <li>Battery saves are keyed by ROM title — the exact same ROM must be loaded</li>
+            <li>Save states are also title-matched for safety</li>
+            <li>Check that your browser isn't in private/incognito mode (localStorage may be disabled)</li>
+        </ul>
+
+        <h3>Gamepad not detected</h3>
+        <ul>
+            <li>Press a button on the controller before opening the remap dialog</li>
+            <li>Some browsers require HTTPS for gamepad access</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Technical Details</h2>
+        <p>RUGB is written in Rust, compiled to WebAssembly, and runs entirely client-side. No data is sent to any server — your ROMs and saves stay in your browser.</p>
+        <ul>
+            <li><strong>CPU:</strong> SM83 — all 512 opcodes implemented</li>
+            <li><strong>Video:</strong> Scanline-accurate PPU at 59.73 FPS</li>
+            <li><strong>Audio:</strong> Sample-accurate APU at 48 kHz with hardware-matching high-pass filter</li>
+            <li><strong>Source code:</strong> <a href="https://github.com/Baptiste-lg/RUGB">github.com/Baptiste-lg/RUGB</a></li>
+        </ul>
+    </div>
+
+    <footer>
+        RUGB — A Game Boy emulator by <a href="https://github.com/Baptiste-lg">Baptiste-lg</a> | MIT License
+    </footer>
+</body>
+</html>
