@@ -68,6 +68,15 @@
                     <button id="view-screen" class="view-btn">Screen Only</button>
                 </div>
             </div>
+            <div class="menu-group">
+                <span>Filter</span>
+                <div class="menu-row">
+                    <button class="filter-btn active" data-filter="none">None</button>
+                    <button class="filter-btn" data-filter="scanlines">Scanlines</button>
+                    <button class="filter-btn" data-filter="lcd">LCD</button>
+                    <button class="filter-btn" data-filter="smooth">Smooth</button>
+                </div>
+            </div>
             <hr>
             <button id="screenshot-btn" class="menu-item" disabled>Screenshot</button>
             <button id="fullscreen-btn" class="menu-item">Fullscreen</button>
@@ -259,6 +268,24 @@
                 <button id="gp-remap-reset">Reset</button>
                 <button id="gp-remap-close">Done</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Mobile touch controls -->
+    <div id="touch-controls" class="touch-controls">
+        <div class="touch-dpad">
+            <button class="touch-btn touch-up" data-btn="2">&uarr;</button>
+            <button class="touch-btn touch-left" data-btn="1">&larr;</button>
+            <button class="touch-btn touch-right" data-btn="0">&rarr;</button>
+            <button class="touch-btn touch-down" data-btn="3">&darr;</button>
+        </div>
+        <div class="touch-ab">
+            <button class="touch-btn touch-b" data-btn="5">B</button>
+            <button class="touch-btn touch-a" data-btn="4">A</button>
+        </div>
+        <div class="touch-meta">
+            <button class="touch-btn touch-select" data-btn="7">SEL</button>
+            <button class="touch-btn touch-start" data-btn="6">START</button>
         </div>
     </div>
 
