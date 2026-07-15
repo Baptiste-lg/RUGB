@@ -49,6 +49,8 @@ pub struct Apu {
     pub sample_buffer: Vec<f32>,
     /// Accumulator for sample timing
     sample_clock: u32,
+    /// Per-channel mute flags (controlled from frontend, not saved in state)
+    pub ch_mute: [bool; 4],
     // High-pass filter state (emulates the hardware coupling capacitor)
     hp_left_in: f32,
     hp_left_out: f32,
@@ -509,6 +511,7 @@ impl Apu {
             wave_ram: [0; 16],
             sample_buffer: Vec::with_capacity(MAX_BUFFER_SAMPLES * 2),
             sample_clock: 0,
+            ch_mute: [false; 4],
             hp_left_in: 0.0,
             hp_left_out: 0.0,
             hp_right_in: 0.0,
@@ -576,10 +579,10 @@ impl Apu {
     }
 
     fn generate_sample(&mut self) {
-        let ch1_out = self.ch1.output();
-        let ch2_out = self.ch2.output();
-        let ch3_out = self.ch3.output(&self.wave_ram);
-        let ch4_out = self.ch4.output();
+        let ch1_out = if self.ch_mute[0] { 0.0 } else { self.ch1.output() };
+        let ch2_out = if self.ch_mute[1] { 0.0 } else { self.ch2.output() };
+        let ch3_out = if self.ch_mute[2] { 0.0 } else { self.ch3.output(&self.wave_ram) };
+        let ch4_out = if self.ch_mute[3] { 0.0 } else { self.ch4.output() };
 
         let left_vol = ((self.nr50 >> 4) & 7) as f32 + 1.0;
         let right_vol = (self.nr50 & 7) as f32 + 1.0;
