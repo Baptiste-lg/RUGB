@@ -47,6 +47,18 @@ impl Mmu {
         self.cartridge.title().to_string()
     }
 
+    pub fn has_battery(&self) -> bool {
+        self.cartridge.has_battery()
+    }
+
+    pub fn battery_ram(&self) -> &[u8] {
+        self.cartridge.ram_data()
+    }
+
+    pub fn load_battery_ram(&mut self, data: &[u8]) {
+        self.cartridge.load_ram(data);
+    }
+
     pub fn save_state(&self, d: &mut Vec<u8>) {
         d.extend_from_slice(&self.wram);
         d.extend_from_slice(&self.hram);
