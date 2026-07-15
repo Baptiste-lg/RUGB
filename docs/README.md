@@ -10,7 +10,7 @@ This directory contains technical documentation for developers working on RUGB. 
 4. [APU (Audio)](apu.md) — sample generation, channels, mixing, high-pass filter
 5. [MMU (Memory Bus)](mmu.md) — address routing, I/O registers, DMA
 6. [Timer](timer.md) — DIV, TIMA, falling-edge detection
-7. [Cartridge Mappers](cartridge.md) — NoMBC, MBC1, MBC3, battery saves
+7. [Cartridge Mappers](cartridge.md) — NoMBC, MBC1, MBC2, MBC3, MBC5, battery saves
 8. [Frontend](frontend.md) — WASM bridge, audio pipeline, frame timing, UI
 
 ## Quick Start for Contributors

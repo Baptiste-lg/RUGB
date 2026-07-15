@@ -62,6 +62,21 @@ The most common mapper. Supports up to 2 MB ROM and 32 KB RAM.
 
 ROM bank is masked to the actual number of banks: `bank % (rom.len() / 0x4000)`.
 
+### MBC2
+
+**Cart types:** 0x05–0x06
+
+Simple mapper with built-in 512×4-bit RAM (no external RAM chip). Only the lower 4 bits of each byte are used; upper 4 bits read as 1.
+
+**Bank registers:**
+
+| Address range | Register | Function |
+|---|---|---|
+| 0x0000–0x3FFF (bit 8 = 0) | RAM enable | Low nibble 0x0A enables |
+| 0x0000–0x3FFF (bit 8 = 1) | ROM bank (4 bits) | Bank 0 maps to bank 1 |
+
+**RAM:** 512 bytes at 0xA000–0xA1FF, mirrored through 0xBFFF. Only lower 4 bits are valid.
+
 ### MBC3
 
 **Cart types:** 0x0F–0x13
@@ -78,6 +93,23 @@ Used by Pokemon Gold/Silver/Crystal and other later titles. Simpler banking than
 | 0x6000–0x7FFF | RTC latch | Stubbed |
 
 **RTC:** Banks 0x08–0x0C select real-time clock registers instead of RAM. Currently stubbed — reads return 0, writes are ignored.
+
+### MBC5
+
+**Cart types:** 0x19–0x1E
+
+The most common mapper for later Game Boy and Game Boy Color titles. Supports up to 8 MB ROM (9-bit bank number) and 128 KB RAM (4-bit bank number). Unlike MBC1, bank 0 IS valid for the switchable region.
+
+**Bank registers:**
+
+| Address range | Register | Function |
+|---|---|---|
+| 0x0000–0x1FFF | RAM enable | Write 0x0A to enable |
+| 0x2000–0x2FFF | ROM bank low 8 bits | 0x00–0xFF |
+| 0x3000–0x3FFF | ROM bank bit 8 | 1 bit (0 or 1) |
+| 0x4000–0x5FFF | RAM bank (4 bits) | 0x00–0x0F |
+
+**Key difference from MBC1:** No bank-0 avoidance — writing 0x00 to the ROM bank register maps bank 0 to the switchable region.
 
 ## Battery Save
 
@@ -102,7 +134,7 @@ trait Cartridge {
 
 ## Unsupported Mappers
 
-Cart types not matching 0x00, 0x01–0x03, or 0x0F–0x13 fall back to NoMBC with a debug warning. This means games using MBC2, MBC5, MBC7, HuC1, etc. will not work correctly.
+Cart types not matching the supported ranges (0x00, 0x01–0x03, 0x05–0x06, 0x0F–0x13, 0x19–0x1E) fall back to NoMBC with a debug warning. This means games using MBC7, HuC1, HuC3, etc. will not work correctly.
 
 ## Adding a New Mapper
 

@@ -156,6 +156,29 @@ Four built-in palettes (green, gray, B&W, custom) applied in JS after reading th
 
 The custom palette uses four `<input type="color">` pickers, persisted in localStorage.
 
+## Display Filters
+
+Four filter modes applied via CSS:
+
+| Filter | Method |
+|--------|--------|
+| None | Default pixelated rendering |
+| Scanlines | CSS `::after` overlay with horizontal line pattern on `.gb-screen-frame` |
+| LCD | CSS `::after` overlay with grid pattern simulating LCD subpixels |
+| Smooth | Sets `image-rendering: auto` on canvas for bilinear interpolation |
+
+Scanlines and LCD use `mix-blend-mode: multiply` with `pointer-events: none` so they don't intercept clicks. The selected filter is persisted to localStorage.
+
+## Mobile Touch Controls
+
+On touch-capable devices (`@media (pointer: coarse)`), an overlay with on-screen buttons appears at the bottom of the viewport:
+
+- D-pad (grid layout: up/down/left/right)
+- A and B buttons (right side)
+- Start and Select (center bottom)
+
+The Game Boy shell is hidden on mobile — only the screen and touch controls are shown. Touch events use `touchstart`/`touchend`/`touchcancel` with `preventDefault()` to avoid scrolling.
+
 ## localStorage Keys
 
 | Key | Content |
@@ -168,3 +191,4 @@ The custom palette uses four `<input type="color">` pickers, persisted in localS
 | `rugb-slot-{N}` | Save state slot N (JSON with base64 data) |
 | `rugb-sram-{title}` | Battery RAM (base64) |
 | `rugb-recent` | Recent ROM titles (JSON array) |
+| `rugb-filter` | Display filter (none/scanlines/lcd/smooth) |
