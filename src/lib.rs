@@ -125,6 +125,28 @@ impl WasmEmulator {
         self.emu.mmu.apu.consume_samples(count);
     }
 
+    pub fn has_battery(&self) -> bool {
+        self.emu.mmu.has_battery()
+    }
+
+    pub fn battery_ram_ptr(&self) -> *const u8 {
+        self.emu.mmu.battery_ram().as_ptr()
+    }
+
+    pub fn battery_ram_len(&self) -> usize {
+        self.emu.mmu.battery_ram().len()
+    }
+
+    pub fn load_battery_ram(&mut self, data: &[u8]) {
+        self.emu.mmu.load_battery_ram(data);
+    }
+
+    pub fn set_channel_mute(&mut self, channel: u8, muted: bool) {
+        if (channel as usize) < 4 {
+            self.emu.mmu.apu.ch_mute[channel as usize] = muted;
+        }
+    }
+
     pub fn save_state(&self) -> Vec<u8> {
         self.emu.save_state()
     }
