@@ -354,6 +354,7 @@ impl Ppu {
 
     /// Extract a 2-bit color ID from tile data at the given address and pixel column.
     /// GB tiles store 2 bytes per row: low bit in byte 0, high bit in byte 1.
+    #[inline(always)]
     fn get_tile_pixel(&self, addr: u16, pixel_col: u8) -> u8 {
         let lo = self.vram[(addr - 0x8000) as usize];
         let hi = self.vram[(addr + 1 - 0x8000) as usize];
@@ -362,11 +363,13 @@ impl Ppu {
     }
 
     /// Map a 2-bit color ID through a palette register to get a shade index
+    #[inline(always)]
     fn apply_palette(&self, palette: u8, color_id: u8) -> u8 {
         let shade_idx = (palette >> (color_id * 2)) & 0x03;
         SHADES[shade_idx as usize]
     }
 
+    #[inline(always)]
     fn set_pixel(&mut self, x: usize, y: usize, shade: u8) {
         let idx = (y * SCREEN_W + x) * 4;
         if idx + 3 < self.framebuffer.len() {
