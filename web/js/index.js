@@ -9,6 +9,9 @@ let speed = 1;
 let muted = false;
 let fastForward = false;
 let normalSpeed = 1;
+let turboA = false;
+let turboB = false;
+let turboFrame = 0;
 
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
@@ -145,11 +148,15 @@ gameboy.addEventListener('mousedown', (e) => {
 
 let audioCtx = null;
 let audioProcessor = null;
+let gainNode = null;
 const AUDIO_SAMPLE_RATE = 48000;
 
 function initAudio() {
     if (audioCtx) return;
     audioCtx = new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE });
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = parseInt(document.getElementById('volume-slider').value) / 100;
+    gainNode.connect(audioCtx.destination);
     const bufferSize = 2048;
     audioProcessor = audioCtx.createScriptProcessor(bufferSize, 0, 2);
     audioProcessor.onaudioprocess = (e) => {
@@ -190,7 +197,7 @@ function initAudio() {
         // Only consume what was actually read (keep excess for next callback)
         emu.audio_buffer_consume(count * 2);
     };
-    audioProcessor.connect(audioCtx.destination);
+    audioProcessor.connect(gainNode);
 }
 
 // --- Palettes ---
@@ -199,7 +206,14 @@ const PALETTES = {
     green:  { colors: ['#9bbc0f', '#8bac0f', '#306230', '#0f380f'] },
     gray:   { colors: ['#ffffff', '#aaaaaa', '#555555', '#000000'] },
     bw:     { colors: ['#ffffff', '#b0b0b0', '#404040', '#000000'] },
+    custom: { colors: ['#e0f8d0', '#88c070', '#346856', '#081820'] },
 };
+
+// Restore custom palette from localStorage
+const savedCustom = localStorage.getItem('rugb-custom-palette');
+if (savedCustom) {
+    try { PALETTES.custom.colors = JSON.parse(savedCustom); } catch {}
+}
 
 let currentPalette = localStorage.getItem('rugb-palette') || 'gray';
 
@@ -267,7 +281,10 @@ async function startEmulator(bytes) {
     emu = new WasmEmulator(new Uint8Array(bytes));
 
     const title = emu.title();
-    if (title) document.title = `RUGB — ${title}`;
+    if (title) {
+        document.title = `RUGB — ${title}`;
+        addRecentRom(title);
+    }
 
     // Restore battery-backed SRAM from localStorage
     loadBatteryRAM();
@@ -518,6 +535,11 @@ function frame(timestamp) {
     const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
     while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
         pollGamepad();
+        // Turbo: toggle A/B every other frame
+        turboFrame++;
+        const turboOn = (turboFrame & 1) === 0;
+        if (turboA) emu.set_button(4, turboOn);
+        if (turboB) emu.set_button(5, turboOn);
         emu.run_frame();
         frameDebt -= GB_FRAME_MS;
         framesRun++;
@@ -684,6 +706,22 @@ muteBtn.addEventListener('click', () => {
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
 });
 
+// Volume slider
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+    const vol = parseInt(e.target.value) / 100;
+    if (gainNode) gainNode.gain.value = vol;
+});
+
+// Per-channel mute
+document.querySelectorAll('.ch-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
+        const ch = parseInt(btn.dataset.ch);
+        const muted = !btn.classList.contains('active');
+        if (emu) emu.set_channel_mute(ch, muted);
+    });
+});
+
 // Speed buttons
 speedBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -844,6 +882,8 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { sideMenu.classList.toggle('open'); return; }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
     if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
+    if (e.key === 'q') { turboA = !turboA; showToast(turboA ? 'Turbo A ON' : 'Turbo A OFF'); return; }
+    if (e.key === 'w') { turboB = !turboB; showToast(turboB ? 'Turbo B ON' : 'Turbo B OFF'); return; }
     if (e.key === keyMap.pause) { pauseBtn.click(); return; }
     if (e.key === keyMap.mute) { muteBtn.click(); return; }
     if (e.key === '1') { document.querySelector('.speed-btn[data-speed="1"]')?.click(); return; }
@@ -1071,6 +1111,37 @@ savestateFileInput.addEventListener('change', (e) => {
 
 // Initialize slot UI
 updateSlotUI();
+
+// --- Recent ROMs ---
+
+const recentRomsEl = document.getElementById('recent-roms');
+const MAX_RECENT = 5;
+
+function getRecentRoms() {
+    try { return JSON.parse(localStorage.getItem('rugb-recent') || '[]'); } catch { return []; }
+}
+
+function addRecentRom(name) {
+    let list = getRecentRoms().filter(n => n !== name);
+    list.unshift(name);
+    if (list.length > MAX_RECENT) list = list.slice(0, MAX_RECENT);
+    localStorage.setItem('rugb-recent', JSON.stringify(list));
+    renderRecentRoms();
+}
+
+function renderRecentRoms() {
+    recentRomsEl.innerHTML = '';
+    const list = getRecentRoms();
+    for (const name of list) {
+        const btn = document.createElement('button');
+        btn.className = 'recent-rom';
+        btn.textContent = name;
+        btn.title = name;
+        recentRomsEl.appendChild(btn);
+    }
+}
+
+renderRecentRoms();
 
 // Save battery RAM when leaving the page
 window.addEventListener('beforeunload', saveBatteryRAM);
