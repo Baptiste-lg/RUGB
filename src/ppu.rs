@@ -238,13 +238,10 @@ impl Ppu {
         let tile_row = (win_y / 8) as u16;
         let pixel_row = (win_y % 8) as u16;
 
-        let mut drew_anything = false;
-
         for x in 0..SCREEN_W as u8 {
             if x < wx {
                 continue;
             }
-            drew_anything = true;
 
             let win_x = x - wx;
             let tile_col = (win_x / 8) as u16;
