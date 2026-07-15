@@ -520,26 +520,68 @@ impl Apu {
     }
 
     /// Advance APU by the given number of T-cycles. Generates audio samples.
+    ///
+    /// Uses event-driven batching: instead of iterating per-cycle, calculates
+    /// the next event (timer expiry, sample generation, frame sequencer tick)
+    /// and skips ahead. Reduces iterations from ~70K/frame to ~1-2K/frame.
     pub fn tick(&mut self, cycles: u32) {
-        for _ in 0..cycles {
+        let mut remaining = cycles;
+
+        while remaining > 0 {
+            // Calculate cycles until the next event
+            let to_sample = (CPU_CLOCK - self.sample_clock + SAMPLE_RATE - 1) / SAMPLE_RATE;
+            let mut skip = remaining.min(to_sample);
+
             if self.enabled {
-                // Frame sequencer ticks every 8192 T-cycles (512 Hz)
-                self.frame_cycles += 1;
+                let to_frame = (8192 - self.frame_cycles).max(1);
+                skip = skip
+                    .min(to_frame)
+                    .min(self.ch1.freq_timer.max(1))
+                    .min(self.ch2.freq_timer.max(1))
+                    .min(self.ch3.freq_timer.max(1))
+                    .min(self.ch4.freq_timer.max(1));
+
+                // Batch-advance all timers
+                self.frame_cycles += skip;
+                self.ch1.freq_timer = self.ch1.freq_timer.saturating_sub(skip);
+                self.ch2.freq_timer = self.ch2.freq_timer.saturating_sub(skip);
+                self.ch3.freq_timer = self.ch3.freq_timer.saturating_sub(skip);
+                self.ch4.freq_timer = self.ch4.freq_timer.saturating_sub(skip);
+
+                // Process frame sequencer
                 if self.frame_cycles >= 8192 {
-                    self.frame_cycles = 0;
+                    self.frame_cycles -= 8192;
                     self.clock_frame_sequencer();
                 }
 
-                // Tick channel frequency timers
-                self.ch1.tick_freq();
-                self.ch2.tick_freq();
-                self.ch3.tick_freq();
-                self.ch4.tick_freq();
+                // Process channel events (timer reached 0 → advance phase)
+                if self.ch1.freq_timer == 0 {
+                    self.ch1.freq_timer = (2048 - self.ch1.freq_raw as u32) * 4;
+                    self.ch1.duty_position = (self.ch1.duty_position + 1) & 7;
+                }
+                if self.ch2.freq_timer == 0 {
+                    self.ch2.freq_timer = (2048 - self.ch2.freq_raw as u32) * 4;
+                    self.ch2.duty_position = (self.ch2.duty_position + 1) & 7;
+                }
+                if self.ch3.freq_timer == 0 {
+                    self.ch3.freq_timer = (2048 - self.ch3.freq_raw as u32) * 2;
+                    self.ch3.wave_position = (self.ch3.wave_position + 1) & 31;
+                }
+                if self.ch4.freq_timer == 0 {
+                    self.ch4.freq_timer =
+                        NOISE_DIVISORS[self.ch4.divisor_code as usize] << self.ch4.clock_shift;
+                    let xor_bit = (self.ch4.lfsr & 1) ^ ((self.ch4.lfsr >> 1) & 1);
+                    self.ch4.lfsr >>= 1;
+                    self.ch4.lfsr |= xor_bit << 14;
+                    if self.ch4.width_mode {
+                        self.ch4.lfsr = (self.ch4.lfsr & !(1 << 6)) | (xor_bit << 6);
+                    }
+                }
             }
 
-            // Always generate samples at the target rate
-            self.sample_clock += SAMPLE_RATE;
-            if self.sample_clock >= CPU_CLOCK {
+            // Generate samples
+            self.sample_clock += skip * SAMPLE_RATE;
+            while self.sample_clock >= CPU_CLOCK {
                 self.sample_clock -= CPU_CLOCK;
                 if self.sample_buffer.len() < MAX_BUFFER_SAMPLES * 2 {
                     if self.enabled {
@@ -550,6 +592,8 @@ impl Apu {
                     }
                 }
             }
+
+            remaining -= skip;
         }
     }
 
