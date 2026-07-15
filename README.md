@@ -28,12 +28,15 @@ A Game Boy (DMG) emulator written in Rust, compiled to WebAssembly, playable in 
 - Speed control (½x / 1x / 2x / 4x) + hold Space for uncapped fast forward
 - Turbo buttons — toggle auto-repeat for A (Q key) and B (W key)
 - Color palettes — classic green, gray, B&W, and fully customizable user palette
-- Display filters — scanlines, LCD grid, smooth scaling
-- Volume slider and per-channel mute (CH1–CH4)
+- Display filters — scanlines, LCD grid, smooth scaling, frame blending (LCD ghosting)
+- Volume slider and per-channel mute (CH1–CH4) with real-time audio visualizer
 - Fullscreen mode (F11 or menu button)
 - Screenshot download as PNG
+- FPS counter and speed overlay (F3)
+- Keyboard shortcuts cheat sheet (?)
 - Console view / screen-only display toggle with free resize
-- Mobile touch controls — on-screen D-pad and buttons, auto-shown on touch devices
+- Mobile touch controls — on-screen D-pad and buttons with haptic feedback
+- Installable PWA — works offline, add to home screen on mobile/desktop
 - Recent ROMs history
 - All preferences persisted in localStorage
 
@@ -101,9 +104,11 @@ Then open `http://localhost:8080` and load a `.gb` ROM file.
 | Space (hold) | Fast forward |
 | Q | Toggle turbo A |
 | W | Toggle turbo B |
+| F3 | Toggle FPS counter |
 | F5 | Quick save |
 | F8 | Quick load |
 | F11 | Fullscreen |
+| ? | Keyboard shortcuts overlay |
 | Escape | Toggle side menu |
 | 1 / 2 / 4 | Set speed 1x / 2x / 4x |
 
