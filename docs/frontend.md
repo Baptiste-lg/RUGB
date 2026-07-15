@@ -158,16 +158,17 @@ The custom palette uses four `<input type="color">` pickers, persisted in localS
 
 ## Display Filters
 
-Four filter modes applied via CSS:
+Five filter modes applied via CSS or JS:
 
 | Filter | Method |
 |--------|--------|
 | None | Default pixelated rendering |
-| Scanlines | CSS `::after` overlay with horizontal line pattern on `.gb-screen-frame` |
+| CRT | CSS `::after` overlay with horizontal scanline pattern on `.gb-screen-frame` |
 | LCD | CSS `::after` overlay with grid pattern simulating LCD subpixels |
 | Smooth | Sets `image-rendering: auto` on canvas for bilinear interpolation |
+| Ghost | JS frame blending — mixes 50% current frame + 50% previous frame to simulate LCD ghosting |
 
-Scanlines and LCD use `mix-blend-mode: multiply` with `pointer-events: none` so they don't intercept clicks. The selected filter is persisted to localStorage.
+CRT and LCD use `mix-blend-mode: multiply` with `pointer-events: none` so they don't intercept clicks. Ghost blending happens in the `frame()` render path using `prevFrameData`. The selected filter is persisted to localStorage.
 
 ## Mobile Touch Controls
 
@@ -177,7 +178,23 @@ On touch-capable devices (`@media (pointer: coarse)`), an overlay with on-screen
 - A and B buttons (right side)
 - Start and Select (center bottom)
 
-The Game Boy shell is hidden on mobile — only the screen and touch controls are shown. Touch events use `touchstart`/`touchend`/`touchcancel` with `preventDefault()` to avoid scrolling.
+The Game Boy shell is hidden on mobile — only the screen and touch controls are shown. Touch events use `touchstart`/`touchend`/`touchcancel` with `preventDefault()` to avoid scrolling. Haptic feedback (15ms vibration via `navigator.vibrate()`) triggers on each touch press.
+
+## Audio Visualizer
+
+A small oscilloscope canvas (`#audio-viz`, 228x48) in the side menu draws the real-time audio waveform using `AnalyserNode.getByteTimeDomainData()`. The visualizer runs on its own `requestAnimationFrame` loop, independent of the emulator frame loop.
+
+## FPS Counter
+
+Toggled with F3. Displays in the top-right corner of the screen frame (`#fps-overlay`). Counts emulated frames per second and shows the percentage relative to the native 59.73 FPS rate.
+
+## PWA / Offline Support
+
+A service worker (`sw.js`) caches all static assets on first visit. The WASM/pkg files use a network-first strategy (to pick up new deploys), while HTML/CSS/JS use cache-first. A `manifest.json` makes the app installable on mobile and desktop.
+
+## Keyboard Shortcuts Overlay
+
+Press `?` to toggle a floating overlay listing all keyboard shortcuts. Implemented as a fixed-position div (`#shortcuts-overlay`) toggled via `classList.toggle('visible')`.
 
 ## localStorage Keys
 
@@ -191,4 +208,4 @@ The Game Boy shell is hidden on mobile — only the screen and touch controls ar
 | `rugb-slot-{N}` | Save state slot N (JSON with base64 data) |
 | `rugb-sram-{title}` | Battery RAM (base64) |
 | `rugb-recent` | Recent ROM titles (JSON array) |
-| `rugb-filter` | Display filter (none/scanlines/lcd/smooth) |
+| `rugb-filter` | Display filter (none/scanlines/lcd/smooth/ghosting) |
