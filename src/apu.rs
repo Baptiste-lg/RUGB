@@ -579,10 +579,26 @@ impl Apu {
     }
 
     fn generate_sample(&mut self) {
-        let ch1_out = if self.ch_mute[0] { 0.0 } else { self.ch1.output() };
-        let ch2_out = if self.ch_mute[1] { 0.0 } else { self.ch2.output() };
-        let ch3_out = if self.ch_mute[2] { 0.0 } else { self.ch3.output(&self.wave_ram) };
-        let ch4_out = if self.ch_mute[3] { 0.0 } else { self.ch4.output() };
+        let ch1_out = if self.ch_mute[0] {
+            0.0
+        } else {
+            self.ch1.output()
+        };
+        let ch2_out = if self.ch_mute[1] {
+            0.0
+        } else {
+            self.ch2.output()
+        };
+        let ch3_out = if self.ch_mute[2] {
+            0.0
+        } else {
+            self.ch3.output(&self.wave_ram)
+        };
+        let ch4_out = if self.ch_mute[3] {
+            0.0
+        } else {
+            self.ch4.output()
+        };
 
         let left_vol = ((self.nr50 >> 4) & 7) as f32 + 1.0;
         let right_vol = (self.nr50 & 7) as f32 + 1.0;
