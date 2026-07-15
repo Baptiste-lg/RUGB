@@ -18,9 +18,23 @@
                 Load ROM
                 <input type="file" id="rom-input" accept=".gb,.bin,.zip" hidden>
             </label>
+            <div id="recent-roms" class="recent-roms"></div>
             <button id="pause-btn" class="menu-item" disabled>Pause</button>
             <button id="reset-btn" class="menu-item" disabled>Reset</button>
             <button id="mute-btn" class="menu-item" disabled>Mute</button>
+            <div class="menu-group">
+                <span>Volume</span>
+                <input type="range" id="volume-slider" min="0" max="100" value="100" class="volume-slider">
+            </div>
+            <div class="menu-group">
+                <span>Channels</span>
+                <div class="menu-row">
+                    <button class="ch-btn active" data-ch="0">CH1</button>
+                    <button class="ch-btn active" data-ch="1">CH2</button>
+                    <button class="ch-btn active" data-ch="2">CH3</button>
+                    <button class="ch-btn active" data-ch="3">CH4</button>
+                </div>
+            </div>
             <hr>
             <div class="menu-group">
                 <span>Speed</span>
@@ -37,6 +51,13 @@
                     <button class="palette-btn" data-palette="green">Green</button>
                     <button class="palette-btn" data-palette="gray">Gray</button>
                     <button class="palette-btn" data-palette="bw">B&W</button>
+                    <button class="palette-btn" data-palette="custom">Custom</button>
+                </div>
+                <div id="custom-palette" class="custom-palette" style="display:none">
+                    <input type="color" class="pal-color" data-idx="0" value="#e0f8d0">
+                    <input type="color" class="pal-color" data-idx="1" value="#88c070">
+                    <input type="color" class="pal-color" data-idx="2" value="#346856">
+                    <input type="color" class="pal-color" data-idx="3" value="#081820">
                 </div>
             </div>
             <hr>
