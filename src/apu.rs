@@ -232,16 +232,6 @@ impl SquareChannel {
         }
     }
 
-    fn tick_freq(&mut self) {
-        if self.freq_timer > 0 {
-            self.freq_timer -= 1;
-        }
-        if self.freq_timer == 0 {
-            self.freq_timer = (2048 - self.freq_raw as u32) * 4;
-            self.duty_position = (self.duty_position + 1) & 7;
-        }
-    }
-
     fn output(&self) -> f32 {
         if !self.enabled || !self.dac_enabled() {
             return 0.0;
@@ -324,16 +314,6 @@ impl WaveChannel {
             if self.length_counter == 0 {
                 self.enabled = false;
             }
-        }
-    }
-
-    fn tick_freq(&mut self) {
-        if self.freq_timer > 0 {
-            self.freq_timer -= 1;
-        }
-        if self.freq_timer == 0 {
-            self.freq_timer = (2048 - self.freq_raw as u32) * 2;
-            self.wave_position = (self.wave_position + 1) & 31;
         }
     }
 
@@ -435,22 +415,6 @@ impl NoiseChannel {
         let new_vol = self.volume as i8 + self.env_direction;
         if (0..=15).contains(&new_vol) {
             self.volume = new_vol as u8;
-        }
-    }
-
-    fn tick_freq(&mut self) {
-        if self.freq_timer > 0 {
-            self.freq_timer -= 1;
-        }
-        if self.freq_timer == 0 {
-            self.freq_timer = NOISE_DIVISORS[self.divisor_code as usize] << self.clock_shift;
-            // Clock the LFSR
-            let xor_bit = (self.lfsr & 1) ^ ((self.lfsr >> 1) & 1);
-            self.lfsr >>= 1;
-            self.lfsr |= xor_bit << 14;
-            if self.width_mode {
-                self.lfsr = (self.lfsr & !(1 << 6)) | (xor_bit << 6);
-            }
         }
     }
 
