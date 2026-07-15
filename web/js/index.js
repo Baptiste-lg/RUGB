@@ -713,6 +713,30 @@ muteBtn.addEventListener('click', () => {
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
 });
 
+// Display filters
+const filterBtns = document.querySelectorAll('.filter-btn');
+const screenFrame = document.querySelector('.gb-screen-frame');
+filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter;
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Remove all filter classes
+        canvas.classList.remove('filter-smooth');
+        screenFrame.classList.remove('filter-scanlines', 'filter-lcd');
+        // Apply selected
+        if (filter === 'smooth') canvas.classList.add('filter-smooth');
+        if (filter === 'scanlines') screenFrame.classList.add('filter-scanlines');
+        if (filter === 'lcd') screenFrame.classList.add('filter-lcd');
+        localStorage.setItem('rugb-filter', filter);
+    });
+});
+// Restore saved filter
+const savedFilter = localStorage.getItem('rugb-filter');
+if (savedFilter && savedFilter !== 'none') {
+    document.querySelector(`.filter-btn[data-filter="${savedFilter}"]`)?.click();
+}
+
 // Volume slider
 document.getElementById('volume-slider').addEventListener('input', (e) => {
     const vol = parseInt(e.target.value) / 100;
@@ -963,6 +987,25 @@ gbInputBtns.forEach(el => {
     el.addEventListener('mousedown', press);
     el.addEventListener('mouseup', release);
     el.addEventListener('mouseleave', release);
+    el.addEventListener('touchstart', press);
+    el.addEventListener('touchend', release);
+    el.addEventListener('touchcancel', release);
+});
+
+// --- Mobile touch controls ---
+
+document.querySelectorAll('.touch-btn[data-btn]').forEach(el => {
+    const gbBtn = parseInt(el.dataset.btn);
+    const press = (e) => {
+        e.preventDefault();
+        el.classList.add('pressed');
+        if (emu) emu.set_button(gbBtn, true);
+    };
+    const release = (e) => {
+        e.preventDefault();
+        el.classList.remove('pressed');
+        if (emu) emu.set_button(gbBtn, false);
+    };
     el.addEventListener('touchstart', press);
     el.addEventListener('touchend', release);
     el.addEventListener('touchcancel', release);
