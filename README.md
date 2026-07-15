@@ -14,7 +14,7 @@ A Game Boy (DMG) emulator written in Rust, compiled to WebAssembly, playable in 
 - Full SM83 CPU — all 512 opcodes (256 base + 256 CB-prefixed)
 - Scanline-accurate PPU — background, window, and sprite rendering
 - Sample-accurate APU — all 4 channels (2 square, 1 wave, 1 noise) with DC-blocking high-pass filter
-- Cartridge support — NoMBC, MBC1, MBC3 (covers Tetris through Pokemon)
+- Cartridge support — NoMBC, MBC1, MBC2, MBC3, MBC5 (covers Tetris through Pokemon Crystal)
 - Timer subsystem with falling-edge detection
 - Interrupt controller (VBlank, STAT, Timer, Serial, Joypad)
 - Battery save — cartridge SRAM automatically persisted to localStorage
@@ -28,10 +28,12 @@ A Game Boy (DMG) emulator written in Rust, compiled to WebAssembly, playable in 
 - Speed control (½x / 1x / 2x / 4x) + hold Space for uncapped fast forward
 - Turbo buttons — toggle auto-repeat for A (Q key) and B (W key)
 - Color palettes — classic green, gray, B&W, and fully customizable user palette
+- Display filters — scanlines, LCD grid, smooth scaling
 - Volume slider and per-channel mute (CH1–CH4)
 - Fullscreen mode (F11 or menu button)
 - Screenshot download as PNG
 - Console view / screen-only display toggle with free resize
+- Mobile touch controls — on-screen D-pad and buttons, auto-shown on touch devices
 - Recent ROMs history
 - All preferences persisted in localStorage
 
@@ -128,7 +130,10 @@ Each channel can be individually muted from the side menu for music isolation or
 | Dr. Mario | None | Fully playable |
 | Super Mario Land | MBC1 | Fully playable |
 | Kirby's Dream Land | MBC1 | Fully playable |
+| Mega Man | MBC2 | Fully playable |
 | Pokemon Red/Blue | MBC3 | Playable with battery save |
+| Pokemon Crystal | MBC5 | Playable with battery save |
+| Zelda: Link's Awakening DX | MBC5 | Playable with battery save |
 
 ## Project Structure
 
@@ -151,7 +156,9 @@ src/
     mod.rs             ROM header parsing, MBC detection
     no_mbc.rs          ROM-only cartridges
     mbc1.rs            MBC1 mapper (with battery save)
+    mbc2.rs            MBC2 mapper (built-in 512×4-bit RAM, battery save)
     mbc3.rs            MBC3 mapper (with battery save)
+    mbc5.rs            MBC5 mapper (with battery save)
 web/
   index.html           Emulator UI (faithful DMG-01 shell)
   style.css            Game Boy shell styling, responsive layout
