@@ -160,9 +160,11 @@
             <tr><td><kbd>Space</kbd> (hold)</td><td>Fast forward (uncapped speed)</td></tr>
             <tr><td><kbd>Q</kbd></td><td>Toggle turbo A (auto-repeat)</td></tr>
             <tr><td><kbd>W</kbd></td><td>Toggle turbo B (auto-repeat)</td></tr>
+            <tr><td><kbd>F3</kbd></td><td>Toggle FPS counter</td></tr>
             <tr><td><kbd>F5</kbd></td><td>Quick save</td></tr>
             <tr><td><kbd>F8</kbd></td><td>Quick load</td></tr>
             <tr><td><kbd>F11</kbd></td><td>Fullscreen</td></tr>
+            <tr><td><kbd>?</kbd></td><td>Keyboard shortcuts overlay</td></tr>
             <tr><td><kbd>Escape</kbd></td><td>Toggle side menu</td></tr>
             <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>4</kbd></td><td>Set speed 1x / 2x / 4x</td></tr>
         </table>
@@ -218,7 +220,19 @@
             </div>
             <div class="feature-card">
                 <h4>Mobile Support</h4>
-                <p>On-screen D-pad and buttons appear automatically on phones and tablets. No keyboard needed.</p>
+                <p>On-screen D-pad and buttons with haptic feedback appear automatically on phones and tablets.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Audio Visualizer</h4>
+                <p>Real-time oscilloscope waveform in the side menu. See the music as it plays.</p>
+            </div>
+            <div class="feature-card">
+                <h4>FPS Counter</h4>
+                <p>Press F3 to toggle a performance overlay showing FPS and emulation speed percentage.</p>
+            </div>
+            <div class="feature-card">
+                <h4>Installable PWA</h4>
+                <p>Install RUGB to your home screen on mobile or desktop. Works fully offline after first visit.</p>
             </div>
         </div>
     </div>
@@ -232,12 +246,13 @@
         </ul>
 
         <h3>Filters</h3>
-        <p>Four display filter options are available:</p>
+        <p>Five display filter options are available:</p>
         <ul>
             <li><strong>None</strong> — sharp, pixelated rendering (default)</li>
-            <li><strong>Scanlines</strong> — horizontal line overlay simulating a CRT monitor</li>
+            <li><strong>CRT</strong> — horizontal scanline overlay simulating a CRT monitor</li>
             <li><strong>LCD</strong> — pixel grid overlay simulating a Game Boy LCD panel</li>
             <li><strong>Smooth</strong> — bilinear interpolation for softer pixels</li>
+            <li><strong>Ghost</strong> — blends consecutive frames to simulate the slow LCD response of the original hardware, producing ghostly motion trails</li>
         </ul>
     </div>
 
