@@ -647,13 +647,16 @@ async function deflateRaw(compressed) {
     return result.buffer;
 }
 
-// Drag & drop
-canvas.addEventListener('dragover', (e) => {
+// Drag & drop (full page)
+document.body.addEventListener('dragover', (e) => {
     e.preventDefault();
     canvas.classList.add('drag-over');
 });
-canvas.addEventListener('dragleave', () => canvas.classList.remove('drag-over'));
-canvas.addEventListener('drop', (e) => {
+document.body.addEventListener('dragleave', (e) => {
+    // Only remove highlight when leaving the page entirely
+    if (!e.relatedTarget) canvas.classList.remove('drag-over');
+});
+document.body.addEventListener('drop', (e) => {
     e.preventDefault();
     canvas.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
@@ -732,17 +735,33 @@ speedBtns.forEach(btn => {
 });
 
 // Palette buttons
+const customPaletteEl = document.getElementById('custom-palette');
 paletteBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         currentPalette = btn.dataset.palette;
         localStorage.setItem('rugb-palette', currentPalette);
         paletteBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        customPaletteEl.style.display = currentPalette === 'custom' ? 'flex' : 'none';
+    });
+});
+
+// Custom palette color pickers
+const palColors = document.querySelectorAll('.pal-color');
+// Init picker values from stored palette
+palColors.forEach(input => {
+    input.value = PALETTES.custom.colors[parseInt(input.dataset.idx)];
+});
+palColors.forEach(input => {
+    input.addEventListener('input', () => {
+        PALETTES.custom.colors[parseInt(input.dataset.idx)] = input.value;
+        localStorage.setItem('rugb-custom-palette', JSON.stringify(PALETTES.custom.colors));
     });
 });
 
 // Set initial active palette button
 document.querySelector(`.palette-btn[data-palette="${currentPalette}"]`)?.classList.add('active');
+if (currentPalette === 'custom') customPaletteEl.style.display = 'flex';
 
 // --- Key remapping ---
 
