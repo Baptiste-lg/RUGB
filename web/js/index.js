@@ -11,7 +11,7 @@ let fastForward = false;
 let normalSpeed = 1;
 let turboA = false;
 let frameBlending = false;
-let prevFrameData = null;
+const prevFrameBuf = new Uint8ClampedArray(160 * 144 * 4); // Pre-allocated blend buffer
 let showFps = false;
 let fpsFrameCount = 0;
 let fpsLastTime = 0;
@@ -226,32 +226,43 @@ if (savedCustom) {
 
 let currentPalette = localStorage.getItem('rugb-palette') || 'gray';
 
-function applyPalette(imageData) {
-    if (currentPalette === 'gray') return imageData; // Default shades match gray
-    const pal = PALETTES[currentPalette];
-    if (!pal) return imageData;
+// Pre-computed palette lookup table: shade byte → [R, G, B]
+// Rebuilt only when palette changes (not every frame)
+let paletteLUT = null;
 
-    // Map shade values (0xFF, 0xAA, 0x55, 0x00) to palette colors
-    const shadeMap = {};
-    [0xFF, 0xAA, 0x55, 0x00].forEach((shade, i) => {
+function buildPaletteLUT(pal) {
+    if (!pal) { paletteLUT = null; return; }
+    // Map shade values 0xFF, 0xAA, 0x55, 0x00 to RGB
+    const lut = new Uint8Array(256 * 3); // 256 possible shade values × 3 channels
+    const shades = [0xFF, 0xAA, 0x55, 0x00];
+    for (let i = 0; i < 4; i++) {
         const hex = pal.colors[i];
-        shadeMap[shade] = [
-            parseInt(hex.slice(1, 3), 16),
-            parseInt(hex.slice(3, 5), 16),
-            parseInt(hex.slice(5, 7), 16),
-        ];
-    });
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const idx = shades[i] * 3;
+        lut[idx] = r;
+        lut[idx + 1] = g;
+        lut[idx + 2] = b;
+    }
+    paletteLUT = lut;
+}
 
+function applyPalette(imageData) {
+    if (!paletteLUT) return imageData;
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
-        const rgb = shadeMap[data[i]];
-        if (rgb) {
-            data[i] = rgb[0];
-            data[i + 1] = rgb[1];
-            data[i + 2] = rgb[2];
-        }
+        const idx = data[i] * 3;
+        data[i] = paletteLUT[idx];
+        data[i + 1] = paletteLUT[idx + 1];
+        data[i + 2] = paletteLUT[idx + 2];
     }
     return imageData;
+}
+
+// Build initial LUT
+if (currentPalette !== 'gray') {
+    buildPaletteLUT(PALETTES[currentPalette]);
 }
 
 // --- Emulator lifecycle ---
@@ -565,18 +576,18 @@ function frame(timestamp) {
         const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
         let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
         imageData = applyPalette(imageData);
-        // Frame blending: mix 50% current + 50% previous frame
-        if (frameBlending && prevFrameData) {
-            const cur = imageData.data;
-            const prev = prevFrameData;
-            for (let i = 0; i < cur.length; i += 4) {
-                cur[i]     = (cur[i]     + prev[i])     >> 1;
-                cur[i + 1] = (cur[i + 1] + prev[i + 1]) >> 1;
-                cur[i + 2] = (cur[i + 2] + prev[i + 2]) >> 1;
-            }
-        }
+        // Frame blending: mix 50% current + 50% previous frame (no allocation)
         if (frameBlending) {
-            prevFrameData = new Uint8ClampedArray(imageData.data);
+            const cur = imageData.data;
+            for (let i = 0; i < cur.length; i += 4) {
+                const r = cur[i], g = cur[i + 1], b = cur[i + 2];
+                cur[i]     = (r + prevFrameBuf[i])     >> 1;
+                cur[i + 1] = (g + prevFrameBuf[i + 1]) >> 1;
+                cur[i + 2] = (b + prevFrameBuf[i + 2]) >> 1;
+                prevFrameBuf[i] = r;
+                prevFrameBuf[i + 1] = g;
+                prevFrameBuf[i + 2] = b;
+            }
         }
         ctx.putImageData(imageData, 0, 0);
 
@@ -592,6 +603,9 @@ function frame(timestamp) {
                 fpsLastTime = now;
             }
         }
+
+        // Audio visualizer (drawn in main loop, no separate RAF)
+        drawViz();
     }
 
     animationId = requestAnimationFrame(frame);
@@ -760,7 +774,6 @@ filterBtns.forEach(btn => {
         canvas.classList.remove('filter-smooth');
         screenFrame.classList.remove('filter-scanlines', 'filter-lcd');
         frameBlending = false;
-        prevFrameData = null;
         // Apply selected
         if (filter === 'smooth') canvas.classList.add('filter-smooth');
         if (filter === 'scanlines') screenFrame.classList.add('filter-scanlines');
@@ -809,6 +822,7 @@ paletteBtns.forEach(btn => {
         paletteBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         customPaletteEl.style.display = currentPalette === 'custom' ? 'flex' : 'none';
+        buildPaletteLUT(currentPalette === 'gray' ? null : PALETTES[currentPalette]);
     });
 });
 
@@ -822,6 +836,7 @@ palColors.forEach(input => {
     input.addEventListener('input', () => {
         PALETTES.custom.colors[parseInt(input.dataset.idx)] = input.value;
         localStorage.setItem('rugb-custom-palette', JSON.stringify(PALETTES.custom.colors));
+        if (currentPalette === 'custom') buildPaletteLUT(PALETTES.custom);
     });
 });
 
@@ -1267,16 +1282,15 @@ renderRecentRoms();
 // Save battery RAM when leaving the page
 window.addEventListener('beforeunload', saveBatteryRAM);
 
-// --- Audio visualizer ---
+// --- Audio visualizer (called from main frame loop, no separate RAF) ---
 const vizCanvas = document.getElementById('audio-viz');
 const vizCtx = vizCanvas.getContext('2d');
+let vizData = null; // Pre-allocated, created when analyser is ready
 
 function drawViz() {
-    requestAnimationFrame(drawViz);
     if (!analyserNode) return;
-    const bufLen = analyserNode.frequencyBinCount;
-    const data = new Uint8Array(bufLen);
-    analyserNode.getByteTimeDomainData(data);
+    if (!vizData) vizData = new Uint8Array(analyserNode.frequencyBinCount);
+    analyserNode.getByteTimeDomainData(vizData);
     const w = vizCanvas.width;
     const h = vizCanvas.height;
     vizCtx.fillStyle = '#0a0e1a';
@@ -1284,15 +1298,14 @@ function drawViz() {
     vizCtx.lineWidth = 1.5;
     vizCtx.strokeStyle = '#8be9fd';
     vizCtx.beginPath();
-    const sliceW = w / bufLen;
-    for (let i = 0; i < bufLen; i++) {
-        const y = (data[i] / 255) * h;
+    const sliceW = w / vizData.length;
+    for (let i = 0; i < vizData.length; i++) {
+        const y = (vizData[i] / 255) * h;
         if (i === 0) vizCtx.moveTo(0, y);
         else vizCtx.lineTo(i * sliceW, y);
     }
     vizCtx.stroke();
 }
-drawViz();
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
