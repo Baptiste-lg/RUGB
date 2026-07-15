@@ -1,5 +1,7 @@
 pub mod mbc1;
+pub mod mbc2;
 pub mod mbc3;
+pub mod mbc5;
 pub mod no_mbc;
 
 pub trait Cartridge {
@@ -37,7 +39,9 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
     match cart_type {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),
         0x01..=0x03 => Box::new(mbc1::Mbc1::new(data, ram_size, rom_title, has_battery)),
+        0x05..=0x06 => Box::new(mbc2::Mbc2::new(data, rom_title, has_battery)),
         0x0F..=0x13 => Box::new(mbc3::Mbc3::new(data, ram_size, rom_title, has_battery)),
+        0x19..=0x1E => Box::new(mbc5::Mbc5::new(data, ram_size, rom_title, has_battery)),
         _ => {
             // Fall back to NoMBC for unsupported mappers
             #[cfg(debug_assertions)]
