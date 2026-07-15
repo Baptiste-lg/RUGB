@@ -11,10 +11,11 @@ pub struct Mbc3 {
     ram_enabled: bool,
     rom_bank: u8,
     ram_bank: u8,
+    battery: bool,
 }
 
 impl Mbc3 {
-    pub fn new(data: &[u8], ram_size: usize, title: String) -> Self {
+    pub fn new(data: &[u8], ram_size: usize, title: String, battery: bool) -> Self {
         Mbc3 {
             rom: data.to_vec(),
             ram: vec![0; if ram_size > 0 { ram_size } else { 0x8000 }],
@@ -22,6 +23,7 @@ impl Mbc3 {
             ram_enabled: false,
             rom_bank: 1,
             ram_bank: 0,
+            battery,
         }
     }
 }
@@ -96,5 +98,18 @@ impl Cartridge for Mbc3 {
 
     fn title(&self) -> &str {
         &self.title
+    }
+
+    fn has_battery(&self) -> bool {
+        self.battery
+    }
+
+    fn ram_data(&self) -> &[u8] {
+        &self.ram
+    }
+
+    fn load_ram(&mut self, data: &[u8]) {
+        let len = data.len().min(self.ram.len());
+        self.ram[..len].copy_from_slice(&data[..len]);
     }
 }
