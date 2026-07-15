@@ -190,6 +190,22 @@ body {
     pointer-events: none;
 }
 
+/* Fullscreen */
+.gameboy:fullscreen {
+    margin: auto;
+    max-height: 100vh;
+    width: auto;
+    aspect-ratio: 10 / 18;
+}
+.gameboy.screen-only:fullscreen {
+    aspect-ratio: 160 / 144;
+}
+canvas:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+}
+
 /* Screen-only mode */
 .gameboy.screen-only {
     background: none;
