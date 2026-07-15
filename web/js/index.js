@@ -7,6 +7,8 @@ let romBytes = null;
 let wasm = null;
 let speed = 1;
 let muted = false;
+let fastForward = false;
+let normalSpeed = 1;
 
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
@@ -231,7 +233,35 @@ function applyPalette(imageData) {
 
 // --- Emulator lifecycle ---
 
+let batterySaveTimer = null;
+
+function saveBatteryRAM() {
+    if (!emu || !emu.has_battery()) return;
+    const title = emu.title();
+    if (!title) return;
+    const len = emu.battery_ram_len();
+    if (len === 0) return;
+    const ptr = emu.battery_ram_ptr();
+    const ram = new Uint8Array(wasm.memory.buffer, ptr, len);
+    const b64 = uint8ToBase64(new Uint8Array(ram));
+    localStorage.setItem(`rugb-sram-${title}`, b64);
+}
+
+function loadBatteryRAM() {
+    if (!emu || !emu.has_battery()) return;
+    const title = emu.title();
+    if (!title) return;
+    const b64 = localStorage.getItem(`rugb-sram-${title}`);
+    if (!b64) return;
+    const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    emu.load_battery_ram(data);
+}
+
 async function startEmulator(bytes) {
+    // Save previous game's battery RAM before loading new one
+    saveBatteryRAM();
+    if (batterySaveTimer) clearInterval(batterySaveTimer);
+
     if (!wasm) wasm = await init();
     romBytes = bytes;
     emu = new WasmEmulator(new Uint8Array(bytes));
@@ -239,13 +269,20 @@ async function startEmulator(bytes) {
     const title = emu.title();
     if (title) document.title = `RUGB — ${title}`;
 
+    // Restore battery-backed SRAM from localStorage
+    loadBatteryRAM();
+
     pauseBtn.disabled = false;
     resetBtn.disabled = false;
     muteBtn.disabled = false;
+    screenshotBtn.disabled = false;
     paused = false;
     pauseBtn.textContent = 'Pause';
 
     initAudio();
+
+    // Auto-save battery RAM every 5 seconds
+    batterySaveTimer = setInterval(saveBatteryRAM, 5000);
 
     // Reset frame timing
     lastFrameTs = 0;
@@ -474,16 +511,19 @@ function frame(timestamp) {
     // Cap delta to avoid spiral of death after tab was backgrounded
     if (delta > 100) delta = GB_FRAME_MS;
 
-    frameDebt += delta * speed;
+    const effectiveSpeed = fastForward ? 16 : speed;
+    frameDebt += delta * effectiveSpeed;
 
     let framesRun = 0;
-    const maxFrames = 4 * speed;
+    const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
     while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
         pollGamepad();
         emu.run_frame();
         frameDebt -= GB_FRAME_MS;
         framesRun++;
     }
+    // Prevent debt accumulation during fast forward
+    if (fastForward && frameDebt > GB_FRAME_MS * 4) frameDebt = 0;
 
     if (framesRun > 0) {
         const ptr = emu.framebuffer_ptr();
@@ -614,6 +654,31 @@ resetBtn.addEventListener('click', () => {
     if (romBytes) startEmulator(romBytes);
 });
 
+// Screenshot
+const screenshotBtn = document.getElementById('screenshot-btn');
+screenshotBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = `rugb-${(emu ? emu.title() : 'screenshot').replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Screenshot saved');
+});
+
+// Fullscreen
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+fullscreenBtn.addEventListener('click', () => {
+    sideMenu.classList.remove('open');
+    const target = gameboy.classList.contains('screen-only') ? canvas : gameboy;
+    if (!document.fullscreenElement) {
+        target.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen();
+    }
+});
+document.addEventListener('fullscreenchange', () => {
+    fullscreenBtn.textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'Fullscreen';
+});
+
 muteBtn.addEventListener('click', () => {
     muted = !muted;
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
@@ -622,7 +687,7 @@ muteBtn.addEventListener('click', () => {
 // Speed buttons
 speedBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-        speed = parseInt(btn.dataset.speed);
+        speed = parseFloat(btn.dataset.speed);
         speedBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     });
@@ -777,6 +842,8 @@ document.addEventListener('keydown', (e) => {
     }
 
     if (e.key === 'Escape') { sideMenu.classList.toggle('open'); return; }
+    if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
+    if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
     if (e.key === keyMap.pause) { pauseBtn.click(); return; }
     if (e.key === keyMap.mute) { muteBtn.click(); return; }
     if (e.key === '1') { document.querySelector('.speed-btn[data-speed="1"]')?.click(); return; }
@@ -796,6 +863,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => {
+    if (e.key === ' ') { fastForward = false; return; }
     if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
@@ -1003,5 +1071,8 @@ savestateFileInput.addEventListener('change', (e) => {
 
 // Initialize slot UI
 updateSlotUI();
+
+// Save battery RAM when leaving the page
+window.addEventListener('beforeunload', saveBatteryRAM);
 
 console.log('RUGB ready — load a ROM to start');
