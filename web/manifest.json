@@ -1,0 +1,17 @@
+{
+  "name": "RUGB — Game Boy Emulator",
+  "short_name": "RUGB",
+  "description": "Game Boy emulator in the browser — Rust + WebAssembly",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
