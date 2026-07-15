@@ -170,17 +170,11 @@ body {
     color: #888;
     border: 1px solid #2a2a3a;
     border-radius: 3px;
-    cursor: pointer;
     font-family: inherit;
     text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-.recent-rom:hover {
-    background: #1a3a5c;
-    border-color: #8be9fd;
-    color: #e0e0e0;
 }
 
 /* ===================== Game Boy shell ===================== */
