@@ -29,7 +29,10 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
     let cart_type = data[0x0147];
     let rom_title = parse_title(data);
     let ram_size = parse_ram_size(data[0x0149]);
-    let has_battery = matches!(cart_type, 0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF);
+    let has_battery = matches!(
+        cart_type,
+        0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF
+    );
 
     match cart_type {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),
