@@ -10,6 +10,11 @@ let muted = false;
 let fastForward = false;
 let normalSpeed = 1;
 let turboA = false;
+let frameBlending = false;
+let prevFrameData = null;
+let showFps = false;
+let fpsFrameCount = 0;
+let fpsLastTime = 0;
 let turboB = false;
 let turboFrame = 0;
 
@@ -149,6 +154,7 @@ gameboy.addEventListener('mousedown', (e) => {
 let audioCtx = null;
 let audioProcessor = null;
 let gainNode = null;
+let analyserNode = null;
 const AUDIO_SAMPLE_RATE = 48000;
 
 function initAudio() {
@@ -156,7 +162,10 @@ function initAudio() {
     audioCtx = new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE });
     gainNode = audioCtx.createGain();
     gainNode.gain.value = parseInt(document.getElementById('volume-slider').value) / 100;
-    gainNode.connect(audioCtx.destination);
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 256;
+    gainNode.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination);
     const bufferSize = 2048;
     audioProcessor = audioCtx.createScriptProcessor(bufferSize, 0, 2);
     audioProcessor.onaudioprocess = (e) => {
@@ -556,7 +565,33 @@ function frame(timestamp) {
         const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
         let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
         imageData = applyPalette(imageData);
+        // Frame blending: mix 50% current + 50% previous frame
+        if (frameBlending && prevFrameData) {
+            const cur = imageData.data;
+            const prev = prevFrameData;
+            for (let i = 0; i < cur.length; i += 4) {
+                cur[i]     = (cur[i]     + prev[i])     >> 1;
+                cur[i + 1] = (cur[i + 1] + prev[i + 1]) >> 1;
+                cur[i + 2] = (cur[i + 2] + prev[i + 2]) >> 1;
+            }
+        }
+        if (frameBlending) {
+            prevFrameData = new Uint8ClampedArray(imageData.data);
+        }
         ctx.putImageData(imageData, 0, 0);
+
+        // FPS counter
+        if (showFps) {
+            fpsFrameCount += framesRun;
+            const now = performance.now();
+            if (now - fpsLastTime >= 1000) {
+                const fps = fpsFrameCount;
+                const pct = Math.round(fps / 59.73 * 100);
+                document.getElementById('fps-overlay').textContent = `${fps} FPS (${pct}%)`;
+                fpsFrameCount = 0;
+                fpsLastTime = now;
+            }
+        }
     }
 
     animationId = requestAnimationFrame(frame);
@@ -724,10 +759,13 @@ filterBtns.forEach(btn => {
         // Remove all filter classes
         canvas.classList.remove('filter-smooth');
         screenFrame.classList.remove('filter-scanlines', 'filter-lcd');
+        frameBlending = false;
+        prevFrameData = null;
         // Apply selected
         if (filter === 'smooth') canvas.classList.add('filter-smooth');
         if (filter === 'scanlines') screenFrame.classList.add('filter-scanlines');
         if (filter === 'lcd') screenFrame.classList.add('filter-lcd');
+        if (filter === 'ghosting') frameBlending = true;
         localStorage.setItem('rugb-filter', filter);
     });
 });
@@ -926,7 +964,17 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
+    if (e.key === '?') { document.getElementById('shortcuts-overlay').classList.toggle('visible'); return; }
     if (e.key === 'Escape') { sideMenu.classList.toggle('open'); return; }
+    if (e.key === 'F3') {
+        e.preventDefault();
+        showFps = !showFps;
+        const el = document.getElementById('fps-overlay');
+        el.style.display = showFps ? 'block' : 'none';
+        if (!showFps) { fpsFrameCount = 0; fpsLastTime = 0; }
+        else { fpsLastTime = performance.now(); }
+        return;
+    }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
     if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
     if (e.key === 'q') { turboA = !turboA; showToast(turboA ? 'Turbo A ON' : 'Turbo A OFF'); return; }
@@ -976,6 +1024,7 @@ gbInputBtns.forEach(el => {
     const press = (e) => {
         e.preventDefault();
         el.classList.add('pressed');
+        if (e.type === 'touchstart') haptic(15);
         if (emu) emu.set_button(gbBtn, true);
     };
     const release = (e) => {
@@ -992,6 +1041,11 @@ gbInputBtns.forEach(el => {
     el.addEventListener('touchcancel', release);
 });
 
+// --- Haptic feedback ---
+function haptic(ms) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+}
+
 // --- Mobile touch controls ---
 
 document.querySelectorAll('.touch-btn[data-btn]').forEach(el => {
@@ -999,6 +1053,7 @@ document.querySelectorAll('.touch-btn[data-btn]').forEach(el => {
     const press = (e) => {
         e.preventDefault();
         el.classList.add('pressed');
+        haptic(15);
         if (emu) emu.set_button(gbBtn, true);
     };
     const release = (e) => {
@@ -1211,5 +1266,37 @@ renderRecentRoms();
 
 // Save battery RAM when leaving the page
 window.addEventListener('beforeunload', saveBatteryRAM);
+
+// --- Audio visualizer ---
+const vizCanvas = document.getElementById('audio-viz');
+const vizCtx = vizCanvas.getContext('2d');
+
+function drawViz() {
+    requestAnimationFrame(drawViz);
+    if (!analyserNode) return;
+    const bufLen = analyserNode.frequencyBinCount;
+    const data = new Uint8Array(bufLen);
+    analyserNode.getByteTimeDomainData(data);
+    const w = vizCanvas.width;
+    const h = vizCanvas.height;
+    vizCtx.fillStyle = '#0a0e1a';
+    vizCtx.fillRect(0, 0, w, h);
+    vizCtx.lineWidth = 1.5;
+    vizCtx.strokeStyle = '#8be9fd';
+    vizCtx.beginPath();
+    const sliceW = w / bufLen;
+    for (let i = 0; i < bufLen; i++) {
+        const y = (data[i] / 255) * h;
+        if (i === 0) vizCtx.moveTo(0, y);
+        else vizCtx.lineTo(i * sliceW, y);
+    }
+    vizCtx.stroke();
+}
+drawViz();
+
+// Register service worker for PWA / offline support
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 
 console.log('RUGB ready — load a ROM to start');
