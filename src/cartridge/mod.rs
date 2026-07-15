@@ -8,6 +8,16 @@ pub trait Cartridge {
     fn title(&self) -> &str;
     fn save_state(&self, data: &mut Vec<u8>);
     fn load_state(&mut self, data: &mut &[u8]);
+    /// Whether this cartridge has battery-backed SRAM.
+    fn has_battery(&self) -> bool {
+        false
+    }
+    /// Return the current cartridge RAM contents (for battery save persistence).
+    fn ram_data(&self) -> &[u8] {
+        &[]
+    }
+    /// Restore cartridge RAM from previously saved data.
+    fn load_ram(&mut self, _data: &[u8]) {}
 }
 
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
@@ -19,11 +29,12 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
     let cart_type = data[0x0147];
     let rom_title = parse_title(data);
     let ram_size = parse_ram_size(data[0x0149]);
+    let has_battery = matches!(cart_type, 0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF);
 
     match cart_type {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),
-        0x01..=0x03 => Box::new(mbc1::Mbc1::new(data, ram_size, rom_title)),
-        0x0F..=0x13 => Box::new(mbc3::Mbc3::new(data, ram_size, rom_title)),
+        0x01..=0x03 => Box::new(mbc1::Mbc1::new(data, ram_size, rom_title, has_battery)),
+        0x0F..=0x13 => Box::new(mbc3::Mbc3::new(data, ram_size, rom_title, has_battery)),
         _ => {
             // Fall back to NoMBC for unsupported mappers
             #[cfg(debug_assertions)]
