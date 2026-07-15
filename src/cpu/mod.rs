@@ -119,12 +119,13 @@ impl Cpu {
     fn alu_sbc(&mut self, val: u8) {
         let carry = if self.regs.flag_c() { 1u8 } else { 0 };
         let a = self.regs.a;
-        let result = (a as u16).wrapping_sub(val as u16).wrapping_sub(carry as u16);
+        let result = (a as u16)
+            .wrapping_sub(val as u16)
+            .wrapping_sub(carry as u16);
         self.regs.a = result as u8;
         self.regs.set_flag_z(result as u8 == 0);
         self.regs.set_flag_n(true);
-        self.regs
-            .set_flag_h((a & 0x0F) < (val & 0x0F) + carry);
+        self.regs.set_flag_h((a & 0x0F) < (val & 0x0F) + carry);
         self.regs.set_flag_c(result > 0xFF);
     }
 
