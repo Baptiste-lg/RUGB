@@ -43,6 +43,8 @@ pub struct Ppu {
 
     /// Per-scanline raw BG/window color IDs (0-3) for sprite BG priority checks
     bg_color_ids: [u8; SCREEN_W],
+    /// Previous STAT interrupt line state for edge detection
+    stat_irq_line: bool,
 
     pub framebuffer: [u8; SCREEN_W * SCREEN_H * 4],
 }
@@ -67,6 +69,7 @@ impl Ppu {
             vram: [0; 0x2000],
             oam: [0; 0xA0],
             bg_color_ids: [0; SCREEN_W],
+            stat_irq_line: false,
             framebuffer: [0; SCREEN_W * SCREEN_H * 4],
         }
     }
@@ -96,11 +99,6 @@ impl Ppu {
                     if (self.ly as usize) < SCREEN_H {
                         self.render_scanline();
                     }
-
-                    // STAT HBlank interrupt
-                    if self.stat & 0x08 != 0 {
-                        *interrupt_flag |= 0x02;
-                    }
                 }
             }
             Mode::HBlank => {
@@ -110,23 +108,15 @@ impl Ppu {
 
                     if self.ly >= 144 {
                         self.mode = Mode::VBlank;
-                        // VBlank interrupt
+                        // VBlank interrupt (always fires, independent of STAT)
                         *interrupt_flag |= 0x01;
-                        // STAT VBlank interrupt source
-                        if self.stat & 0x10 != 0 {
-                            *interrupt_flag |= 0x02;
-                        }
                         // Reset window line counter for next frame
                         self.window_line = 0;
                     } else {
                         self.mode = Mode::OamScan;
-                        // STAT OAM interrupt
-                        if self.stat & 0x20 != 0 {
-                            *interrupt_flag |= 0x02;
-                        }
                     }
 
-                    self.check_lyc(interrupt_flag);
+                    self.update_lyc_flag();
                 }
             }
             Mode::VBlank => {
@@ -137,29 +127,40 @@ impl Ppu {
                     if self.ly > 153 {
                         self.ly = 0;
                         self.mode = Mode::OamScan;
-                        if self.stat & 0x20 != 0 {
-                            *interrupt_flag |= 0x02;
-                        }
                     }
 
-                    self.check_lyc(interrupt_flag);
+                    self.update_lyc_flag();
                 }
             }
         }
+
+        // Edge-detected STAT interrupt: fire only on rising edge of the combined signal
+        self.update_stat_irq(interrupt_flag);
     }
 
-    fn check_lyc(&mut self, interrupt_flag: &mut u8) {
+    /// Update the LYC=LY coincidence flag (does NOT fire interrupt directly)
+    fn update_lyc_flag(&mut self) {
         if self.ly == self.lyc {
-            self.stat |= 0x04; // LYC=LY coincidence flag
-            if self.stat & 0x40 != 0 {
-                *interrupt_flag |= 0x02;
-            }
+            self.stat |= 0x04;
         } else {
             self.stat &= !0x04;
         }
     }
 
     // -- Rendering --
+
+    /// Compute the combined STAT interrupt line and fire on rising edge only.
+    fn update_stat_irq(&mut self, interrupt_flag: &mut u8) {
+        let line = (self.stat & 0x20 != 0 && self.mode == Mode::OamScan)
+            || (self.stat & 0x10 != 0 && self.mode == Mode::VBlank)
+            || (self.stat & 0x08 != 0 && self.mode == Mode::HBlank)
+            || (self.stat & 0x40 != 0 && self.stat & 0x04 != 0);
+
+        if line && !self.stat_irq_line {
+            *interrupt_flag |= 0x02;
+        }
+        self.stat_irq_line = line;
+    }
 
     fn render_scanline(&mut self) {
         self.bg_color_ids = [0; SCREEN_W];
@@ -265,7 +266,7 @@ impl Ppu {
             self.set_pixel(x as usize, self.ly as usize, shade);
         }
 
-        if drew_anything {
+        if self.ly >= self.wy {
             self.window_line += 1;
         }
     }
@@ -274,8 +275,9 @@ impl Ppu {
         let tall_sprites = self.lcdc & 0x04 != 0;
         let sprite_height: u8 = if tall_sprites { 16 } else { 8 };
 
-        // Collect visible sprites for this scanline (max 10 per line, lowest OAM index = highest priority for same X)
-        let mut sprites: Vec<(u8, u8, u8, u8, usize)> = Vec::new(); // (y, x, tile, attr, oam_idx)
+        // Collect visible sprites on stack (max 10 per scanline, no heap allocation)
+        let mut sprites: [(u8, u8, u8, u8, usize); 10] = [(0, 0, 0, 0, 0); 10];
+        let mut sprite_count = 0usize;
         for i in 0..40usize {
             let base = i * 4;
             let sy = self.oam[base].wrapping_sub(16);
@@ -283,15 +285,16 @@ impl Ppu {
             let tile = self.oam[base + 2];
             let attr = self.oam[base + 3];
 
-            // Check if sprite overlaps current scanline
             if self.ly.wrapping_sub(sy) < sprite_height {
-                sprites.push((sy, sx, tile, attr, i));
-                if sprites.len() >= 10 {
+                sprites[sprite_count] = (sy, sx, tile, attr, i);
+                sprite_count += 1;
+                if sprite_count >= 10 {
                     break;
                 }
             }
         }
 
+        let sprites = &mut sprites[..sprite_count];
         // DMG priority: lower X first, ties broken by lower OAM index
         sprites.sort_by(|a, b| a.1.cmp(&b.1).then(a.4.cmp(&b.4)));
 
@@ -484,6 +487,7 @@ impl Ppu {
                     self.ly = 0;
                     self.dots = 0;
                     self.mode = Mode::OamScan;
+                    self.window_line = 0;
                 }
             }
             0xFF41 => {
