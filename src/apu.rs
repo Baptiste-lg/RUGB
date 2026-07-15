@@ -493,7 +493,7 @@ impl Apu {
 
         while remaining > 0 {
             // Calculate cycles until the next event
-            let to_sample = (CPU_CLOCK - self.sample_clock + SAMPLE_RATE - 1) / SAMPLE_RATE;
+            let to_sample = (CPU_CLOCK - self.sample_clock).div_ceil(SAMPLE_RATE);
             let mut skip = remaining.min(to_sample);
 
             if self.enabled {
