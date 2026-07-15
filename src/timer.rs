@@ -14,6 +14,8 @@ pub struct Timer {
     tma: u8,
     /// Timer control: bit 2 = enable, bits 1-0 = clock select
     tac: u8,
+    /// Cached bit mask for the selected TAC frequency (avoids match per cycle)
+    bit_mask: u16,
 }
 
 impl Timer {
@@ -23,45 +25,43 @@ impl Timer {
             tima: 0,
             tma: 0,
             tac: 0,
+            bit_mask: 1 << 9, // Default: TAC=00 → bit 9
         }
     }
 
     /// Advance the timer by `cycles` T-cycles.
     /// The timer interrupt fires when TIMA overflows (bit 2 of interrupt_flag).
     pub fn tick(&mut self, cycles: u32, interrupt_flag: &mut u8) {
+        if self.tac & 0x04 == 0 {
+            // Timer disabled — just advance DIV, no falling-edge checks needed
+            self.div_counter = self.div_counter.wrapping_add(cycles as u16);
+            return;
+        }
+
+        let mask = self.bit_mask;
         for _ in 0..cycles {
-            let old_counter = self.div_counter;
+            let old_bit = self.div_counter & mask != 0;
             self.div_counter = self.div_counter.wrapping_add(1);
-
-            if self.tac & 0x04 == 0 {
-                continue; // Timer disabled
-            }
-
-            // Check for falling edge on the bit selected by TAC
-            let bit_mask = self.selected_bit_mask();
-            let old_bit = old_counter & bit_mask != 0;
-            let new_bit = self.div_counter & bit_mask != 0;
+            let new_bit = self.div_counter & mask != 0;
 
             if old_bit && !new_bit {
                 self.tima = self.tima.wrapping_add(1);
                 if self.tima == 0 {
                     self.tima = self.tma;
-                    *interrupt_flag |= 0x04; // Timer interrupt
+                    *interrupt_flag |= 0x04;
                 }
             }
         }
     }
 
-    /// Which bit of div_counter to watch for a falling edge.
-    /// TAC bits 1-0: 00=bit9 (4096Hz), 01=bit3 (262144Hz), 10=bit5 (65536Hz), 11=bit7 (16384Hz)
-    fn selected_bit_mask(&self) -> u16 {
-        match self.tac & 0x03 {
+    fn update_bit_mask(&mut self) {
+        self.bit_mask = match self.tac & 0x03 {
             0 => 1 << 9,
             1 => 1 << 3,
             2 => 1 << 5,
             3 => 1 << 7,
             _ => unreachable!(),
-        }
+        };
     }
 
     pub fn save_state(&self, d: &mut Vec<u8>) {
@@ -76,6 +76,7 @@ impl Timer {
         self.tima = pop_u8(d);
         self.tma = pop_u8(d);
         self.tac = pop_u8(d);
+        self.update_bit_mask();
     }
 
     pub fn read(&self, addr: u16) -> u8 {
@@ -92,7 +93,7 @@ impl Timer {
         match addr {
             0xFF04 => {
                 // If timer is enabled and selected bit was 1, resetting creates a falling edge
-                if self.tac & 0x04 != 0 && self.div_counter & self.selected_bit_mask() != 0 {
+                if self.tac & 0x04 != 0 && self.div_counter & self.bit_mask != 0 {
                     self.tima = self.tima.wrapping_add(1);
                     if self.tima == 0 {
                         self.tima = self.tma;
@@ -103,7 +104,10 @@ impl Timer {
             }
             0xFF05 => self.tima = val,
             0xFF06 => self.tma = val,
-            0xFF07 => self.tac = val & 0x07,
+            0xFF07 => {
+                self.tac = val & 0x07;
+                self.update_bit_mask();
+            }
             _ => {}
         }
     }
