@@ -109,20 +109,28 @@ impl WasmEmulator {
         self.emu.mmu.cartridge_title()
     }
 
-    pub fn audio_buffer_ptr(&self) -> *const f32 {
-        self.emu.mmu.apu.sample_buffer_ptr()
+    pub fn audio_ring_ptr(&self) -> *const f32 {
+        self.emu.mmu.apu.ring_buffer_ptr()
     }
 
-    pub fn audio_buffer_len(&self) -> usize {
-        self.emu.mmu.apu.sample_buffer_len()
+    pub fn audio_ring_available(&self) -> usize {
+        self.emu.mmu.apu.ring_buffer_available()
     }
 
-    pub fn audio_buffer_drain(&mut self) {
-        self.emu.mmu.apu.drain_samples();
+    pub fn audio_ring_read_pos(&self) -> usize {
+        self.emu.mmu.apu.ring_read_pos()
     }
 
-    pub fn audio_buffer_consume(&mut self, count: usize) {
-        self.emu.mmu.apu.consume_samples(count);
+    pub fn audio_ring_capacity(&self) -> usize {
+        self.emu.mmu.apu.ring_capacity()
+    }
+
+    pub fn audio_ring_clear(&mut self) {
+        self.emu.mmu.apu.ring_clear();
+    }
+
+    pub fn audio_ring_consume(&mut self, count: usize) {
+        self.emu.mmu.apu.ring_consume(count);
     }
 
     pub fn has_battery(&self) -> bool {
