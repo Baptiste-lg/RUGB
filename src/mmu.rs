@@ -21,6 +21,9 @@ pub struct Mmu {
     pub interrupt_flag: u8,
     /// Serial transfer data (0xFF01) — used by Blargg test ROMs to print output
     serial_data: u8,
+    /// Optional boot ROM (256 bytes), mapped at 0x0000-0x00FF until 0xFF50 is written
+    boot_rom: Option<Vec<u8>>,
+    pub boot_rom_active: bool,
 }
 
 impl Mmu {
@@ -36,7 +39,14 @@ impl Mmu {
             ie: 0,
             interrupt_flag: 0,
             serial_data: 0,
+            boot_rom: None,
+            boot_rom_active: false,
         }
+    }
+
+    pub fn set_boot_rom(&mut self, data: Vec<u8>) {
+        self.boot_rom_active = true;
+        self.boot_rom = Some(data);
     }
 
     pub fn load_rom(&mut self, data: &[u8]) {
@@ -49,6 +59,10 @@ impl Mmu {
 
     pub fn has_battery(&self) -> bool {
         self.cartridge.has_battery()
+    }
+
+    pub fn rumble(&self) -> bool {
+        self.cartridge.rumble()
     }
 
     pub fn battery_ram(&self) -> &[u8] {
@@ -87,6 +101,13 @@ impl Mmu {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
+            // Boot ROM overlay at 0x0000-0x00FF
+            0x0000..=0x00FF if self.boot_rom_active => {
+                if let Some(ref boot) = self.boot_rom {
+                    return boot[addr as usize];
+                }
+                self.cartridge.read(addr)
+            }
             // ROM banks — routed through cartridge mapper
             0x0000..=0x7FFF => self.cartridge.read(addr),
 
@@ -177,6 +198,11 @@ impl Mmu {
                     }
                 }
                 self.ppu.write_register(addr, val);
+            }
+            0xFF50 => {
+                if val != 0 {
+                    self.boot_rom_active = false;
+                }
             }
             0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => {} // Unhandled I/O — ignore
 
