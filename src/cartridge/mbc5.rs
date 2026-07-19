@@ -19,10 +19,12 @@ pub struct Mbc5 {
     rom_bank: u16, // 9-bit (0-511)
     ram_bank: u8,  // 4-bit (0-15)
     battery: bool,
+    has_rumble: bool,
+    pub rumble_active: bool,
 }
 
 impl Mbc5 {
-    pub fn new(data: &[u8], ram_size: usize, title: String, battery: bool) -> Self {
+    pub fn new(data: &[u8], ram_size: usize, title: String, battery: bool, rumble: bool) -> Self {
         Mbc5 {
             rom: data.to_vec(),
             ram: vec![0; if ram_size > 0 { ram_size } else { 0x2000 }],
@@ -31,6 +33,8 @@ impl Mbc5 {
             rom_bank: 1,
             ram_bank: 0,
             battery,
+            has_rumble: rumble,
+            rumble_active: false,
         }
     }
 }
@@ -83,7 +87,12 @@ impl Cartridge for Mbc5 {
                 self.rom_bank = (self.rom_bank & 0xFF) | ((val as u16 & 0x01) << 8);
             }
             0x4000..=0x5FFF => {
-                self.ram_bank = val & 0x0F;
+                if self.has_rumble {
+                    self.rumble_active = val & 0x08 != 0;
+                    self.ram_bank = val & 0x07;
+                } else {
+                    self.ram_bank = val & 0x0F;
+                }
             }
             0xA000..=0xBFFF => {
                 if !self.ram_enabled || self.ram.is_empty() {
@@ -113,5 +122,9 @@ impl Cartridge for Mbc5 {
     fn load_ram(&mut self, data: &[u8]) {
         let len = data.len().min(self.ram.len());
         self.ram[..len].copy_from_slice(&data[..len]);
+    }
+
+    fn rumble(&self) -> bool {
+        self.rumble_active
     }
 }

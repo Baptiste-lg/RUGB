@@ -20,6 +20,10 @@ pub trait Cartridge {
     }
     /// Restore cartridge RAM from previously saved data.
     fn load_ram(&mut self, _data: &[u8]) {}
+    /// Whether the rumble motor is currently active (MBC5 rumble carts only).
+    fn rumble(&self) -> bool {
+        false
+    }
 }
 
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
@@ -36,12 +40,14 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
         0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF
     );
 
+    let has_rumble = matches!(cart_type, 0x1C | 0x1D | 0x1E);
+
     match cart_type {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),
         0x01..=0x03 => Box::new(mbc1::Mbc1::new(data, ram_size, rom_title, has_battery)),
         0x05..=0x06 => Box::new(mbc2::Mbc2::new(data, rom_title, has_battery)),
         0x0F..=0x13 => Box::new(mbc3::Mbc3::new(data, ram_size, rom_title, has_battery)),
-        0x19..=0x1E => Box::new(mbc5::Mbc5::new(data, ram_size, rom_title, has_battery)),
+        0x19..=0x1E => Box::new(mbc5::Mbc5::new(data, ram_size, rom_title, has_battery, has_rumble)),
         _ => {
             // Fall back to NoMBC for unsupported mappers
             #[cfg(debug_assertions)]
