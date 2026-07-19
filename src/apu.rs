@@ -14,7 +14,7 @@ use crate::savestate::*;
 
 const CPU_CLOCK: u32 = 4_194_304;
 const SAMPLE_RATE: u32 = 48_000;
-const MAX_BUFFER_SAMPLES: usize = 4096;
+const RING_BUFFER_CAPACITY: usize = 8192;
 
 const DUTY_TABLE: [[u8; 8]; 4] = [
     [0, 0, 0, 0, 0, 0, 0, 1], // 12.5%
@@ -45,8 +45,12 @@ pub struct Apu {
     frame_cycles: u32,
     /// Wave RAM (16 bytes at 0xFF30-0xFF3F), holds 32 4-bit samples
     wave_ram: [u8; 16],
-    /// Audio sample buffer (interleaved L/R f32 pairs)
-    pub sample_buffer: Vec<f32>,
+    /// Fixed-size ring buffer for audio samples (interleaved L/R f32 pairs)
+    ring_buffer: Box<[f32; RING_BUFFER_CAPACITY]>,
+    /// Write cursor into ring_buffer
+    write_pos: usize,
+    /// Read cursor into ring_buffer
+    read_pos: usize,
     /// Accumulator for sample timing
     sample_clock: u32,
     /// Per-channel mute flags (controlled from frontend, not saved in state)
@@ -473,7 +477,9 @@ impl Apu {
             frame_step: 0,
             frame_cycles: 0,
             wave_ram: [0; 16],
-            sample_buffer: Vec::with_capacity(MAX_BUFFER_SAMPLES * 2),
+            ring_buffer: Box::new([0.0; RING_BUFFER_CAPACITY]),
+            write_pos: 0,
+            read_pos: 0,
             sample_clock: 0,
             ch_mute: [false; 4],
             hp_left_in: 0.0,
@@ -547,12 +553,12 @@ impl Apu {
             self.sample_clock += skip * SAMPLE_RATE;
             while self.sample_clock >= CPU_CLOCK {
                 self.sample_clock -= CPU_CLOCK;
-                if self.sample_buffer.len() < MAX_BUFFER_SAMPLES * 2 {
+                if self.ring_free() >= 2 {
                     if self.enabled {
                         self.generate_sample();
                     } else {
-                        self.sample_buffer.push(0.0);
-                        self.sample_buffer.push(0.0);
+                        self.ring_push(0.0);
+                        self.ring_push(0.0);
                     }
                 }
             }
@@ -655,27 +661,50 @@ impl Apu {
         self.hp_right_in = right;
         self.hp_right_out = hp_right;
 
-        self.sample_buffer.push(hp_left);
-        self.sample_buffer.push(hp_right);
+        self.ring_push(hp_left);
+        self.ring_push(hp_right);
     }
 
-    pub fn sample_buffer_ptr(&self) -> *const f32 {
-        self.sample_buffer.as_ptr()
+    // --- Ring buffer helpers ---
+
+    fn ring_available(&self) -> usize {
+        (self.write_pos + RING_BUFFER_CAPACITY - self.read_pos) % RING_BUFFER_CAPACITY
     }
 
-    pub fn sample_buffer_len(&self) -> usize {
-        self.sample_buffer.len()
+    fn ring_free(&self) -> usize {
+        RING_BUFFER_CAPACITY - 1 - self.ring_available()
     }
 
-    pub fn drain_samples(&mut self) {
-        self.sample_buffer.clear();
+    fn ring_push(&mut self, sample: f32) {
+        self.ring_buffer[self.write_pos] = sample;
+        self.write_pos = (self.write_pos + 1) % RING_BUFFER_CAPACITY;
     }
 
-    /// Remove the first `count` f32 values from the sample buffer.
-    /// Used by the JS audio callback to consume only the samples it actually read.
-    pub fn consume_samples(&mut self, count: usize) {
-        let count = count.min(self.sample_buffer.len());
-        self.sample_buffer.drain(..count);
+    // --- Public API for WASM ---
+
+    pub fn ring_buffer_ptr(&self) -> *const f32 {
+        self.ring_buffer.as_ptr()
+    }
+
+    pub fn ring_buffer_available(&self) -> usize {
+        self.ring_available()
+    }
+
+    pub fn ring_read_pos(&self) -> usize {
+        self.read_pos
+    }
+
+    pub fn ring_capacity(&self) -> usize {
+        RING_BUFFER_CAPACITY
+    }
+
+    pub fn ring_clear(&mut self) {
+        self.read_pos = self.write_pos;
+    }
+
+    pub fn ring_consume(&mut self, count: usize) {
+        let count = count.min(self.ring_available());
+        self.read_pos = (self.read_pos + count) % RING_BUFFER_CAPACITY;
     }
 
     pub fn save_state(&self, d: &mut Vec<u8>) {
