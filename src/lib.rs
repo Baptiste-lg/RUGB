@@ -29,6 +29,16 @@ impl Emulator {
         }
     }
 
+    pub fn new_with_boot(rom: &[u8], boot_rom: &[u8]) -> Self {
+        let mut mmu = Mmu::new();
+        mmu.load_rom(rom);
+        mmu.set_boot_rom(boot_rom.to_vec());
+        let mut cpu = Cpu::new();
+        // Boot ROM starts execution at 0x0000 with zeroed registers
+        cpu.regs.reset_for_boot();
+        Emulator { cpu, mmu }
+    }
+
     pub fn step(&mut self) -> u32 {
         let interrupt_cycles = handle_interrupts(&mut self.cpu, &mut self.mmu);
         if interrupt_cycles > 0 {
@@ -87,6 +97,13 @@ impl WasmEmulator {
         console_error_panic_hook::set_once();
         WasmEmulator {
             emu: Emulator::new(rom),
+        }
+    }
+
+    pub fn new_with_boot(rom: &[u8], boot_rom: &[u8]) -> WasmEmulator {
+        console_error_panic_hook::set_once();
+        WasmEmulator {
+            emu: Emulator::new_with_boot(rom, boot_rom),
         }
     }
 
@@ -161,5 +178,9 @@ impl WasmEmulator {
 
     pub fn load_state(&mut self, data: &[u8]) {
         self.emu.load_state(data);
+    }
+
+    pub fn rumble(&self) -> bool {
+        self.emu.mmu.rumble()
     }
 }
