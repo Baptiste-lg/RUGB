@@ -125,8 +125,7 @@ impl Cartridge for Mbc3 {
                 }
                 match self.ram_bank {
                     0x00..=0x03 => {
-                        let offset =
-                            self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
+                        let offset = self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
                         *self.ram.get(offset).unwrap_or(&0xFF)
                     }
                     0x08 => self.rtc_s,
@@ -170,8 +169,7 @@ impl Cartridge for Mbc3 {
                 }
                 match self.ram_bank {
                     0x00..=0x03 => {
-                        let offset =
-                            self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
+                        let offset = self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
                         if offset < self.ram.len() {
                             self.ram[offset] = val;
                         }
