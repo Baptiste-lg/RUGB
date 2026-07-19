@@ -26,6 +26,8 @@ pub trait Cartridge {
     }
     /// Advance internal RTC by the given T-cycles (MBC3 only).
     fn tick_rtc(&mut self, _cycles: u32) {}
+    /// Set RTC time offset in seconds (MBC3 only, for user override).
+    fn set_rtc_offset(&mut self, _seconds: i32) {}
 }
 
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
