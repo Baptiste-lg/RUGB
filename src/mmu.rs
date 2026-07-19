@@ -96,6 +96,10 @@ impl Mmu {
         self.gg_cheats.clear();
     }
 
+    pub fn set_rtc_offset(&mut self, seconds: i32) {
+        self.cartridge.set_rtc_offset(seconds);
+    }
+
     pub fn battery_ram(&self) -> &[u8] {
         self.cartridge.ram_data()
     }
