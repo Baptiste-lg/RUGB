@@ -152,12 +152,16 @@ gameboy.addEventListener('mousedown', (e) => {
 // --- Audio setup ---
 
 let audioCtx = null;
-let audioProcessor = null;
+let audioWorkletNode = null;
 let gainNode = null;
 let analyserNode = null;
 const AUDIO_SAMPLE_RATE = 48000;
 
-function initAudio() {
+// Adaptive buffer management
+let targetBufferMs = 6;
+let consecutiveUnderruns = 0;
+
+async function initAudio() {
     if (audioCtx) return;
     audioCtx = new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE });
     gainNode = audioCtx.createGain();
@@ -166,8 +170,35 @@ function initAudio() {
     analyserNode.fftSize = 256;
     gainNode.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
+
+    try {
+        await audioCtx.audioWorklet.addModule('audio-processor.js');
+        audioWorkletNode = new AudioWorkletNode(audioCtx, 'rugb-audio-processor', {
+            outputChannelCount: [2],
+        });
+        audioWorkletNode.port.onmessage = (e) => {
+            if (e.data.type === 'status') {
+                if (e.data.underrun) {
+                    consecutiveUnderruns++;
+                    if (consecutiveUnderruns > 3) {
+                        targetBufferMs = Math.min(targetBufferMs + 1, 12);
+                    }
+                } else {
+                    consecutiveUnderruns = 0;
+                    targetBufferMs = Math.max(targetBufferMs - 0.1, 4);
+                }
+            }
+        };
+        audioWorkletNode.connect(gainNode);
+    } catch (err) {
+        console.warn('AudioWorklet unavailable, using ScriptProcessor fallback', err);
+        initAudioFallback();
+    }
+}
+
+function initAudioFallback() {
     const bufferSize = 2048;
-    audioProcessor = audioCtx.createScriptProcessor(bufferSize, 0, 2);
+    const audioProcessor = audioCtx.createScriptProcessor(bufferSize, 0, 2);
     audioProcessor.onaudioprocess = (e) => {
         const left = e.outputBuffer.getChannelData(0);
         const right = e.outputBuffer.getChannelData(1);
@@ -176,37 +207,81 @@ function initAudio() {
             right.fill(0);
             return;
         }
-        let len = emu.audio_buffer_len();
-        let samplePairs = Math.floor(len / 2);
+        let available = emu.audio_ring_available();
+        let samplePairs = Math.floor(available / 2);
 
-        // If buffer has built up too much latency (>80ms), skip ahead
-        const maxLatency = AUDIO_SAMPLE_RATE * 0.08;
+        const maxLatency = AUDIO_SAMPLE_RATE * 0.04;
         if (samplePairs > maxLatency) {
             const skip = samplePairs - left.length;
             if (skip > 0) {
-                emu.audio_buffer_consume(skip * 2);
+                emu.audio_ring_consume(skip * 2);
                 samplePairs = left.length;
             }
         }
 
         const count = Math.min(samplePairs, left.length);
         if (count > 0) {
-            const ptr = emu.audio_buffer_ptr();
-            const samples = new Float32Array(wasm.memory.buffer, ptr, count * 2);
+            const ptr = emu.audio_ring_ptr();
+            const capacity = emu.audio_ring_capacity();
+            const wasmBuf = new Float32Array(wasm.memory.buffer, ptr, capacity);
+            let rp = emu.audio_ring_read_pos();
             for (let i = 0; i < count; i++) {
-                left[i] = samples[i * 2];
-                right[i] = samples[i * 2 + 1];
+                left[i] = wasmBuf[rp];
+                rp = (rp + 1) % capacity;
+                right[i] = wasmBuf[rp];
+                rp = (rp + 1) % capacity;
             }
         }
-        // Fill remaining with silence
         for (let i = count; i < left.length; i++) {
             left[i] = 0;
             right[i] = 0;
         }
-        // Only consume what was actually read (keep excess for next callback)
-        emu.audio_buffer_consume(count * 2);
+        emu.audio_ring_consume(count * 2);
     };
     audioProcessor.connect(gainNode);
+}
+
+function feedAudioWorklet() {
+    if (!audioWorkletNode || !emu || muted) return;
+
+    const available = emu.audio_ring_available();
+    if (available < 2) return;
+
+    let samplePairs = Math.floor(available / 2);
+
+    // Skip if WASM buffer exceeds 40ms
+    const maxWasmBuffer = Math.floor(AUDIO_SAMPLE_RATE * 0.04);
+    if (samplePairs > maxWasmBuffer) {
+        const targetSamples = Math.floor(AUDIO_SAMPLE_RATE * targetBufferMs / 1000);
+        const skip = samplePairs - targetSamples;
+        if (skip > 0) {
+            emu.audio_ring_consume(skip * 2);
+            samplePairs = targetSamples;
+        }
+    }
+
+    const count = Math.min(samplePairs, Math.floor(emu.audio_ring_available() / 2));
+    if (count === 0) return;
+
+    const ptr = emu.audio_ring_ptr();
+    const capacity = emu.audio_ring_capacity();
+    const wasmBuf = new Float32Array(wasm.memory.buffer, ptr, capacity);
+    let rp = emu.audio_ring_read_pos();
+
+    const left = new Float32Array(count);
+    const right = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+        left[i] = wasmBuf[rp];
+        rp = (rp + 1) % capacity;
+        right[i] = wasmBuf[rp];
+        rp = (rp + 1) % capacity;
+    }
+
+    emu.audio_ring_consume(count * 2);
+    audioWorkletNode.port.postMessage(
+        { type: 'samples', left, right },
+        [left.buffer, right.buffer]
+    );
 }
 
 // --- Palettes ---
@@ -320,7 +395,7 @@ async function startEmulator(bytes) {
     paused = false;
     pauseBtn.textContent = 'Pause';
 
-    initAudio();
+    await initAudio();
 
     // Auto-save battery RAM every 5 seconds
     batterySaveTimer = setInterval(saveBatteryRAM, 5000);
@@ -572,6 +647,7 @@ function frame(timestamp) {
     if (fastForward && frameDebt > GB_FRAME_MS * 4) frameDebt = 0;
 
     if (framesRun > 0) {
+        feedAudioWorklet();
         const ptr = emu.framebuffer_ptr();
         const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
         let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
