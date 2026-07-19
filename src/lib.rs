@@ -49,6 +49,7 @@ impl Emulator {
                 .timer
                 .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
             self.mmu.apu.tick(interrupt_cycles);
+            self.mmu.tick_cartridge_rtc(interrupt_cycles);
             return interrupt_cycles;
         }
 
@@ -56,6 +57,7 @@ impl Emulator {
         self.mmu.ppu.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.timer.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.apu.tick(cycles);
+        self.mmu.tick_cartridge_rtc(cycles);
         cycles
     }
 
@@ -182,5 +184,22 @@ impl WasmEmulator {
 
     pub fn rumble(&self) -> bool {
         self.emu.mmu.rumble()
+    }
+
+    /// Add a Game Genie cheat (intercepts ROM reads).
+    /// compare = 0xFF means no compare byte (6-char code).
+    pub fn add_gg_cheat(&mut self, addr: u16, new_val: u8, compare: u8) {
+        let cmp = if compare == 0xFF { None } else { Some(compare) };
+        self.emu.mmu.add_gg_cheat(addr, new_val, cmp);
+    }
+
+    /// Write a value to any address (GameShark poke).
+    pub fn poke_byte(&mut self, addr: u16, val: u8) {
+        self.emu.mmu.poke(addr, val);
+    }
+
+    /// Remove all active cheats.
+    pub fn clear_cheats(&mut self) {
+        self.emu.mmu.clear_cheats();
     }
 }
