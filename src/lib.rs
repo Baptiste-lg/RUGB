@@ -202,4 +202,9 @@ impl WasmEmulator {
     pub fn clear_cheats(&mut self) {
         self.emu.mmu.clear_cheats();
     }
+
+    /// Set RTC offset in seconds (positive = advance, negative = rewind clock).
+    pub fn set_rtc_offset(&mut self, seconds: i32) {
+        self.emu.mmu.set_rtc_offset(seconds);
+    }
 }
