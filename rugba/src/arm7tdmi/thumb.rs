@@ -552,8 +552,7 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                 }
                 3 + count
             } else {
-                let base_first = rlist & (1 << rb) != 0
-                    && (rlist & ((1 << rb) - 1)) == 0;
+                let base_first = rlist & (1 << rb) != 0 && (rlist & ((1 << rb) - 1)) == 0;
                 for i in 0..8 {
                     if rlist & (1 << i) != 0 {
                         bus.write32(addr, cpu.regs[i]);

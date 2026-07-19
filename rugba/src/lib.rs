@@ -59,8 +59,7 @@ impl GbaEmulator {
                 && self.bus.io.irq_flags & self.bus.io.ie != 0
                 && self.cpu.cpsr & arm7tdmi::I_FLAG == 0
             {
-                self.cpu
-                    .enter_exception(arm7tdmi::CpuMode::Irq, 0x18);
+                self.cpu.enter_exception(arm7tdmi::CpuMode::Irq, 0x18);
             }
 
             cycles_this_frame += cycles;
@@ -139,8 +138,7 @@ impl WasmGbaEmulator {
     pub fn audio_ring_consume(&mut self, count: usize) {
         let avail = self.emu.audio_available();
         let count = count.min(avail);
-        self.emu.audio_read_pos =
-            (self.emu.audio_read_pos + count) % RING_BUFFER_CAPACITY;
+        self.emu.audio_read_pos = (self.emu.audio_read_pos + count) % RING_BUFFER_CAPACITY;
     }
 
     pub fn save_state(&self) -> Vec<u8> {

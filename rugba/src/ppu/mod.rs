@@ -40,13 +40,7 @@ impl Ppu {
     }
 
     /// Advance the PPU by `cycles` T-cycles. Returns IRQ flags to raise.
-    pub fn tick(
-        &mut self,
-        cycles: u32,
-        io: &mut IoRegisters,
-        vram: &[u8],
-        palette: &[u8],
-    ) -> u16 {
+    pub fn tick(&mut self, cycles: u32, io: &mut IoRegisters, vram: &[u8], palette: &[u8]) -> u16 {
         self.pending_irqs = 0;
         let mut remaining = cycles;
 
@@ -126,7 +120,9 @@ impl Ppu {
 
         match mode {
             3 => modes::render_mode3_scanline(&mut self.framebuffer, line, vram),
-            4 => modes::render_mode4_scanline(&mut self.framebuffer, line, io.dispcnt, vram, palette),
+            4 => {
+                modes::render_mode4_scanline(&mut self.framebuffer, line, io.dispcnt, vram, palette)
+            }
             5 => modes::render_mode5_scanline(&mut self.framebuffer, line, io.dispcnt, vram),
             _ => {
                 // Modes 0-2 (tile-based) not yet implemented — fill with black
