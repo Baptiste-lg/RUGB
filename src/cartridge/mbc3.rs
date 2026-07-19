@@ -240,4 +240,8 @@ impl Cartridge for Mbc3 {
     fn tick_rtc(&mut self, cycles: u32) {
         self.advance_rtc(cycles);
     }
+
+    fn set_rtc_offset(&mut self, seconds: i32) {
+        self.rtc_offset = seconds as i64;
+    }
 }
