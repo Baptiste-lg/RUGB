@@ -45,11 +45,14 @@ jobs:
           cargo install cargo-audit
           cargo audit
 
-      - name: Check Formatting
-        run: cargo fmt -- --check
+      - name: Check Formatting (all workspace members)
+        run: cargo fmt --all -- --check
 
-      - name: Run Clippy (Linter)
-        run: cargo clippy -- -D warnings
+      - name: Run Clippy — rugb
+        run: cargo clippy -p rugb -- -D warnings
+
+      - name: Run Clippy — rugba
+        run: cargo clippy -p rugba -- -D warnings
 
   test:
     name: Run Tests
@@ -67,13 +70,19 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
-      - name: Run Tests
-        run: cargo test --verbose
+      - name: Run Tests — rugb
+        run: cargo test -p rugb --verbose
 
-      - name: Run WASM Tests
+      - name: Run Tests — rugba
+        run: cargo test -p rugba --verbose
+
+      - name: Run WASM Tests — rugb
         run: |
           cargo install wasm-pack
-          wasm-pack test --headless --chrome
+          wasm-pack test rugb --headless --chrome
+
+      - name: Run WASM Tests — rugba
+        run: wasm-pack test rugba --headless --chrome
 
   deploy:
     name: Build & Deploy to GitHub Pages
@@ -107,8 +116,11 @@ jobs:
       - name: Install wasm-pack
         run: command -v wasm-pack || cargo install wasm-pack
 
-      - name: Build WASM Release
-        run: wasm-pack build --target web --out-dir web/pkg --release
+      - name: Build WASM Release — rugb
+        run: wasm-pack build rugb --target web --out-dir ../web/pkg/rugb --release
+
+      - name: Build WASM Release — rugba
+        run: wasm-pack build rugba --target web --out-dir ../web/pkg/rugba --release
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
