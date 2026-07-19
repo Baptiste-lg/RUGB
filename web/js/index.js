@@ -808,6 +808,7 @@ function frame(timestamp) {
             if (turboA) emu.set_button(4, turboOn);
             if (turboB) emu.set_button(5, turboOn);
             emu.run_frame();
+            applyGameSharkCheats();
             frameDebt -= GB_FRAME_MS;
             framesRun++;
 
@@ -1295,6 +1296,16 @@ document.addEventListener('keydown', (e) => {
         else { fpsLastTime = performance.now(); }
         return;
     }
+    if (e.key === 'F7') {
+        e.preventDefault();
+        const code = prompt('Enter cheat code (Game Genie: XXX-XXX-XXX or GameShark: AABBCCDD):');
+        if (code) {
+            if (addCheat(code.trim())) showToast('Cheat added');
+            else showToast('Invalid cheat code');
+        }
+        return;
+    }
+    if (e.key === 'F9') { e.preventDefault(); toggleRecording(); return; }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
     if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
     if (e.key === 'r') { e.preventDefault(); rewinding = true; return; }
@@ -1621,6 +1632,125 @@ function drawViz() {
         else vizCtx.lineTo(i * sliceW, y);
     }
     vizCtx.stroke();
+}
+
+// --- Cheat codes (Game Genie / GameShark) ---
+
+let activeCheats = []; // { type: 'gg'|'gs', code, addr, val, compare? }
+
+function parseGameGenie(code) {
+    // GB Game Genie: XXX-XXX or XXX-XXX-XXX
+    const clean = code.replace(/-/g, '').toUpperCase();
+    if (clean.length !== 6 && clean.length !== 9) return null;
+    const hex = (c) => parseInt(c, 16);
+    // 6-char: new_data-address (encoded)
+    // Encoding: ABCDEF -> new=ADB, addr=EFCA (XOR/rotate)
+    const n0 = hex(clean[0]), n1 = hex(clean[1]), n2 = hex(clean[2]);
+    const n3 = hex(clean[3]), n4 = hex(clean[4]), n5 = hex(clean[5]);
+    const newVal = (n0 << 4) | n1;
+    const addr = 0x0000 | ((n5 & 0xF) << 12) | ((n2 & 0xF) << 8) | ((n3 & 0xF) << 4) | (n4 & 0xF);
+    // Flip bit 12 of address
+    const realAddr = (addr ^ 0xF000) & 0x7FFF;
+    if (clean.length === 6) {
+        return { addr: realAddr, val: newVal, compare: null };
+    }
+    const n6 = hex(clean[6]), n7 = hex(clean[7]), n8 = hex(clean[8]);
+    const compare = (n6 << 4) | n7;
+    // Rotate compare: bit 0 of n8 determines rotation
+    const realCompare = ((compare >> 2) | ((compare & 3) << 6)) ^ 0xBA;
+    return { addr: realAddr, val: newVal, compare: realCompare };
+}
+
+function parseGameShark(code) {
+    // GB GameShark: 8-char hex AABBCCDD
+    // AA = RAM bank (01 = WRAM), BB = value, CCDD = address
+    const clean = code.replace(/[\s-]/g, '').toUpperCase();
+    if (clean.length !== 8 || !/^[0-9A-F]{8}$/.test(clean)) return null;
+    const val = parseInt(clean.substring(2, 4), 16);
+    const addrLow = parseInt(clean.substring(4, 6), 16);
+    const addrHigh = parseInt(clean.substring(6, 8), 16);
+    const addr = (addrHigh << 8) | addrLow;
+    return { addr, val };
+}
+
+function addCheat(code) {
+    if (!emu) return false;
+    const gg = parseGameGenie(code);
+    if (gg) {
+        emu.add_gg_cheat(gg.addr, gg.val, gg.compare !== null ? gg.compare : 0xFF);
+        activeCheats.push({ type: 'gg', code, ...gg });
+        return true;
+    }
+    const gs = parseGameShark(code);
+    if (gs) {
+        activeCheats.push({ type: 'gs', code, ...gs });
+        return true;
+    }
+    return false;
+}
+
+function clearAllCheats() {
+    if (emu) emu.clear_cheats();
+    activeCheats = [];
+}
+
+function applyGameSharkCheats() {
+    if (!emu) return;
+    for (const cheat of activeCheats) {
+        if (cheat.type === 'gs') {
+            emu.poke_byte(cheat.addr, cheat.val);
+        }
+    }
+}
+
+// --- Video recording (WebM via MediaRecorder) ---
+
+let mediaRecorder = null;
+let recordedChunks = [];
+
+function startRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') return;
+    const stream = canvas.captureStream(60);
+    // Add audio if available
+    if (audioCtx && audioCtx.state === 'running') {
+        const dest = audioCtx.createMediaStreamDestination();
+        if (gainNode) gainNode.connect(dest);
+        for (const track of dest.stream.getAudioTracks()) {
+            stream.addTrack(track);
+        }
+    }
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rugb-${(emu ? emu.title() : 'recording').replace(/[^a-zA-Z0-9]/g, '_')}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        recordedChunks = [];
+    };
+    mediaRecorder.start();
+    showToast('Recording started');
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        showToast('Recording saved');
+    }
+}
+
+function toggleRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
 }
 
 // Register service worker for PWA / offline support
