@@ -8,7 +8,6 @@ let wasm = null;
 let speed = 1;
 let muted = false;
 let fastForward = false;
-let normalSpeed = 1;
 let turboA = false;
 let frameBlending = false;
 const prevFrameBuf = new Uint8ClampedArray(160 * 144 * 4); // Pre-allocated blend buffer
