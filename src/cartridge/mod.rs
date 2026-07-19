@@ -24,6 +24,8 @@ pub trait Cartridge {
     fn rumble(&self) -> bool {
         false
     }
+    /// Advance internal RTC by the given T-cycles (MBC3 only).
+    fn tick_rtc(&mut self, _cycles: u32) {}
 }
 
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
