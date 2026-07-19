@@ -17,6 +17,16 @@ let fpsLastTime = 0;
 let turboB = false;
 let turboFrame = 0;
 
+// --- Rewind state ---
+const REWIND_MAX_FRAMES = 300; // ~5 seconds at 60fps
+const REWIND_CAPTURE_INTERVAL = 4; // Capture every 4 frames
+let rewindBuffer = [];
+let rewindFrameCounter = 0;
+let rewinding = false;
+
+// --- Boot ROM ---
+let bootRomData = null;
+
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
 const pauseBtn = document.getElementById('pause-btn');
@@ -369,6 +379,147 @@ function loadBatteryRAM() {
     emu.load_battery_ram(data);
 }
 
+// --- IPS/BPS patch support ---
+
+function applyIpsPatch(rom, patch) {
+    const view = new DataView(patch.buffer, patch.byteOffset, patch.byteLength);
+    // Verify "PATCH" header
+    const header = String.fromCharCode(patch[0], patch[1], patch[2], patch[3], patch[4]);
+    if (header !== 'PATCH') return null;
+    const result = new Uint8Array(rom);
+    let pos = 5;
+    while (pos < patch.length - 3) {
+        const offset = (patch[pos] << 16) | (patch[pos + 1] << 8) | patch[pos + 2];
+        pos += 3;
+        if (offset === 0x454F46) break; // "EOF"
+        const size = (patch[pos] << 8) | patch[pos + 1];
+        pos += 2;
+        if (size === 0) {
+            // RLE record
+            const rleSize = (patch[pos] << 8) | patch[pos + 1];
+            pos += 2;
+            const rleVal = patch[pos++];
+            for (let i = 0; i < rleSize; i++) {
+                if (offset + i < result.length) result[offset + i] = rleVal;
+            }
+        } else {
+            for (let i = 0; i < size; i++) {
+                if (offset + i < result.length) result[offset + i] = patch[pos + i];
+            }
+            pos += size;
+        }
+    }
+    return result.buffer;
+}
+
+function applyBpsPatch(rom, patch) {
+    const src = new Uint8Array(rom);
+    const p = new Uint8Array(patch.buffer, patch.byteOffset, patch.byteLength);
+    let pos = 0;
+    function readVlq() {
+        let value = 0, shift = 1;
+        while (true) {
+            const b = p[pos++];
+            value += (b & 0x7F) * shift;
+            if (b & 0x80) return value;
+            value += shift;
+            shift <<= 7;
+        }
+    }
+    // Verify "BPS1" header
+    if (p[0] !== 0x42 || p[1] !== 0x50 || p[2] !== 0x53 || p[3] !== 0x31) return null;
+    pos = 4;
+    const srcSize = readVlq();
+    const targetSize = readVlq();
+    readVlq(); // metadata size (skip)
+    const target = new Uint8Array(targetSize);
+    let outPos = 0, srcRelOff = 0, tgtRelOff = 0;
+    const dataEnd = p.length - 12; // last 12 bytes are checksums
+    while (pos < dataEnd) {
+        const cmd = readVlq();
+        const length = (cmd >> 2) + 1;
+        const action = cmd & 3;
+        switch (action) {
+            case 0: // SourceRead
+                for (let i = 0; i < length; i++) target[outPos + i] = src[outPos + i];
+                outPos += length;
+                break;
+            case 1: // TargetRead
+                for (let i = 0; i < length; i++) target[outPos++] = p[pos++];
+                break;
+            case 2: { // SourceCopy
+                const raw = readVlq();
+                srcRelOff += (raw & 1 ? -(raw >> 1) : (raw >> 1));
+                for (let i = 0; i < length; i++) target[outPos++] = src[srcRelOff++];
+                break;
+            }
+            case 3: { // TargetCopy
+                const raw = readVlq();
+                tgtRelOff += (raw & 1 ? -(raw >> 1) : (raw >> 1));
+                for (let i = 0; i < length; i++) target[outPos++] = target[tgtRelOff++];
+                break;
+            }
+        }
+    }
+    return target.buffer;
+}
+
+function tryApplyPatch(romBytes, patchBytes) {
+    const patch = new Uint8Array(patchBytes);
+    const header = String.fromCharCode(patch[0], patch[1], patch[2], patch[3], patch[4] || 0);
+    if (header.startsWith('PATCH')) {
+        return applyIpsPatch(new Uint8Array(romBytes), patch);
+    }
+    if (patch[0] === 0x42 && patch[1] === 0x50 && patch[2] === 0x53 && patch[3] === 0x31) {
+        return applyBpsPatch(romBytes, patch);
+    }
+    return null;
+}
+
+// --- Rewind helpers ---
+
+function captureRewindState() {
+    if (!emu) return;
+    rewindBuffer.push(emu.save_state());
+    if (rewindBuffer.length > REWIND_MAX_FRAMES) {
+        rewindBuffer.shift();
+    }
+}
+
+function rewindStep() {
+    if (!emu || rewindBuffer.length === 0) return false;
+    const state = rewindBuffer.pop();
+    emu.load_state(state);
+    return true;
+}
+
+// --- Auto-save on exit ---
+
+function autoSaveState() {
+    if (!emu || !romBytes) return;
+    try {
+        const title = emu.title();
+        if (!title) return;
+        const state = emu.save_state();
+        const b64 = uint8ToBase64(state);
+        localStorage.setItem(`rugb-autosave-${title}`, b64);
+    } catch {}
+}
+
+function autoLoadState() {
+    if (!emu) return false;
+    const title = emu.title();
+    if (!title) return false;
+    const b64 = localStorage.getItem(`rugb-autosave-${title}`);
+    if (!b64) return false;
+    try {
+        const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        emu.load_state(data);
+        localStorage.removeItem(`rugb-autosave-${title}`);
+        return true;
+    } catch { return false; }
+}
+
 async function startEmulator(bytes) {
     // Save previous game's battery RAM before loading new one
     saveBatteryRAM();
@@ -376,7 +527,12 @@ async function startEmulator(bytes) {
 
     if (!wasm) wasm = await init();
     romBytes = bytes;
-    emu = new WasmEmulator(new Uint8Array(bytes));
+
+    if (bootRomData) {
+        emu = WasmEmulator.new_with_boot(new Uint8Array(bytes), new Uint8Array(bootRomData));
+    } else {
+        emu = new WasmEmulator(new Uint8Array(bytes));
+    }
 
     const title = emu.title();
     if (title) {
@@ -387,12 +543,19 @@ async function startEmulator(bytes) {
     // Restore battery-backed SRAM from localStorage
     loadBatteryRAM();
 
+    // Restore auto-save state if one exists (resume from last session)
+    autoLoadState();
+
     pauseBtn.disabled = false;
     resetBtn.disabled = false;
     muteBtn.disabled = false;
     screenshotBtn.disabled = false;
     paused = false;
     pauseBtn.textContent = 'Pause';
+
+    // Reset rewind buffer for new ROM
+    rewindBuffer = [];
+    rewindFrameCounter = 0;
 
     await initAudio();
 
@@ -626,27 +789,59 @@ function frame(timestamp) {
     // Cap delta to avoid spiral of death after tab was backgrounded
     if (delta > 100) delta = GB_FRAME_MS;
 
-    const effectiveSpeed = fastForward ? 16 : speed;
-    frameDebt += delta * effectiveSpeed;
-
     let framesRun = 0;
-    const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
-    while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
-        pollGamepad();
-        // Turbo: toggle A/B every other frame
-        turboFrame++;
-        const turboOn = (turboFrame & 1) === 0;
-        if (turboA) emu.set_button(4, turboOn);
-        if (turboB) emu.set_button(5, turboOn);
-        emu.run_frame();
-        frameDebt -= GB_FRAME_MS;
-        framesRun++;
+
+    // Rewind mode: step backwards instead of running frames
+    if (rewinding) {
+        if (!rewindStep()) rewinding = false;
+        framesRun = 1;
+    } else {
+        const effectiveSpeed = fastForward ? 16 : speed;
+        frameDebt += delta * effectiveSpeed;
+
+        const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
+        while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
+            pollGamepad();
+            // Turbo: toggle A/B every other frame
+            turboFrame++;
+            const turboOn = (turboFrame & 1) === 0;
+            if (turboA) emu.set_button(4, turboOn);
+            if (turboB) emu.set_button(5, turboOn);
+            emu.run_frame();
+            frameDebt -= GB_FRAME_MS;
+            framesRun++;
+
+            // Capture rewind state periodically
+            rewindFrameCounter++;
+            if (rewindFrameCounter >= REWIND_CAPTURE_INTERVAL) {
+                rewindFrameCounter = 0;
+                captureRewindState();
+            }
+        }
+        // Prevent debt accumulation during fast forward
+        if (fastForward && frameDebt > GB_FRAME_MS * 4) frameDebt = 0;
+
+        if (framesRun > 0) {
+            feedAudioWorklet();
+            // Rumble feedback via Gamepad haptics
+            if (emu.rumble()) {
+                try {
+                    const gamepads = navigator.getGamepads();
+                    if (gamepads) {
+                        for (const gp of gamepads) {
+                            if (gp && gp.vibrationActuator) {
+                                gp.vibrationActuator.playEffect('dual-rumble', {
+                                    duration: 16, strongMagnitude: 0.5, weakMagnitude: 0.3,
+                                });
+                            }
+                        }
+                    }
+                } catch {}
+            }
+        }
     }
-    // Prevent debt accumulation during fast forward
-    if (fastForward && frameDebt > GB_FRAME_MS * 4) frameDebt = 0;
 
     if (framesRun > 0) {
-        feedAudioWorklet();
         const ptr = emu.framebuffer_ptr();
         const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
         let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
@@ -694,6 +889,41 @@ romInput.addEventListener('change', (e) => {
 });
 
 function loadFile(file) {
+    const name = file.name.toLowerCase();
+
+    // Handle patch files (IPS/BPS) — apply to currently loaded ROM
+    if (name.endsWith('.ips') || name.endsWith('.bps')) {
+        if (!romBytes) { showToast('Load a ROM first, then apply a patch'); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const patched = tryApplyPatch(romBytes, reader.result);
+            if (patched) {
+                showToast('Patch applied');
+                startEmulator(patched);
+            } else {
+                showToast('Invalid patch file');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        return;
+    }
+
+    // Handle boot ROM file
+    if (name === 'dmg_boot.bin' || name === 'boot.bin' || name === 'bootrom.bin') {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const data = reader.result;
+            if (data.byteLength === 256) {
+                bootRomData = data;
+                showToast('Boot ROM loaded');
+            } else {
+                showToast('Invalid boot ROM (must be 256 bytes)');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = async () => {
         const buf = reader.result;
@@ -1067,6 +1297,7 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
     if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
+    if (e.key === 'r') { e.preventDefault(); rewinding = true; return; }
     if (e.key === 'q') { turboA = !turboA; showToast(turboA ? 'Turbo A ON' : 'Turbo A OFF'); return; }
     if (e.key === 'w') { turboB = !turboB; showToast(turboB ? 'Turbo B ON' : 'Turbo B OFF'); return; }
     if (e.key === keyMap.pause) { pauseBtn.click(); return; }
@@ -1089,6 +1320,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     if (e.key === ' ') { fastForward = false; return; }
+    if (e.key === 'r') { rewinding = false; return; }
     if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
@@ -1354,8 +1586,17 @@ function renderRecentRoms() {
 
 renderRecentRoms();
 
-// Save battery RAM when leaving the page
-window.addEventListener('beforeunload', saveBatteryRAM);
+// Save battery RAM and auto-save state when leaving the page
+window.addEventListener('beforeunload', () => {
+    saveBatteryRAM();
+    autoSaveState();
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        saveBatteryRAM();
+        autoSaveState();
+    }
+});
 
 // --- Audio visualizer (called from main frame loop, no separate RAF) ---
 const vizCanvas = document.getElementById('audio-viz');
