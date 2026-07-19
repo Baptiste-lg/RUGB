@@ -44,7 +44,7 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
         0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF
     );
 
-    let has_rumble = matches!(cart_type, 0x1C | 0x1D | 0x1E);
+    let has_rumble = matches!(cart_type, 0x1C..=0x1E);
 
     match cart_type {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),

@@ -199,7 +199,7 @@ impl Cartridge for Mbc3 {
                         self.rtc_dl = val;
                         let old_days = self.rtc_seconds / 86400;
                         let time_of_day = self.rtc_seconds % 86400;
-                        let new_days = ((old_days & 0x100) | val as u32) as u32;
+                        let new_days = (old_days & 0x100) | val as u32;
                         self.rtc_seconds = new_days * 86400 + time_of_day;
                     }
                     0x0C => {
