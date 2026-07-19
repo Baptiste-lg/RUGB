@@ -5,6 +5,13 @@ use crate::ppu::Ppu;
 use crate::savestate::*;
 use crate::timer::Timer;
 
+/// Game Genie cheat: intercepts ROM reads at a specific address.
+pub struct GgCheat {
+    pub addr: u16,
+    pub new_val: u8,
+    pub compare: Option<u8>,
+}
+
 pub struct Mmu {
     cartridge: Box<dyn Cartridge>,
     pub ppu: Ppu,
@@ -24,6 +31,8 @@ pub struct Mmu {
     /// Optional boot ROM (256 bytes), mapped at 0x0000-0x00FF until 0xFF50 is written
     boot_rom: Option<Vec<u8>>,
     pub boot_rom_active: bool,
+    /// Game Genie cheats — intercept ROM reads
+    pub gg_cheats: Vec<GgCheat>,
 }
 
 impl Mmu {
@@ -41,6 +50,7 @@ impl Mmu {
             serial_data: 0,
             boot_rom: None,
             boot_rom_active: false,
+            gg_cheats: Vec::new(),
         }
     }
 
@@ -63,6 +73,27 @@ impl Mmu {
 
     pub fn rumble(&self) -> bool {
         self.cartridge.rumble()
+    }
+
+    pub fn tick_cartridge_rtc(&mut self, cycles: u32) {
+        self.cartridge.tick_rtc(cycles);
+    }
+
+    /// Write a byte to any address (used by GameShark cheats each frame).
+    pub fn poke(&mut self, addr: u16, val: u8) {
+        self.write(addr, val);
+    }
+
+    pub fn add_gg_cheat(&mut self, addr: u16, new_val: u8, compare: Option<u8>) {
+        self.gg_cheats.push(GgCheat {
+            addr,
+            new_val,
+            compare,
+        });
+    }
+
+    pub fn clear_cheats(&mut self) {
+        self.gg_cheats.clear();
     }
 
     pub fn battery_ram(&self) -> &[u8] {
@@ -108,8 +139,22 @@ impl Mmu {
                 }
                 self.cartridge.read(addr)
             }
-            // ROM banks — routed through cartridge mapper
-            0x0000..=0x7FFF => self.cartridge.read(addr),
+            // ROM banks — routed through cartridge mapper (with Game Genie interception)
+            0x0000..=0x7FFF => {
+                let val = self.cartridge.read(addr);
+                for cheat in &self.gg_cheats {
+                    if cheat.addr == addr {
+                        if let Some(cmp) = cheat.compare {
+                            if val == cmp {
+                                return cheat.new_val;
+                            }
+                        } else {
+                            return cheat.new_val;
+                        }
+                    }
+                }
+                val
+            }
 
             // VRAM
             0x8000..=0x9FFF => self.ppu.read_vram(addr),
