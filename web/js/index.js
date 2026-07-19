@@ -1305,7 +1305,9 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
+    if (e.key === 'F6') { e.preventDefault(); promptRtcOffset(); return; }
     if (e.key === 'F9') { e.preventDefault(); toggleRecording(); return; }
+    if (e.key === 'F10') { e.preventDefault(); generateShareLink(); return; }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
     if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
     if (e.key === 'r') { e.preventDefault(); rewinding = true; return; }
@@ -1752,6 +1754,155 @@ function toggleRecording() {
         startRecording();
     }
 }
+
+// --- RTC time override (F8 prompts for hour offset) ---
+
+function promptRtcOffset() {
+    if (!emu) { showToast('Load a ROM first'); return; }
+    const input = prompt('Set RTC offset in hours (e.g. +6, -3, 12):');
+    if (input === null) return;
+    const hours = parseFloat(input);
+    if (isNaN(hours)) { showToast('Invalid number'); return; }
+    emu.set_rtc_offset(Math.round(hours * 3600));
+    showToast(`RTC offset: ${hours > 0 ? '+' : ''}${hours}h`);
+}
+
+// --- Shareable state links ---
+
+function compressState(data) {
+    // Use deflate-raw via CompressionStream
+    const cs = new CompressionStream('deflate-raw');
+    const writer = cs.writable.getWriter();
+    writer.write(data);
+    writer.close();
+    return new Response(cs.readable).arrayBuffer().then(b => new Uint8Array(b));
+}
+
+function decompressState(data) {
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(data);
+    writer.close();
+    return new Response(ds.readable).arrayBuffer().then(b => new Uint8Array(b));
+}
+
+async function generateShareLink() {
+    if (!emu) { showToast('No emulator running'); return; }
+    const state = emu.save_state();
+    const compressed = await compressState(state);
+    // Base64url encode
+    let b64 = btoa(String.fromCharCode(...compressed));
+    b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const url = `${location.origin}${location.pathname}#state=${b64}`;
+    if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        showToast('Share link copied to clipboard');
+    } else {
+        prompt('Share link:', url);
+    }
+}
+
+async function loadShareLink() {
+    const hash = location.hash;
+    if (!hash.startsWith('#state=')) return false;
+    const b64 = hash.slice(7).replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+    try {
+        const binary = atob(padded);
+        const compressed = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) compressed[i] = binary.charCodeAt(i);
+        const state = await decompressState(compressed);
+        return state;
+    } catch {
+        return null;
+    }
+}
+
+// --- ROM library (IndexedDB) ---
+
+const DB_NAME = 'rugb-roms';
+const DB_STORE = 'roms';
+
+function openRomDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+            req.result.createObjectStore(DB_STORE, { keyPath: 'title' });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveRomToLibrary(title, data) {
+    try {
+        const db = await openRomDb();
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put({ title, data: new Uint8Array(data), savedAt: Date.now() });
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+    } catch {}
+}
+
+async function loadRomFromLibrary(title) {
+    try {
+        const db = await openRomDb();
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const req = tx.objectStore(DB_STORE).get(title);
+        const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+        db.close();
+        return result ? result.data.buffer : null;
+    } catch { return null; }
+}
+
+async function listRomLibrary() {
+    try {
+        const db = await openRomDb();
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const req = tx.objectStore(DB_STORE).getAll();
+        const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+        db.close();
+        return result.map(r => r.title);
+    } catch { return []; }
+}
+
+// Save ROM to library after successful load + apply shared state
+const origStartEmulator = startEmulator;
+startEmulator = async function(bytes) {
+    await origStartEmulator(bytes);
+    if (emu) {
+        const title = emu.title();
+        if (title) saveRomToLibrary(title, bytes);
+        // Apply shared state from URL if pending
+        if (pendingSharedState) {
+            emu.load_state(pendingSharedState);
+            pendingSharedState = null;
+            location.hash = '';
+            showToast('Loaded shared state');
+        }
+    }
+};
+
+// Make recent ROM list clickable (loads from IndexedDB)
+const recentRomsEl2 = document.getElementById('recent-roms');
+recentRomsEl2.addEventListener('click', async (e) => {
+    const el = e.target.closest('.recent-rom');
+    if (!el) return;
+    const title = el.textContent;
+    const data = await loadRomFromLibrary(title);
+    if (data) {
+        startEmulator(data);
+    } else {
+        showToast('ROM not in library — load the file again');
+    }
+});
+
+// Load shared state from URL after emulator starts
+let pendingSharedState = null;
+(async () => {
+    const state = await loadShareLink();
+    if (state) pendingSharedState = state;
+})();
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
