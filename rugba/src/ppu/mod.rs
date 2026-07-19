@@ -1,4 +1,6 @@
 pub mod modes;
+#[cfg(test)]
+mod tests;
 
 use crate::io::IoRegisters;
 

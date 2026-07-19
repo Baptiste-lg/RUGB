@@ -1,5 +1,7 @@
 pub mod arm;
 pub mod registers;
+#[cfg(test)]
+mod tests;
 pub mod thumb;
 
 use crate::bus::Bus;

@@ -1,7 +1,11 @@
 mod arm7tdmi;
 mod bus;
+#[cfg(test)]
+mod bus_tests;
 mod io;
 mod keypad;
+#[cfg(test)]
+mod keypad_tests;
 mod ppu;
 
 use arm7tdmi::Arm7Tdmi;
