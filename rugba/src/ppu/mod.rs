@@ -1,4 +1,6 @@
+pub mod bg;
 pub mod modes;
+pub mod obj;
 #[cfg(test)]
 mod tests;
 
@@ -40,7 +42,14 @@ impl Ppu {
     }
 
     /// Advance the PPU by `cycles` T-cycles. Returns IRQ flags to raise.
-    pub fn tick(&mut self, cycles: u32, io: &mut IoRegisters, vram: &[u8], palette: &[u8]) -> u16 {
+    pub fn tick(
+        &mut self,
+        cycles: u32,
+        io: &mut IoRegisters,
+        vram: &[u8],
+        palette: &[u8],
+        oam: &[u8],
+    ) -> u16 {
         self.pending_irqs = 0;
         let mut remaining = cycles;
 
@@ -62,7 +71,7 @@ impl Ppu {
             {
                 // Render this scanline if visible
                 if self.line < VDRAW_LINES {
-                    self.render_scanline(io, vram, palette);
+                    self.render_scanline(io, vram, palette, oam);
                 }
                 // Set H-blank flag
                 io.dispstat |= 0x02;
@@ -114,23 +123,91 @@ impl Ppu {
         self.pending_irqs
     }
 
-    fn render_scanline(&mut self, io: &IoRegisters, vram: &[u8], palette: &[u8]) {
+    fn render_scanline(&mut self, io: &IoRegisters, vram: &[u8], palette: &[u8], oam: &[u8]) {
         let mode = io.dispcnt & 0x07;
         let line = self.line as usize;
 
         match mode {
+            0 | 1 | 2 => {
+                // Clear scanline to backdrop color (palette[0])
+                let backdrop = if palette.len() >= 2 {
+                    let c = (palette[0] as u16) | ((palette[1] as u16) << 8);
+                    modes::rgb555_to_rgba(c)
+                } else {
+                    [0, 0, 0, 255]
+                };
+                let start = line * SCREEN_WIDTH * 4;
+                for x in 0..SCREEN_WIDTH {
+                    let dst = start + x * 4;
+                    self.framebuffer[dst] = backdrop[0];
+                    self.framebuffer[dst + 1] = backdrop[1];
+                    self.framebuffer[dst + 2] = backdrop[2];
+                    self.framebuffer[dst + 3] = backdrop[3];
+                }
+
+                // Render BG layers by priority (3=lowest first, 0=highest last)
+                for priority in (0..4).rev() {
+                    for bg_idx in (0..4).rev() {
+                        // Check if this BG is enabled in DISPCNT
+                        if io.dispcnt & (1 << (8 + bg_idx)) == 0 {
+                            continue;
+                        }
+                        let bgcnt = io.bgcnt[bg_idx];
+                        if (bgcnt & 3) as usize != priority {
+                            continue;
+                        }
+                        // Mode constraints: Mode 0 has BG0-3 text, Mode 1 has BG0-1 text + BG2 affine, Mode 2 has BG2-3 affine
+                        let is_affine = match mode {
+                            1 => bg_idx == 2,
+                            2 => bg_idx >= 2,
+                            _ => false,
+                        };
+                        let bgctrl = bg::BgControl::from_raw(
+                            bgcnt,
+                            io.bghofs[bg_idx],
+                            io.bgvofs[bg_idx],
+                        );
+                        if is_affine {
+                            bg::render_affine_bg(
+                                &mut self.framebuffer,
+                                line,
+                                &bgctrl,
+                                vram,
+                                palette,
+                            );
+                        } else {
+                            bg::render_text_bg(
+                                &mut self.framebuffer,
+                                line,
+                                &bgctrl,
+                                vram,
+                                palette,
+                            );
+                        }
+                    }
+                }
+            }
             3 => modes::render_mode3_scanline(&mut self.framebuffer, line, vram),
             4 => {
                 modes::render_mode4_scanline(&mut self.framebuffer, line, io.dispcnt, vram, palette)
             }
             5 => modes::render_mode5_scanline(&mut self.framebuffer, line, io.dispcnt, vram),
             _ => {
-                // Modes 0-2 (tile-based) not yet implemented — fill with black
                 let start = line * SCREEN_WIDTH * 4;
-                for i in 0..SCREEN_WIDTH * 4 {
-                    self.framebuffer[start + i] = 0;
-                }
+                self.framebuffer[start..start + SCREEN_WIDTH * 4].fill(0);
             }
+        }
+
+        // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
+        if io.dispcnt & (1 << 12) != 0 {
+            obj::render_sprites(
+                &mut self.framebuffer,
+                line,
+                io.dispcnt,
+                oam,
+                vram,
+                palette,
+            );
         }
     }
 }
