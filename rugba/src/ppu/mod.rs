@@ -162,11 +162,8 @@ impl Ppu {
                             2 => bg_idx >= 2,
                             _ => false,
                         };
-                        let bgctrl = bg::BgControl::from_raw(
-                            bgcnt,
-                            io.bghofs[bg_idx],
-                            io.bgvofs[bg_idx],
-                        );
+                        let bgctrl =
+                            bg::BgControl::from_raw(bgcnt, io.bghofs[bg_idx], io.bgvofs[bg_idx]);
                         if is_affine {
                             bg::render_affine_bg(
                                 &mut self.framebuffer,
@@ -176,13 +173,7 @@ impl Ppu {
                                 palette,
                             );
                         } else {
-                            bg::render_text_bg(
-                                &mut self.framebuffer,
-                                line,
-                                &bgctrl,
-                                vram,
-                                palette,
-                            );
+                            bg::render_text_bg(&mut self.framebuffer, line, &bgctrl, vram, palette);
                         }
                     }
                 }
@@ -200,14 +191,7 @@ impl Ppu {
 
         // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
         if io.dispcnt & (1 << 12) != 0 {
-            obj::render_sprites(
-                &mut self.framebuffer,
-                line,
-                io.dispcnt,
-                oam,
-                vram,
-                palette,
-            );
+            obj::render_sprites(&mut self.framebuffer, line, io.dispcnt, oam, vram, palette);
         }
     }
 }

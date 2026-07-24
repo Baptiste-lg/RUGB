@@ -1,5 +1,4 @@
 /// GBA background tile rendering for Modes 0, 1 (text) and 2 (affine).
-
 use super::modes::rgb555_to_rgba;
 
 const SCREEN_WIDTH: usize = 240;
@@ -106,13 +105,7 @@ fn palette_color(palette: &[u8], index: usize) -> [u8; 4] {
 ///
 /// Writes into `fb` at the correct scanline offset. Pixels with color index 0
 /// (transparent) are skipped, allowing lower-priority layers to show through.
-pub fn render_text_bg(
-    fb: &mut [u8],
-    line: usize,
-    bg: &BgControl,
-    vram: &[u8],
-    palette: &[u8],
-) {
+pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], palette: &[u8]) {
     let (screen_w, screen_h) = text_bg_dimensions(bg.size);
     let eff_y = (line + bg.scroll_y as usize) % screen_h;
     let tile_row = eff_y / 8;
@@ -185,13 +178,7 @@ pub fn render_text_bg(
 ///
 /// Affine parameters should be passed via a dedicated struct in the future.
 /// For now this is a stub that fills the scanline with the backdrop color (palette[0]).
-pub fn render_affine_bg(
-    fb: &mut [u8],
-    line: usize,
-    _bg: &BgControl,
-    _vram: &[u8],
-    palette: &[u8],
-) {
+pub fn render_affine_bg(fb: &mut [u8], line: usize, _bg: &BgControl, _vram: &[u8], palette: &[u8]) {
     // TODO: implement affine BG rendering with PA/PB/PC/PD + reference point
     // For now, fill with backdrop (palette entry 0) so the screen isn't garbage.
     let backdrop = palette_color(palette, 0);

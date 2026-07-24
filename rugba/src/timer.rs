@@ -115,8 +115,7 @@ impl TimerController {
                                 self.timers[i].reload.wrapping_add(excess as u16);
                         }
                     } else {
-                        self.timers[i].counter =
-                            self.timers[i].counter.wrapping_add(ticks as u16);
+                        self.timers[i].counter = self.timers[i].counter.wrapping_add(ticks as u16);
                     }
                 }
             }

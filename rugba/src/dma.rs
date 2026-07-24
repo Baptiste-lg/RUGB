@@ -85,7 +85,11 @@ impl DmaChannel {
         self.internal_src = self.src;
         self.internal_dst = self.dst;
         self.internal_count = if self.count == 0 {
-            if ch == 3 { 0x10000 } else { 0x4000 }
+            if ch == 3 {
+                0x10000
+            } else {
+                0x4000
+            }
         } else {
             self.count as u32
         };
@@ -122,8 +126,7 @@ impl DmaController {
                 continue; // Not immediate or not enabled
             }
 
-            let (c, irq) =
-                self.execute_channel(ch, ewram, iwram, vram, palette, oam, rom);
+            let (c, irq) = self.execute_channel(ch, ewram, iwram, vram, palette, oam, rom);
             cycles += c;
             if irq {
                 irqs |= 1 << (8 + ch); // DMA IRQ flags are bits 8-11
@@ -271,5 +274,13 @@ fn write32_dma(
     oam: &mut [u8],
 ) {
     write16_dma(addr, val as u16, ewram, iwram, vram, palette, oam);
-    write16_dma(addr + 2, (val >> 16) as u16, ewram, iwram, vram, palette, oam);
+    write16_dma(
+        addr + 2,
+        (val >> 16) as u16,
+        ewram,
+        iwram,
+        vram,
+        palette,
+        oam,
+    );
 }

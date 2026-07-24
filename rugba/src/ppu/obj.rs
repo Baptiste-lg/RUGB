@@ -1,5 +1,4 @@
 /// GBA sprite (OBJ) renderer — reads OAM and draws hardware sprites.
-
 use super::modes::rgb555_to_rgba;
 
 const SCREEN_WIDTH: usize = 240;
@@ -178,8 +177,7 @@ pub fn render_sprites(
                     continue;
                 }
 
-                let color =
-                    u16::from_le_bytes([palette[pal_addr], palette[pal_addr + 1]]);
+                let color = u16::from_le_bytes([palette[pal_addr], palette[pal_addr + 1]]);
                 let rgba = rgb555_to_rgba(color);
 
                 let dst = fb_row + sx * 4;
