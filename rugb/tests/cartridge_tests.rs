@@ -2,7 +2,6 @@ use rugb::Emulator;
 
 fn make_rom(cart_type: u8, ram_size: u8) -> Vec<u8> {
     let mut rom = vec![0x76u8; 0x8000]; // HALT sled
-    // Nintendo logo at 0x104 (not checked by emulator, but good form)
     rom[0x147] = cart_type;
     rom[0x148] = 0x00; // ROM size: 32KB
     rom[0x149] = ram_size;
@@ -79,6 +78,10 @@ fn test_save_state_across_cart_types() {
         emu2.load_state(&state);
 
         let state2 = emu2.save_state();
-        assert_eq!(state, state2, "Save state mismatch for cart type 0x{:02X}", cart_type);
+        assert_eq!(
+            state, state2,
+            "Save state mismatch for cart type 0x{:02X}",
+            cart_type
+        );
     }
 }
