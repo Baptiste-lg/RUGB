@@ -55,6 +55,21 @@ impl GbaEmulator {
                 self.bus.io.irq_flags |= ppu_irqs;
             }
 
+            // Flush pending APU register writes from I/O
+            if self.bus.io.soundcnt_h_dirty {
+                self.apu.write_soundcnt_h(self.bus.io.soundcnt_h);
+                self.apu.soundcnt_l = self.bus.io.soundcnt_l;
+                self.apu.soundcnt_x = self.bus.io.soundcnt_x;
+                self.apu.soundbias = self.bus.io.soundbias;
+                self.bus.io.soundcnt_h_dirty = false;
+            }
+            if let Some(data) = self.bus.io.fifo_a_pending.take() {
+                self.apu.write_fifo_a(data);
+            }
+            if let Some(data) = self.bus.io.fifo_b_pending.take() {
+                self.apu.write_fifo_b(data);
+            }
+
             // Tick timers (check for overflow to drive audio FIFOs)
             let timer_irqs = self.bus.io.timers.tick(cycles);
             if timer_irqs != 0 {
@@ -97,6 +112,10 @@ impl GbaEmulator {
 
     pub fn framebuffer(&self) -> &[u8] {
         &self.ppu.framebuffer[..]
+    }
+
+    pub fn has_battery(&self) -> bool {
+        !self.bus.cart.sram.is_empty()
     }
 }
 
