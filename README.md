@@ -3,6 +3,12 @@
 [![RUGB CI/CD](https://github.com/Baptiste-lg/RUGB/actions/workflows/ci.yml/badge.svg)](https://github.com/Baptiste-lg/RUGB/actions/workflows/ci.yml)
 [![Docker Build & Push](https://github.com/Baptiste-lg/RUGB/actions/workflows/Docker.yml/badge.svg)](https://github.com/Baptiste-lg/RUGB/actions/workflows/Docker.yml)
 [![Documentation](https://img.shields.io/badge/demo-GitHub%20Pages-blue)](https://baptiste-lg.github.io/RUGB/)
+![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css3&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 A Game Boy and Game Boy Advance emulator written in Rust, compiled to WebAssembly, playable in the browser. Drop a ROM and play — no install, no backend.
 
