@@ -1,7 +1,9 @@
+mod apu;
 mod arm7tdmi;
 mod bus;
 #[cfg(test)]
 mod bus_tests;
+mod cartridge;
 mod dma;
 mod io;
 mod keypad;
@@ -10,23 +12,18 @@ mod keypad_tests;
 mod ppu;
 mod timer;
 
+use apu::Apu;
 use arm7tdmi::Arm7Tdmi;
 use bus::Bus;
 use ppu::Ppu;
 
 use wasm_bindgen::prelude::*;
 
-const RING_BUFFER_CAPACITY: usize = 8192;
-const RING_BUFFER_MASK: usize = RING_BUFFER_CAPACITY - 1;
-
 pub struct GbaEmulator {
     cpu: Arm7Tdmi,
     bus: Bus,
     ppu: Ppu,
-    // Audio ring buffer (silent for now — Phase 4)
-    audio_ring: Box<[f32; RING_BUFFER_CAPACITY]>,
-    audio_write_pos: usize,
-    audio_read_pos: usize,
+    apu: Apu,
 }
 
 impl GbaEmulator {
@@ -35,9 +32,7 @@ impl GbaEmulator {
             cpu: Arm7Tdmi::new(),
             bus: Bus::new(rom.to_vec()),
             ppu: Ppu::new(),
-            audio_ring: Box::new([0.0; RING_BUFFER_CAPACITY]),
-            audio_write_pos: 0,
-            audio_read_pos: 0,
+            apu: Apu::new(),
         }
     }
 
@@ -60,11 +55,20 @@ impl GbaEmulator {
                 self.bus.io.irq_flags |= ppu_irqs;
             }
 
-            // Tick timers
+            // Tick timers (check for overflow to drive audio FIFOs)
             let timer_irqs = self.bus.io.timers.tick(cycles);
             if timer_irqs != 0 {
                 self.bus.io.irq_flags |= timer_irqs;
+                // Timer overflow triggers FIFO sample pop
+                for t in 0..2 {
+                    if timer_irqs & (1 << (3 + t)) != 0 {
+                        self.apu.timer_overflow(t);
+                    }
+                }
             }
+
+            // Tick APU (generate audio samples)
+            self.apu.tick(cycles);
 
             // Run immediate DMA transfers
             let (_, dma_irqs) = self.bus.io.dma.run_immediate(
@@ -93,10 +97,6 @@ impl GbaEmulator {
 
     pub fn framebuffer(&self) -> &[u8] {
         &self.ppu.framebuffer[..]
-    }
-
-    fn audio_available(&self) -> usize {
-        (self.audio_write_pos + RING_BUFFER_CAPACITY - self.audio_read_pos) & RING_BUFFER_MASK
     }
 }
 
@@ -139,31 +139,28 @@ impl WasmGbaEmulator {
             .collect()
     }
 
-    // Audio interface (silent stub for now — returns empty buffer)
     pub fn audio_ring_ptr(&self) -> *const f32 {
-        self.emu.audio_ring.as_ptr()
+        self.emu.apu.ring_buffer_ptr()
     }
 
     pub fn audio_ring_available(&self) -> usize {
-        self.emu.audio_available()
+        self.emu.apu.ring_buffer_available()
     }
 
     pub fn audio_ring_read_pos(&self) -> usize {
-        self.emu.audio_read_pos
+        self.emu.apu.ring_read_pos()
     }
 
     pub fn audio_ring_capacity(&self) -> usize {
-        RING_BUFFER_CAPACITY
+        self.emu.apu.ring_capacity()
     }
 
     pub fn audio_ring_clear(&mut self) {
-        self.emu.audio_read_pos = self.emu.audio_write_pos;
+        self.emu.apu.ring_clear();
     }
 
     pub fn audio_ring_consume(&mut self, count: usize) {
-        let avail = self.emu.audio_available();
-        let count = count.min(avail);
-        self.emu.audio_read_pos = (self.emu.audio_read_pos + count) & RING_BUFFER_MASK;
+        self.emu.apu.ring_consume(count);
     }
 
     pub fn save_state(&self) -> Vec<u8> {
@@ -175,19 +172,19 @@ impl WasmGbaEmulator {
     }
 
     pub fn has_battery(&self) -> bool {
-        !self.emu.bus.sram.is_empty()
+        !self.emu.bus.cart.sram.is_empty()
     }
 
     pub fn battery_ram_ptr(&self) -> *const u8 {
-        self.emu.bus.sram.as_ptr()
+        self.emu.bus.cart.sram.as_ptr()
     }
 
     pub fn battery_ram_len(&self) -> usize {
-        self.emu.bus.sram.len()
+        self.emu.bus.cart.sram.len()
     }
 
     pub fn load_battery_ram(&mut self, data: &[u8]) {
-        let len = data.len().min(self.emu.bus.sram.len());
-        self.emu.bus.sram[..len].copy_from_slice(&data[..len]);
+        let len = data.len().min(self.emu.bus.cart.sram.len());
+        self.emu.bus.cart.sram[..len].copy_from_slice(&data[..len]);
     }
 }
