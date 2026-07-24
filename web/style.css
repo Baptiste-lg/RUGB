@@ -267,6 +267,15 @@ body {
     margin: 0;
 }
 .cheat-item:hover { background: #151d35; }
+.cheats-credit {
+    display: block;
+    font-size: 0.6rem;
+    color: #556;
+    text-align: right;
+    margin-top: 4px;
+    text-decoration: none;
+}
+.cheats-credit:hover { color: #8be9fd; }
 .recent-rom {
     padding: 0.35rem 0.6rem;
     font-size: 0.75rem;

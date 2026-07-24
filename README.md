@@ -250,6 +250,10 @@ web/
 - [Tonc](https://www.coranac.com/tonc/text/) — GBA programming tutorial
 - [ARM7TDMI Technical Reference](https://developer.arm.com/documentation/ddi0210/c)
 
+## Credits
+
+- Cheat database provided by [libretro-database](https://github.com/libretro/libretro-database) (MIT license), maintained by the libretro/RetroArch community
+
 ## License
 
 MIT
