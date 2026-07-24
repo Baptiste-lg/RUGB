@@ -173,6 +173,79 @@
         </div>
     </div>
 
+    <!-- GBA shell -->
+    <div class="gba" style="display:none">
+        <!-- Shoulder buttons -->
+        <div class="gba-shoulder-l gba-input" data-btn="9">L</div>
+        <div class="gba-shoulder-r gba-input" data-btn="8">R</div>
+
+        <!-- Screen bezel -->
+        <div class="gba-bezel">
+            <span class="gba-title-text">GAME BOY ADVANCE</span>
+            <div class="gba-screen-frame">
+                <canvas id="gba-screen" width="240" height="160" role="img" aria-label="GBA screen"></canvas>
+                <div id="gba-fps-overlay" class="fps-overlay" style="display:none">--</div>
+            </div>
+        </div>
+
+        <!-- Controls area -->
+        <div class="gba-controls">
+            <!-- D-pad -->
+            <div class="gba-dpad-area">
+                <div class="gb-dpad">
+                    <div class="dpad-v">
+                        <div class="dpad-arm dpad-up gba-input" data-btn="6"></div>
+                        <div class="dpad-arm dpad-down gba-input" data-btn="7"></div>
+                    </div>
+                    <div class="dpad-h">
+                        <div class="dpad-arm dpad-left gba-input" data-btn="5"></div>
+                        <div class="dpad-arm dpad-right gba-input" data-btn="4"></div>
+                    </div>
+                    <div class="dpad-center"></div>
+                </div>
+            </div>
+
+            <!-- A / B buttons -->
+            <div class="gba-ab-area">
+                <div class="gb-ab">
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gba-input btn-b" data-btn="1"></div>
+                        <span class="gb-btn-label">B</span>
+                    </div>
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gba-input btn-a" data-btn="0"></div>
+                        <span class="gb-btn-label">A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start / Select -->
+        <div class="gba-meta-area">
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gba-input btn-select" data-btn="2"></div>
+                <span class="gb-meta-label">SELECT</span>
+            </div>
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gba-input btn-start" data-btn="3"></div>
+                <span class="gb-meta-label">START</span>
+            </div>
+        </div>
+
+        <!-- Speaker grille -->
+        <div class="gba-speaker">
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+        </div>
+
+        <!-- Model name -->
+        <div class="gba-bottom-label">GAME BOY ADVANCE</div>
+    </div>
+
     <!-- Key remap overlay -->
     <div id="remap-overlay" class="overlay">
         <div class="overlay-content">
