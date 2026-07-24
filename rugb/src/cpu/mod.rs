@@ -52,6 +52,7 @@ impl Cpu {
     }
 
     /// Read byte at PC and advance PC
+    #[inline]
     fn fetch_byte(&mut self, mmu: &Mmu) -> u8 {
         let val = mmu.read(self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
@@ -59,6 +60,7 @@ impl Cpu {
     }
 
     /// Read 16-bit little-endian value at PC and advance PC by 2
+    #[inline]
     fn fetch_word(&mut self, mmu: &Mmu) -> u16 {
         let lo = self.fetch_byte(mmu) as u16;
         let hi = self.fetch_byte(mmu) as u16;
@@ -84,6 +86,7 @@ impl Cpu {
 
     // -- ALU helpers --
 
+    #[inline]
     fn alu_add(&mut self, val: u8) {
         let a = self.regs.a;
         let result = a as u16 + val as u16;
@@ -94,6 +97,7 @@ impl Cpu {
         self.regs.set_flag_c(result > 0xFF);
     }
 
+    #[inline]
     fn alu_adc(&mut self, val: u8) {
         let carry = if self.regs.flag_c() { 1u8 } else { 0 };
         let a = self.regs.a;
@@ -106,6 +110,7 @@ impl Cpu {
         self.regs.set_flag_c(result > 0xFF);
     }
 
+    #[inline]
     fn alu_sub(&mut self, val: u8) {
         let a = self.regs.a;
         let result = a.wrapping_sub(val);
@@ -116,6 +121,7 @@ impl Cpu {
         self.regs.set_flag_c(a < val);
     }
 
+    #[inline]
     fn alu_sbc(&mut self, val: u8) {
         let carry = if self.regs.flag_c() { 1u8 } else { 0 };
         let a = self.regs.a;
@@ -129,6 +135,7 @@ impl Cpu {
         self.regs.set_flag_c(result > 0xFF);
     }
 
+    #[inline]
     fn alu_and(&mut self, val: u8) {
         self.regs.a &= val;
         self.regs.set_flag_z(self.regs.a == 0);
@@ -137,6 +144,7 @@ impl Cpu {
         self.regs.set_flag_c(false);
     }
 
+    #[inline]
     fn alu_xor(&mut self, val: u8) {
         self.regs.a ^= val;
         self.regs.set_flag_z(self.regs.a == 0);
@@ -145,6 +153,7 @@ impl Cpu {
         self.regs.set_flag_c(false);
     }
 
+    #[inline]
     fn alu_or(&mut self, val: u8) {
         self.regs.a |= val;
         self.regs.set_flag_z(self.regs.a == 0);
@@ -154,12 +163,14 @@ impl Cpu {
     }
 
     /// CP is subtraction with the result thrown away — only flags change
+    #[inline]
     fn alu_cp(&mut self, val: u8) {
         let a = self.regs.a;
         self.alu_sub(val);
         self.regs.a = a;
     }
 
+    #[inline]
     fn alu_inc(&mut self, val: u8) -> u8 {
         let result = val.wrapping_add(1);
         self.regs.set_flag_z(result == 0);
@@ -169,6 +180,7 @@ impl Cpu {
         result
     }
 
+    #[inline]
     fn alu_dec(&mut self, val: u8) -> u8 {
         let result = val.wrapping_sub(1);
         self.regs.set_flag_z(result == 0);
