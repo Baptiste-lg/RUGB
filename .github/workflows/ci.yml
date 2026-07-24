@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: "pages"
@@ -21,6 +21,7 @@ jobs:
   quality:
     name: Code Quality & Security
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[AUTO]')"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,13 +46,25 @@ jobs:
           cargo install cargo-audit
           cargo audit
 
-      - name: Check Formatting (all workspace members)
+      - name: Auto-fix formatting
+        run: cargo fmt --all
+
+      - name: Auto-fix clippy
+        run: cargo clippy --fix --allow-dirty --allow-staged --workspace -- -D warnings || true
+
+      - name: Commit fixes (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git add -A && git commit -m "[AUTO] cargo fmt + clippy --fix" && git push) || true
+
+      - name: Verify formatting
         run: cargo fmt --all -- --check
 
-      - name: Run Clippy — rugb
+      - name: Verify clippy — rugb
         run: cargo clippy -p rugb -- -D warnings
 
-      - name: Run Clippy — rugba
+      - name: Verify clippy — rugba
         run: cargo clippy -p rugba -- -D warnings
 
   test:

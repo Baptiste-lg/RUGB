@@ -1,49 +1,7 @@
-name: Auto-fix Lint
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: write
-
+name: Deprecated
+on: workflow_dispatch
 jobs:
-  autofix:
-    name: Format & Fix
+  noop:
     runs-on: ubuntu-latest
-    # Skip if last commit was an auto-fix to avoid infinite loop
-    if: "!contains(github.event.head_commit.message, '[AUTO]')"
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
-
-      - name: Run cargo fmt (auto-fix)
-        run: cargo fmt --all
-
-      - name: Run clippy --fix (auto-fix)
-        run: cargo clippy --fix --allow-dirty --allow-staged -- -D warnings || true
-
-      - name: Check for changes
-        id: diff
-        run: |
-          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
-
-      - name: Commit fixes
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "[AUTO] cargo fmt + clippy --fix"
-          git push
+      - run: echo "Auto-fix is now integrated into ci.yml"
