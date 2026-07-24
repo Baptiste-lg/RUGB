@@ -3,7 +3,7 @@
 const SCREEN_WIDTH: usize = 240;
 
 /// Convert a GBA 15-bit RGB555 color to RGBA bytes.
-#[inline]
+#[inline(always)]
 fn rgb555_to_rgba(color: u16) -> [u8; 4] {
     let r = ((color & 0x1F) << 3) as u8;
     let g = (((color >> 5) & 0x1F) << 3) as u8;
@@ -68,26 +68,15 @@ pub fn render_mode5_scanline(fb: &mut [u8], line: usize, dispcnt: u16, vram: &[u
     let fb_offset = line * SCREEN_WIDTH * 4;
 
     if line >= 128 {
-        // Below the Mode 5 area — fill with black
-        for x in 0..SCREEN_WIDTH * 4 {
-            fb[fb_offset + x] = 0;
-        }
+        fb[fb_offset..fb_offset + SCREEN_WIDTH * 4].fill(0);
         return;
     }
 
     let page = if dispcnt & 0x10 != 0 { 0xA000 } else { 0 };
     let vram_offset = page + line * 160 * 2;
 
-    for x in 0..SCREEN_WIDTH {
-        if x >= 160 {
-            // Right side black (Mode 5 is only 160 wide)
-            let dst = fb_offset + x * 4;
-            fb[dst] = 0;
-            fb[dst + 1] = 0;
-            fb[dst + 2] = 0;
-            fb[dst + 3] = 255;
-            continue;
-        }
+    // Render visible 160 pixels
+    for x in 0..160 {
         let addr = vram_offset + x * 2;
         let color = if addr + 1 < vram.len() {
             (vram[addr] as u16) | ((vram[addr + 1] as u16) << 8)
@@ -101,4 +90,7 @@ pub fn render_mode5_scanline(fb: &mut [u8], line: usize, dispcnt: u16, vram: &[u
         fb[dst + 2] = rgba[2];
         fb[dst + 3] = rgba[3];
     }
+    // Fill remaining 80 pixels with black
+    let black_start = fb_offset + 160 * 4;
+    fb[black_start..black_start + 80 * 4].fill(0);
 }
