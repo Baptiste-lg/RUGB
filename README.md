@@ -29,12 +29,21 @@ ROM type is auto-detected — just drop any `.gb` or `.gba` file.
 - Battery save — cartridge SRAM persisted to localStorage
 - Boot ROM support — drop a `dmg_boot.bin` to see the Nintendo logo scroll
 
-### GBA Emulation (Phase 1+2)
+### GBA Emulation
 - ARM7TDMI CPU — full ARM (32-bit) and THUMB (16-bit) instruction sets
 - HLE BIOS — software interrupt stubs (Div, Sqrt, CpuSet, Halt, VBlankIntrWait)
 - Memory bus — EWRAM, IWRAM, VRAM, palette, OAM, ROM, SRAM with proper mirroring
-- PPU — Mode 3 (240x160 direct color), Mode 4 (indexed, double-buffered), Mode 5 (160x128 direct)
-- Scanline-accurate timing with H-blank and V-blank interrupts
+- PPU — all 6 display modes:
+  - Mode 0: 4 text BG layers (8x8 tiles, 4bpp/8bpp, scroll, priority)
+  - Mode 1: 2 text BG + 1 affine BG (rotation/scaling)
+  - Mode 2: 2 affine BG layers
+  - Mode 3: 240x160 direct 15-bit color
+  - Mode 4: 240x160 indexed, double-buffered
+  - Mode 5: 160x128 direct color, double-buffered
+- Sprite rendering — 128 OBJ from OAM (4bpp/8bpp, hflip/vflip, 1D/2D mapping)
+- DMA controller — 4 channels with immediate transfer support
+- Timer controller — 4 cascadable 16-bit timers with prescaler
+- Scanline-accurate timing with H-blank, V-blank, and V-count match interrupts
 - 10-button keypad input (A, B, L, R, Start, Select, D-pad)
 
 ### Interface
@@ -189,7 +198,7 @@ GBA audio is not yet implemented (Phase 4).
 
 ### GBA
 
-Bitmap-mode homebrew and demos (Mode 3/4/5). Tile-based commercial games require Phase 3 (tile rendering).
+Supports tile-based (Mode 0-2) and bitmap (Mode 3-5) games with sprites, DMA, and timers. Audio not yet implemented.
 
 ## Project Structure
 
@@ -225,9 +234,13 @@ rugba/src/
     registers.rs       Banked registers, CPSR/SPSR, mode enum
   bus.rs               Memory bus (EWRAM, IWRAM, VRAM, ROM, SRAM)
   ppu/
-    mod.rs             Scanline state machine, timing
+    mod.rs             Scanline state machine, timing, layer compositing
     modes.rs           Mode 3/4/5 bitmap rendering
-  io.rs                I/O register file (DISPCNT, DISPSTAT, interrupts)
+    bg.rs              Text and affine BG tile rendering (Mode 0-2)
+    obj.rs             Sprite renderer (128 OBJ, 4bpp/8bpp)
+  dma.rs               4-channel DMA controller
+  timer.rs             4 cascadable 16-bit timers
+  io.rs                I/O register file (PPU, BG, DMA, timer, interrupt)
   keypad.rs            10-button input (A, B, L, R, Start, Select, D-pad)
 
 web/
