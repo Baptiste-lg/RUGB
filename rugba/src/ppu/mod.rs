@@ -1,4 +1,5 @@
 pub mod bg;
+pub mod blend;
 pub mod modes;
 pub mod obj;
 #[cfg(test)]
@@ -165,12 +166,32 @@ impl Ppu {
                         let bgctrl =
                             bg::BgControl::from_raw(bgcnt, io.bghofs[bg_idx], io.bgvofs[bg_idx]);
                         if is_affine {
+                            let affine = if bg_idx == 2 {
+                                bg::AffineParams {
+                                    pa: io.bg2pa,
+                                    pb: io.bg2pb,
+                                    pc: io.bg2pc,
+                                    pd: io.bg2pd,
+                                    ref_x: io.bg2x,
+                                    ref_y: io.bg2y,
+                                }
+                            } else {
+                                bg::AffineParams {
+                                    pa: io.bg3pa,
+                                    pb: io.bg3pb,
+                                    pc: io.bg3pc,
+                                    pd: io.bg3pd,
+                                    ref_x: io.bg3x,
+                                    ref_y: io.bg3y,
+                                }
+                            };
                             bg::render_affine_bg(
                                 &mut self.framebuffer,
                                 line,
                                 &bgctrl,
                                 vram,
                                 palette,
+                                &affine,
                             );
                         } else {
                             bg::render_text_bg(&mut self.framebuffer, line, &bgctrl, vram, palette);
@@ -192,6 +213,13 @@ impl Ppu {
         // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
         if io.dispcnt & (1 << 12) != 0 {
             obj::render_sprites(&mut self.framebuffer, line, io.dispcnt, oam, vram, palette);
+        }
+
+        // Apply brightness fade (BLDCNT mode 2 or 3)
+        let blend_mode = (io.bldcnt >> 6) & 3;
+        if blend_mode == 2 || blend_mode == 3 {
+            let evy = (io.bldy & 0x1F) as u8;
+            blend::apply_brightness(&mut self.framebuffer, line, blend_mode as u8, evy);
         }
     }
 }
