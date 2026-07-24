@@ -1,6 +1,7 @@
 use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, I_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
 
 /// Barrel shifter: applies shift operation and updates carry flag.
+#[inline]
 fn barrel_shift(
     cpu: &Arm7Tdmi,
     operand: u32,
@@ -93,6 +94,7 @@ fn barrel_shift(
 }
 
 /// Decode operand 2 for data processing with immediate shift.
+#[inline]
 fn decode_operand2_imm_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
@@ -105,6 +107,7 @@ fn decode_operand2_imm_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool)
 }
 
 /// Decode operand 2 for data processing with register shift.
+#[inline]
 fn decode_operand2_reg_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
@@ -121,6 +124,7 @@ fn decode_operand2_reg_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool)
 }
 
 /// Decode immediate operand (rotated 8-bit value).
+#[inline]
 fn decode_rotated_imm(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let imm = instruction & 0xFF;
     let rotate = ((instruction >> 8) & 0xF) * 2;
@@ -134,6 +138,7 @@ fn decode_rotated_imm(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32
 }
 
 /// Add with carry flag output.
+#[inline]
 fn add_with_flags(a: u32, b: u32, set_flags: bool, cpu: &mut Arm7Tdmi) -> u32 {
     let result = a.wrapping_add(b);
     if set_flags {
@@ -148,6 +153,7 @@ fn add_with_flags(a: u32, b: u32, set_flags: bool, cpu: &mut Arm7Tdmi) -> u32 {
 }
 
 /// Subtract with flags (a - b).
+#[inline]
 fn sub_with_flags(a: u32, b: u32, set_flags: bool, cpu: &mut Arm7Tdmi) -> u32 {
     let result = a.wrapping_sub(b);
     if set_flags {
