@@ -93,11 +93,7 @@ fn barrel_shift(
 }
 
 /// Decode operand 2 for data processing with immediate shift.
-fn decode_operand2_imm_shift(
-    cpu: &Arm7Tdmi,
-    instruction: u32,
-    carry: &mut bool,
-) -> u32 {
+fn decode_operand2_imm_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
     let shift_amount = (instruction >> 7) & 0x1F;
@@ -109,11 +105,7 @@ fn decode_operand2_imm_shift(
 }
 
 /// Decode operand 2 for data processing with register shift.
-fn decode_operand2_reg_shift(
-    cpu: &Arm7Tdmi,
-    instruction: u32,
-    carry: &mut bool,
-) -> u32 {
+fn decode_operand2_reg_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
     let rs = (instruction >> 8) & 0xF;
@@ -637,11 +629,7 @@ fn exec_single_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> 
     cycles
 }
 
-fn exec_halfword_transfer(
-    cpu: &mut Arm7Tdmi,
-    bus: &mut Bus,
-    instruction: u32,
-) -> u32 {
+fn exec_halfword_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
     let pre = (instruction >> 24) & 1 != 0;
     let up = (instruction >> 23) & 1 != 0;
     let imm_offset = (instruction >> 22) & 1 != 0;
