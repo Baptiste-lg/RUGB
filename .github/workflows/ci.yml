@@ -122,6 +122,11 @@ jobs:
       - name: Build WASM Release — rugba
         run: wasm-pack build rugba --target web --out-dir ../web/pkg/rugba --release
 
+      - name: Build cheat database
+        run: |
+          git clone --depth 1 https://github.com/libretro/libretro-database.git /tmp/libretro-db
+          python3 tools/build_cheats.py /tmp/libretro-db/cht web/cheats.json
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
