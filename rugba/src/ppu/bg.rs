@@ -174,21 +174,105 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
     }
 }
 
+/// Affine parameters for rotation/scaling BGs.
+pub struct AffineParams {
+    pub pa: i16,
+    pub pb: i16,
+    pub pc: i16,
+    pub pd: i16,
+    pub ref_x: i32, // 20.8 fixed point
+    pub ref_y: i32, // 20.8 fixed point
+}
+
+/// Affine BG screen dimensions in pixels, by size field.
+fn affine_bg_size(size: u8) -> usize {
+    match size {
+        0 => 128,
+        1 => 256,
+        2 => 512,
+        _ => 1024,
+    }
+}
+
 /// Render a single scanline for an affine (rotation/scaling) background (Mode 1/2).
 ///
-/// Affine parameters should be passed via a dedicated struct in the future.
-/// For now this is a stub that fills the scanline with the backdrop color (palette[0]).
-pub fn render_affine_bg(fb: &mut [u8], line: usize, _bg: &BgControl, _vram: &[u8], palette: &[u8]) {
-    // TODO: implement affine BG rendering with PA/PB/PC/PD + reference point
-    // For now, fill with backdrop (palette entry 0) so the screen isn't garbage.
-    let backdrop = palette_color(palette, 0);
+/// Affine BGs always use 8bpp (256-color) mode. The screen map contains single-byte
+/// tile indices (no flip bits). Tile data is at char_base, 64 bytes per 8x8 tile.
+pub fn render_affine_bg(
+    fb: &mut [u8],
+    line: usize,
+    bg: &BgControl,
+    vram: &[u8],
+    palette: &[u8],
+    affine: &AffineParams,
+) {
+    let map_size = affine_bg_size(bg.size);
+    let tiles_per_row = map_size / 8;
     let fb_offset = line * SCREEN_WIDTH * 4;
+
+    // Starting texture coordinates (20.8 fixed point)
+    // ref_x/ref_y are updated per-scanline by the caller (ref += pb/pd each line)
+    let mut tex_x = affine.ref_x + (affine.pa as i32) * 0; // dot 0
+    let mut tex_y = affine.ref_y + (affine.pc as i32) * 0;
+
+    // Actually the reference point already accounts for the scanline offset,
+    // so we just advance by PA/PC per pixel
+    tex_x = affine.ref_x;
+    tex_y = affine.ref_y;
+
     for x in 0..SCREEN_WIDTH {
+        // Convert 20.8 fixed point to integer pixel coords
+        let px = tex_x >> 8;
+        let py = tex_y >> 8;
+
+        tex_x += affine.pa as i32;
+        tex_y += affine.pc as i32;
+
+        // Bounds check / wrapping
+        let (sx, sy) = if bg.overflow_wrap {
+            // Wrap around
+            (
+                (px as usize) % map_size,
+                (py as usize) % map_size,
+            )
+        } else {
+            // Clamp — out of bounds is transparent
+            if px < 0 || py < 0 || px >= map_size as i32 || py >= map_size as i32 {
+                continue;
+            }
+            (px as usize, py as usize)
+        };
+
+        // Read tile index from screen map (1 byte per entry)
+        let tile_col = sx / 8;
+        let tile_row = sy / 8;
+        let map_addr = bg.screen_base as usize + tile_row * tiles_per_row + tile_col;
+        let tile_idx = if map_addr < vram.len() {
+            vram[map_addr] as usize
+        } else {
+            0
+        };
+
+        // Read pixel from tile (8bpp: 64 bytes per tile)
+        let px_in_tile = sx % 8;
+        let py_in_tile = sy % 8;
+        let tile_addr = bg.char_base as usize + tile_idx * 64 + py_in_tile * 8 + px_in_tile;
+        let color_idx = if tile_addr < vram.len() {
+            vram[tile_addr] as usize
+        } else {
+            0
+        };
+
+        if color_idx == 0 {
+            continue; // Transparent
+        }
+
+        let rgba = palette_color(palette, color_idx);
         let dst = fb_offset + x * 4;
-        fb[dst] = backdrop[0];
-        fb[dst + 1] = backdrop[1];
-        fb[dst + 2] = backdrop[2];
-        fb[dst + 3] = backdrop[3];
+        fb[dst] = rgba[0];
+        fb[dst + 1] = rgba[1];
+        fb[dst + 2] = rgba[2];
+        fb[dst + 3] = rgba[3];
     }
 }
 
