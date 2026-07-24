@@ -1,6 +1,8 @@
 name: Auto-fix Lint
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -11,11 +13,13 @@ jobs:
   autofix:
     name: Format & Fix
     runs-on: ubuntu-latest
+    # Skip if last commit was an auto-fix to avoid infinite loop
+    if: "!contains(github.event.head_commit.message, '[AUTO]')"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
