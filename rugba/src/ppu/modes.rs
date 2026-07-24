@@ -4,7 +4,7 @@ const SCREEN_WIDTH: usize = 240;
 
 /// Convert a GBA 15-bit RGB555 color to RGBA bytes.
 #[inline(always)]
-fn rgb555_to_rgba(color: u16) -> [u8; 4] {
+pub fn rgb555_to_rgba(color: u16) -> [u8; 4] {
     let r = ((color & 0x1F) << 3) as u8;
     let g = (((color >> 5) & 0x1F) << 3) as u8;
     let b = (((color >> 10) & 0x1F) << 3) as u8;
