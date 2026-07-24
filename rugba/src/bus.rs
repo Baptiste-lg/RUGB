@@ -1,3 +1,4 @@
+use crate::cartridge::Cartridge;
 use crate::io::IoRegisters;
 use crate::keypad::Keypad;
 
@@ -17,15 +18,15 @@ pub struct Bus {
     pub oam: Box<[u8; 0x400]>,
     /// Game Pak ROM (up to 32 MB)
     pub rom: Vec<u8>,
-    /// Game Pak SRAM/Flash (up to 64 KB)
-    pub sram: Vec<u8>,
+    /// Cartridge backup (SRAM/Flash/EEPROM)
+    pub cart: Cartridge,
     /// Keypad input
     pub keypad: Keypad,
 }
 
 impl Bus {
     pub fn new(rom: Vec<u8>) -> Self {
-        let sram_size = 0x10000; // 64 KB default
+        let cart = Cartridge::new(&rom);
         Bus {
             ewram: Box::new([0; 0x40000]),
             iwram: Box::new([0; 0x8000]),
@@ -34,7 +35,7 @@ impl Bus {
             vram: Box::new([0; 0x18000]),
             oam: Box::new([0; 0x400]),
             rom,
-            sram: vec![0; sram_size],
+            cart,
             keypad: Keypad::new(),
         }
     }
@@ -62,10 +63,7 @@ impl Bus {
                 let offset = (addr & 0x01FF_FFFF) as usize;
                 *self.rom.get(offset).unwrap_or(&0)
             }
-            0x0E..=0x0F => {
-                let offset = (addr & 0xFFFF) as usize;
-                *self.sram.get(offset).unwrap_or(&0)
-            }
+            0x0E..=0x0F => self.cart.read(addr),
             _ => 0, // Open bus
         }
     }
@@ -102,9 +100,8 @@ impl Bus {
                 u16::from_le_bytes([lo, hi])
             }
             0x0E..=0x0F => {
-                // SRAM is 8-bit bus — return byte duplicated
-                let offset = (addr & 0xFFFF) as usize;
-                let v = *self.sram.get(offset).unwrap_or(&0);
+                // SRAM/Flash is 8-bit bus — return byte duplicated
+                let v = self.cart.read(addr);
                 (v as u16) | ((v as u16) << 8)
             }
             _ => 0,
@@ -205,10 +202,7 @@ impl Bus {
             }
             // OAM ignores 8-bit writes
             0x0E..=0x0F => {
-                let offset = (addr & 0xFFFF) as usize;
-                if offset < self.sram.len() {
-                    self.sram[offset] = val;
-                }
+                self.cart.write(addr, val);
             }
             _ => {}
         }
