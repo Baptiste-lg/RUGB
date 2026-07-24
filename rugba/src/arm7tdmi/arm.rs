@@ -1,7 +1,13 @@
-use super::{Arm7Tdmi, CpuMode, Bus, N_FLAG, Z_FLAG, C_FLAG, V_FLAG, T_FLAG, I_FLAG};
+use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, I_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
 
 /// Barrel shifter: applies shift operation and updates carry flag.
-fn barrel_shift(cpu: &Arm7Tdmi, operand: u32, shift_type: u32, amount: u32, carry: &mut bool) -> u32 {
+fn barrel_shift(
+    cpu: &Arm7Tdmi,
+    operand: u32,
+    shift_type: u32,
+    amount: u32,
+    carry: &mut bool,
+) -> u32 {
     if amount == 0 {
         // Special cases for zero shift amount (encoded shifts)
         match shift_type {
@@ -14,7 +20,11 @@ fn barrel_shift(cpu: &Arm7Tdmi, operand: u32, shift_type: u32, amount: u32, carr
             2 => {
                 // ASR #0 means ASR #32
                 *carry = (operand >> 31) != 0;
-                if *carry { 0xFFFF_FFFF } else { 0 }
+                if *carry {
+                    0xFFFF_FFFF
+                } else {
+                    0
+                }
             }
             3 => {
                 // ROR #0 means RRX (rotate right extended by 1)
@@ -29,7 +39,11 @@ fn barrel_shift(cpu: &Arm7Tdmi, operand: u32, shift_type: u32, amount: u32, carr
             0 => {
                 // LSL
                 if amount >= 32 {
-                    *carry = if amount == 32 { (operand & 1) != 0 } else { false };
+                    *carry = if amount == 32 {
+                        (operand & 1) != 0
+                    } else {
+                        false
+                    };
                     0
                 } else {
                     *carry = ((operand >> (32 - amount)) & 1) != 0;
@@ -39,7 +53,11 @@ fn barrel_shift(cpu: &Arm7Tdmi, operand: u32, shift_type: u32, amount: u32, carr
             1 => {
                 // LSR
                 if amount >= 32 {
-                    *carry = if amount == 32 { (operand >> 31) != 0 } else { false };
+                    *carry = if amount == 32 {
+                        (operand >> 31) != 0
+                    } else {
+                        false
+                    };
                     0
                 } else {
                     *carry = ((operand >> (amount - 1)) & 1) != 0;
@@ -75,7 +93,11 @@ fn barrel_shift(cpu: &Arm7Tdmi, operand: u32, shift_type: u32, amount: u32, carr
 }
 
 /// Decode operand 2 for data processing with immediate shift.
-fn decode_operand2_imm_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
+fn decode_operand2_imm_shift(
+    cpu: &Arm7Tdmi,
+    instruction: u32,
+    carry: &mut bool,
+) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
     let shift_amount = (instruction >> 7) & 0x1F;
@@ -87,7 +109,11 @@ fn decode_operand2_imm_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool)
 }
 
 /// Decode operand 2 for data processing with register shift.
-fn decode_operand2_reg_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
+fn decode_operand2_reg_shift(
+    cpu: &Arm7Tdmi,
+    instruction: u32,
+    carry: &mut bool,
+) -> u32 {
     let rm = instruction & 0xF;
     let shift_type = (instruction >> 5) & 3;
     let rs = (instruction >> 8) & 0xF;
@@ -193,9 +219,7 @@ pub fn execute_arm(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
             }
 
             // MSR: bits 27-23 = 00x10, bit 21=1
-            if (bits_27_20 & 0xFB) == 0x12
-                || (bits_27_20 & 0xFB) == 0x32
-            {
+            if (bits_27_20 & 0xFB) == 0x12 || (bits_27_20 & 0xFB) == 0x32 {
                 return exec_msr(cpu, instruction);
             }
 
@@ -291,13 +315,19 @@ fn exec_data_processing(
         0x0 => {
             // AND
             let r = op1 & op2;
-            if s_bit { cpu.set_nz(r); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(r);
+                cpu.set_flag(C_FLAG, carry);
+            }
             r
         }
         0x1 => {
             // EOR
             let r = op1 ^ op2;
-            if s_bit { cpu.set_nz(r); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(r);
+                cpu.set_flag(C_FLAG, carry);
+            }
             r
         }
         0x2 => {
@@ -386,24 +416,36 @@ fn exec_data_processing(
         0xC => {
             // ORR
             let r = op1 | op2;
-            if s_bit { cpu.set_nz(r); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(r);
+                cpu.set_flag(C_FLAG, carry);
+            }
             r
         }
         0xD => {
             // MOV
-            if s_bit { cpu.set_nz(op2); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(op2);
+                cpu.set_flag(C_FLAG, carry);
+            }
             op2
         }
         0xE => {
             // BIC
             let r = op1 & !op2;
-            if s_bit { cpu.set_nz(r); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(r);
+                cpu.set_flag(C_FLAG, carry);
+            }
             r
         }
         0xF => {
             // MVN
             let r = !op2;
-            if s_bit { cpu.set_nz(r); cpu.set_flag(C_FLAG, carry); }
+            if s_bit {
+                cpu.set_nz(r);
+                cpu.set_flag(C_FLAG, carry);
+            }
             r
         }
         _ => 0,
@@ -532,7 +574,11 @@ fn exec_single_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> 
     }
 
     let addr = if pre {
-        if up { base.wrapping_add(offset) } else { base.wrapping_sub(offset) }
+        if up {
+            base.wrapping_add(offset)
+        } else {
+            base.wrapping_sub(offset)
+        }
     } else {
         base
     };
@@ -575,7 +621,11 @@ fn exec_single_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> 
 
     // Post-index: always writeback; Pre-index: writeback only if W bit set
     let final_addr = if !pre {
-        if up { base.wrapping_add(offset) } else { base.wrapping_sub(offset) }
+        if up {
+            base.wrapping_add(offset)
+        } else {
+            base.wrapping_sub(offset)
+        }
     } else {
         addr
     };
@@ -587,7 +637,11 @@ fn exec_single_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> 
     cycles
 }
 
-fn exec_halfword_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
+fn exec_halfword_transfer(
+    cpu: &mut Arm7Tdmi,
+    bus: &mut Bus,
+    instruction: u32,
+) -> u32 {
     let pre = (instruction >> 24) & 1 != 0;
     let up = (instruction >> 23) & 1 != 0;
     let imm_offset = (instruction >> 22) & 1 != 0;
@@ -609,7 +663,11 @@ fn exec_halfword_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -
     }
 
     let addr = if pre {
-        if up { base.wrapping_add(offset) } else { base.wrapping_sub(offset) }
+        if up {
+            base.wrapping_add(offset)
+        } else {
+            base.wrapping_sub(offset)
+        }
     } else {
         base
     };
@@ -653,7 +711,11 @@ fn exec_halfword_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -
 
     // Writeback
     let final_addr = if !pre {
-        if up { base.wrapping_add(offset) } else { base.wrapping_sub(offset) }
+        if up {
+            base.wrapping_add(offset)
+        } else {
+            base.wrapping_sub(offset)
+        }
     } else {
         addr
     };
@@ -684,7 +746,11 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
         } else {
             bus.write32(base, cpu.regs[15].wrapping_add(8));
         }
-        cpu.regs[rn] = if up { base.wrapping_add(0x40) } else { base.wrapping_sub(0x40) };
+        cpu.regs[rn] = if up {
+            base.wrapping_add(0x40)
+        } else {
+            base.wrapping_sub(0x40)
+        };
         return 3;
     }
 
@@ -702,13 +768,15 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
 
     // Adjust for addressing mode
     let mut current_addr = if up {
-        if pre { base.wrapping_add(4) } else { base }
-    } else {
         if pre {
-            base.wrapping_sub(reg_count * 4)
+            base.wrapping_add(4)
         } else {
-            base.wrapping_sub(reg_count * 4).wrapping_add(4)
+            base
         }
+    } else if pre {
+        base.wrapping_sub(reg_count * 4)
+    } else {
+        base.wrapping_sub(reg_count * 4).wrapping_add(4)
     };
 
     let mut cycles = if load { 2u32 } else { 1u32 };
@@ -816,10 +884,18 @@ fn exec_msr(cpu: &mut Arm7Tdmi, instruction: u32) -> u32 {
     // Field mask bits (bits 19-16)
     let field_mask = (instruction >> 16) & 0xF;
     let mut mask = 0u32;
-    if field_mask & 1 != 0 { mask |= 0x0000_00FF; } // control
-    if field_mask & 2 != 0 { mask |= 0x0000_FF00; } // extension
-    if field_mask & 4 != 0 { mask |= 0x00FF_0000; } // status
-    if field_mask & 8 != 0 { mask |= 0xFF00_0000; } // flags
+    if field_mask & 1 != 0 {
+        mask |= 0x0000_00FF; // control
+    }
+    if field_mask & 2 != 0 {
+        mask |= 0x0000_FF00; // extension
+    }
+    if field_mask & 4 != 0 {
+        mask |= 0x00FF_0000; // status
+    }
+    if field_mask & 8 != 0 {
+        mask |= 0xFF00_0000; // flags
+    }
 
     if use_spsr {
         let spsr = cpu.spsr();

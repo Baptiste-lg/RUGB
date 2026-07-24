@@ -61,7 +61,9 @@ pub struct BankedRegisters {
 impl BankedRegisters {
     pub fn new() -> Self {
         BankedRegisters {
-            r13: [0x03007F00, 0x03007F00, 0x03007FA0, 0x03007FE0, 0x03007F00, 0x03007F00],
+            r13: [
+                0x03007F00, 0x03007F00, 0x03007FA0, 0x03007FE0, 0x03007F00, 0x03007F00,
+            ],
             r14: [0; 6],
             spsr: [0; 6],
             fiq_r8_r12: [0; 5],

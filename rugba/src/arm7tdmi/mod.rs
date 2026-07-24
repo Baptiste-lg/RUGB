@@ -90,22 +90,22 @@ impl Arm7Tdmi {
         let v = self.cpsr & V_FLAG != 0;
 
         match cond {
-            0x0 => z,             // EQ
-            0x1 => !z,            // NE
-            0x2 => c,             // CS/HS
-            0x3 => !c,            // CC/LO
-            0x4 => n,             // MI
-            0x5 => !n,            // PL
-            0x6 => v,             // VS
-            0x7 => !v,            // VC
-            0x8 => c && !z,       // HI
-            0x9 => !c || z,       // LS
-            0xA => n == v,        // GE
-            0xB => n != v,        // LT
-            0xC => !z && n == v,  // GT
-            0xD => z || n != v,   // LE
-            0xE => true,          // AL (always)
-            _ => true,            // NV (treat as always on ARM7TDMI)
+            0x0 => z,            // EQ
+            0x1 => !z,           // NE
+            0x2 => c,            // CS/HS
+            0x3 => !c,           // CC/LO
+            0x4 => n,            // MI
+            0x5 => !n,           // PL
+            0x6 => v,            // VS
+            0x7 => !v,           // VC
+            0x8 => c && !z,      // HI
+            0x9 => !c || z,      // LS
+            0xA => n == v,       // GE
+            0xB => n != v,       // LT
+            0xC => !z && n == v, // GT
+            0xD => z || n != v,  // LE
+            0xE => true,         // AL (always)
+            _ => true,           // NV (treat as always on ARM7TDMI)
         }
     }
 

@@ -1,4 +1,4 @@
-use super::{Arm7Tdmi, CpuMode, Bus, N_FLAG, Z_FLAG, C_FLAG, V_FLAG, T_FLAG};
+use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
 
 /// Execute a single THUMB (16-bit) instruction and return cycles consumed.
 pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32 {
@@ -15,7 +15,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             let source = cpu.regs[rs];
 
             let result = match shift_op {
-                0 => { // LSL
+                0 => {
+                    // LSL
                     if offset5 == 0 {
                         source
                     } else {
@@ -23,7 +24,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                         source << offset5
                     }
                 }
-                1 => { // LSR
+                1 => {
+                    // LSR
                     let shift = if offset5 == 0 { 32 } else { offset5 };
                     if shift == 32 {
                         cpu.set_flag(C_FLAG, source >> 31 != 0);
@@ -33,7 +35,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                         source >> shift
                     }
                 }
-                2 => { // ASR
+                2 => {
+                    // ASR
                     let shift = if offset5 == 0 { 32 } else { offset5 };
                     if shift >= 32 {
                         let bit31 = (source as i32) >> 31;
@@ -61,7 +64,11 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             let rs = ((instruction >> 3) & 0x07) as usize;
             let rd = (instruction & 0x07) as usize;
 
-            let operand = if i_flag { rn_or_imm } else { cpu.regs[rn_or_imm as usize] };
+            let operand = if i_flag {
+                rn_or_imm
+            } else {
+                cpu.regs[rn_or_imm as usize]
+            };
             let source = cpu.regs[rs];
 
             let result = if sub {
@@ -91,11 +98,13 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             let imm8 = (instruction & 0xFF) as u32;
 
             match op_code {
-                0 => { // MOV
+                0 => {
+                    // MOV
                     cpu.regs[rd] = imm8;
                     cpu.set_nz(imm8);
                 }
-                1 => { // CMP
+                1 => {
+                    // CMP
                     let source = cpu.regs[rd];
                     let (res, borrow) = source.overflowing_sub(imm8);
                     cpu.set_flag(C_FLAG, !borrow);
@@ -103,7 +112,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.set_flag(V_FLAG, v);
                     cpu.set_nz(res);
                 }
-                2 => { // ADD
+                2 => {
+                    // ADD
                     let source = cpu.regs[rd];
                     let (res, carry) = source.overflowing_add(imm8);
                     cpu.set_flag(C_FLAG, carry);
@@ -112,7 +122,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = res;
                     cpu.set_nz(res);
                 }
-                3 => { // SUB
+                3 => {
+                    // SUB
                     let source = cpu.regs[rd];
                     let (res, borrow) = source.overflowing_sub(imm8);
                     cpu.set_flag(C_FLAG, !borrow);
@@ -136,17 +147,20 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             let b = cpu.regs[rs];
 
             match alu_op {
-                0x0 => { // AND
+                0x0 => {
+                    // AND
                     let r = a & b;
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x1 => { // EOR
+                0x1 => {
+                    // EOR
                     let r = a ^ b;
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x2 => { // LSL
+                0x2 => {
+                    // LSL
                     let shift = b & 0xFF;
                     let r = if shift == 0 {
                         a
@@ -163,7 +177,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x3 => { // LSR
+                0x3 => {
+                    // LSR
                     let shift = b & 0xFF;
                     let r = if shift == 0 {
                         a
@@ -180,7 +195,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x4 => { // ASR
+                0x4 => {
+                    // ASR
                     let shift = b & 0xFF;
                     let r = if shift == 0 {
                         a
@@ -195,7 +211,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x5 => { // ADC
+                0x5 => {
+                    // ADC
                     let c = if cpu.get_flag(C_FLAG) { 1u32 } else { 0 };
                     let (r1, c1) = a.overflowing_add(b);
                     let (r2, c2) = r1.overflowing_add(c);
@@ -205,7 +222,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r2;
                     cpu.set_nz(r2);
                 }
-                0x6 => { // SBC
+                0x6 => {
+                    // SBC
                     let c = if cpu.get_flag(C_FLAG) { 0u32 } else { 1 };
                     let (r1, b1) = a.overflowing_sub(b);
                     let (r2, b2) = r1.overflowing_sub(c);
@@ -215,7 +233,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r2;
                     cpu.set_nz(r2);
                 }
-                0x7 => { // ROR
+                0x7 => {
+                    // ROR
                     let shift = b & 0xFF;
                     let r = if shift == 0 {
                         a
@@ -233,11 +252,13 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0x8 => { // TST
+                0x8 => {
+                    // TST
                     let r = a & b;
                     cpu.set_nz(r);
                 }
-                0x9 => { // NEG
+                0x9 => {
+                    // NEG
                     let (r, borrow) = 0u32.overflowing_sub(b);
                     cpu.set_flag(C_FLAG, !borrow);
                     let v = (b & r) >> 31 != 0;
@@ -245,36 +266,42 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0xA => { // CMP
+                0xA => {
+                    // CMP
                     let (r, borrow) = a.overflowing_sub(b);
                     cpu.set_flag(C_FLAG, !borrow);
                     let v = ((a ^ b) & (a ^ r)) >> 31 != 0;
                     cpu.set_flag(V_FLAG, v);
                     cpu.set_nz(r);
                 }
-                0xB => { // CMN
+                0xB => {
+                    // CMN
                     let (r, carry) = a.overflowing_add(b);
                     cpu.set_flag(C_FLAG, carry);
                     let v = (!(a ^ b) & (a ^ r)) >> 31 != 0;
                     cpu.set_flag(V_FLAG, v);
                     cpu.set_nz(r);
                 }
-                0xC => { // ORR
+                0xC => {
+                    // ORR
                     let r = a | b;
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0xD => { // MUL
+                0xD => {
+                    // MUL
                     let r = a.wrapping_mul(b);
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0xE => { // BIC
+                0xE => {
+                    // BIC
                     let r = a & !b;
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
                 }
-                0xF => { // MVN
+                0xF => {
+                    // MVN
                     let r = !b;
                     cpu.regs[rd] = r;
                     cpu.set_nz(r);
@@ -282,7 +309,12 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                 _ => unreachable!(),
             }
 
-            if alu_op == 0xD { 4 } else { 1 } // MUL takes extra cycles
+            // MUL takes extra cycles
+            if alu_op == 0xD {
+                4
+            } else {
+                1
+            }
         }
 
         // ===== Format 5: Hi register operations / BX =====
@@ -294,11 +326,20 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             let rs = (((instruction >> 3) & 0x07) as usize) | (h2 << 3);
             let rd = ((instruction & 0x07) as usize) | (h1 << 3);
 
-            let rs_val = if rs == 15 { cpu.regs[15].wrapping_add(2) } else { cpu.regs[rs] };
-            let rd_val = if rd == 15 { cpu.regs[15].wrapping_add(2) } else { cpu.regs[rd] };
+            let rs_val = if rs == 15 {
+                cpu.regs[15].wrapping_add(2)
+            } else {
+                cpu.regs[rs]
+            };
+            let rd_val = if rd == 15 {
+                cpu.regs[15].wrapping_add(2)
+            } else {
+                cpu.regs[rd]
+            };
 
             match hi_op {
-                0 => { // ADD
+                0 => {
+                    // ADD
                     let result = rd_val.wrapping_add(rs_val);
                     if rd == 15 {
                         cpu.regs[15] = result & !1;
@@ -306,21 +347,24 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                     }
                     cpu.regs[rd] = result;
                 }
-                1 => { // CMP
+                1 => {
+                    // CMP
                     let (r, borrow) = rd_val.overflowing_sub(rs_val);
                     cpu.set_flag(C_FLAG, !borrow);
                     let v = ((rd_val ^ rs_val) & (rd_val ^ r)) >> 31 != 0;
                     cpu.set_flag(V_FLAG, v);
                     cpu.set_nz(r);
                 }
-                2 => { // MOV
+                2 => {
+                    // MOV
                     if rd == 15 {
                         cpu.regs[15] = rs_val & !1;
                         return 3;
                     }
                     cpu.regs[rd] = rs_val;
                 }
-                3 => { // BX
+                3 => {
+                    // BX
                     let addr = rs_val;
                     if addr & 1 == 0 {
                         // Switch to ARM mode
@@ -360,28 +404,44 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                 let l_flag = (instruction >> 11) & 1 != 0;
                 let b_flag = (instruction >> 10) & 1 != 0;
                 match (l_flag, b_flag) {
-                    (false, false) => { bus.write32(addr & !3, cpu.regs[rd]); 2 }
-                    (false, true)  => { bus.write8(addr, cpu.regs[rd] as u8); 2 }
-                    (true, false)  => { cpu.regs[rd] = bus.read32(addr & !3).rotate_right((addr & 3) * 8); 3 }
-                    (true, true)   => { cpu.regs[rd] = bus.read8(addr) as u32; 3 }
+                    (false, false) => {
+                        bus.write32(addr & !3, cpu.regs[rd]);
+                        2
+                    }
+                    (false, true) => {
+                        bus.write8(addr, cpu.regs[rd] as u8);
+                        2
+                    }
+                    (true, false) => {
+                        cpu.regs[rd] = bus.read32(addr & !3).rotate_right((addr & 3) * 8);
+                        3
+                    }
+                    (true, true) => {
+                        cpu.regs[rd] = bus.read8(addr) as u32;
+                        3
+                    }
                 }
             } else {
                 // Format 8: Load/Store sign-extended
                 let op = (instruction >> 10) & 0x03;
                 match op {
-                    0 => { // STRH
+                    0 => {
+                        // STRH
                         bus.write16(addr & !1, cpu.regs[rd] as u16);
                         2
                     }
-                    1 => { // LDSB
+                    1 => {
+                        // LDSB
                         cpu.regs[rd] = bus.read8(addr) as i8 as i32 as u32;
                         3
                     }
-                    2 => { // LDRH
+                    2 => {
+                        // LDRH
                         cpu.regs[rd] = bus.read16(addr & !1) as u32;
                         3
                     }
-                    3 => { // LDSH
+                    3 => {
+                        // LDSH
                         cpu.regs[rd] = bus.read16(addr & !1) as i16 as i32 as u32;
                         3
                     }
@@ -488,7 +548,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
         // ===== Format 14: Push/Pop =====
         // PUSH: bits 15-9 = 1011010
         // POP:  bits 15-9 = 1011110
-        0xB4 | 0xB5 => { // PUSH
+        0xB4 | 0xB5 => {
+            // PUSH
             let store_lr = (instruction >> 8) & 1 != 0;
             let rlist = instruction & 0xFF;
             let mut addr = cpu.regs[13];
@@ -508,7 +569,8 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
             2 + count
         }
 
-        0xBC | 0xBD => { // POP
+        0xBC | 0xBD => {
+            // POP
             let load_pc = (instruction >> 8) & 1 != 0;
             let rlist = instruction & 0xFF;
             let mut addr = cpu.regs[13];

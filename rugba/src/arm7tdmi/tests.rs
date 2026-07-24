@@ -102,9 +102,9 @@ mod tests {
 
         cpu.handle_swi(&mut bus, 0x06); // Div
 
-        assert_eq!(cpu.regs[0], 3);  // 10 / 3 = 3
-        assert_eq!(cpu.regs[1], 1);  // 10 % 3 = 1
-        assert_eq!(cpu.regs[3], 3);  // |10/3| = 3
+        assert_eq!(cpu.regs[0], 3); // 10 / 3 = 3
+        assert_eq!(cpu.regs[1], 1); // 10 % 3 = 1
+        assert_eq!(cpu.regs[3], 3); // |10/3| = 3
     }
 
     #[test]
@@ -115,9 +115,9 @@ mod tests {
 
         cpu.handle_swi(&mut bus, 0x06);
 
-        assert_eq!(cpu.regs[0] as i32, -3);  // -10 / 3 = -3
-        assert_eq!(cpu.regs[1] as i32, -1);  // -10 % 3 = -1
-        assert_eq!(cpu.regs[3], 3);           // |-10/3| = 3
+        assert_eq!(cpu.regs[0] as i32, -3); // -10 / 3 = -3
+        assert_eq!(cpu.regs[1] as i32, -1); // -10 % 3 = -1
+        assert_eq!(cpu.regs[3], 3); // |-10/3| = 3
     }
 
     #[test]
