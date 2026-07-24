@@ -15,6 +15,7 @@ use ppu::Ppu;
 use wasm_bindgen::prelude::*;
 
 const RING_BUFFER_CAPACITY: usize = 8192;
+const RING_BUFFER_MASK: usize = RING_BUFFER_CAPACITY - 1;
 
 pub struct GbaEmulator {
     cpu: Arm7Tdmi,
@@ -71,7 +72,7 @@ impl GbaEmulator {
     }
 
     fn audio_available(&self) -> usize {
-        (self.audio_write_pos + RING_BUFFER_CAPACITY - self.audio_read_pos) % RING_BUFFER_CAPACITY
+        (self.audio_write_pos + RING_BUFFER_CAPACITY - self.audio_read_pos) & RING_BUFFER_MASK
     }
 }
 
@@ -138,7 +139,7 @@ impl WasmGbaEmulator {
     pub fn audio_ring_consume(&mut self, count: usize) {
         let avail = self.emu.audio_available();
         let count = count.min(avail);
-        self.emu.audio_read_pos = (self.emu.audio_read_pos + count) % RING_BUFFER_CAPACITY;
+        self.emu.audio_read_pos = (self.emu.audio_read_pos + count) & RING_BUFFER_MASK;
     }
 
     pub fn save_state(&self) -> Vec<u8> {
