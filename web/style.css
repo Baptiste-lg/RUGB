@@ -241,6 +241,32 @@ body {
     margin-bottom: 0.3rem;
 }
 .recent-roms:empty { display: none; }
+
+/* Cheats list */
+.cheats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.cheat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.72rem;
+    background: #0f1528;
+    border: 1px solid #2a2a3a;
+    border-radius: 3px;
+    color: #aaa;
+    cursor: pointer;
+}
+.cheat-item input[type="checkbox"] {
+    accent-color: #8be9fd;
+    margin: 0;
+}
+.cheat-item:hover { background: #151d35; }
 .recent-rom {
     padding: 0.35rem 0.6rem;
     font-size: 0.75rem;

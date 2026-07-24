@@ -18,7 +18,7 @@
             <h2>RUGB</h2>
             <label class="file-btn menu-item">
                 Load ROM
-                <input type="file" id="rom-input" accept=".gb,.bin,.zip" hidden>
+                <input type="file" id="rom-input" accept=".gb,.gba,.bin,.zip,.ips,.bps" hidden>
             </label>
             <div id="recent-roms" class="recent-roms"></div>
             <button id="pause-btn" class="menu-item" disabled>Pause</button>
@@ -87,6 +87,11 @@
             <button id="savestates-btn" class="menu-item">Save States</button>
             <button id="remap-btn" class="menu-item">Remap Keys</button>
             <button id="remap-gp-btn" class="menu-item">Remap Controller</button>
+            <div id="cheats-section" class="menu-group" style="display:none">
+                <hr>
+                <span>Cheats</span>
+                <div id="cheats-list" class="cheats-list"></div>
+            </div>
             <hr>
             <a href="docs.html" class="menu-item" style="text-decoration:none;display:block">Help & Docs</a>
         </div>

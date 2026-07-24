@@ -1762,6 +1762,65 @@ function clearAllCheats() {
     activeCheats = [];
 }
 
+// --- Cheat database (loaded from cheats.json) ---
+
+let cheatDb = null;
+
+async function loadCheatDb() {
+    if (cheatDb !== null) return;
+    try {
+        const resp = await fetch('cheats.json');
+        if (resp.ok) cheatDb = await resp.json();
+        else cheatDb = {};
+    } catch {
+        cheatDb = {};
+    }
+}
+
+function populateCheatsUI(title) {
+    const section = document.getElementById('cheats-section');
+    const list = document.getElementById('cheats-list');
+    list.innerHTML = '';
+
+    if (!cheatDb || !title) { section.style.display = 'none'; return; }
+
+    const key = title.toUpperCase();
+    const entry = cheatDb[key];
+    if (!entry || !entry.cheats || entry.cheats.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    for (const cheat of entry.cheats) {
+        const item = document.createElement('label');
+        item.className = 'cheat-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                addCheat(cheat.code);
+            } else {
+                // Remove this cheat — rebuild all active cheats
+                activeCheats = activeCheats.filter(c => c.code !== cheat.code);
+                if (emu) {
+                    emu.clear_cheats();
+                    for (const c of activeCheats) {
+                        if (c.type === 'gg') {
+                            emu.add_gg_cheat(c.addr, c.val, c.compare !== null ? c.compare : 0xFF);
+                        }
+                    }
+                }
+            }
+        });
+        const span = document.createElement('span');
+        span.textContent = cheat.desc;
+        item.appendChild(cb);
+        item.appendChild(span);
+        list.appendChild(item);
+    }
+}
+
 function applyGameSharkCheats() {
     if (!emu) return;
     for (const cheat of activeCheats) {
@@ -1932,13 +1991,16 @@ async function listRomLibrary() {
     } catch { return []; }
 }
 
-// Save ROM to library after successful load + apply shared state
+// Save ROM to library after successful load + apply shared state + load cheats
 const origStartEmulator = startEmulator;
 startEmulator = async function(bytes) {
     await origStartEmulator(bytes);
     if (emu) {
         const title = emu.title();
         if (title) saveRomToLibrary(title, bytes);
+        // Load cheat database and populate UI
+        await loadCheatDb();
+        populateCheatsUI(title);
         // Apply shared state from URL if pending
         if (pendingSharedState) {
             emu.load_state(pendingSharedState);
