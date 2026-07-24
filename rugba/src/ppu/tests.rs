@@ -16,13 +16,14 @@ mod tests {
         let mut io = IoRegisters::new();
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // One full scanline = 1232 cycles
-        ppu.tick(1232, &mut io, &vram, &palette);
+        ppu.tick(1232, &mut io, &vram, &palette, &oam);
         assert_eq!(io.vcount, 1);
 
         // Two more scanlines
-        ppu.tick(1232 * 2, &mut io, &vram, &palette);
+        ppu.tick(1232 * 2, &mut io, &vram, &palette, &oam);
         assert_eq!(io.vcount, 3);
     }
 
@@ -32,9 +33,10 @@ mod tests {
         let mut io = IoRegisters::new();
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Advance to line 160 (V-blank start)
-        ppu.tick(1232 * 160, &mut io, &vram, &palette);
+        ppu.tick(1232 * 160, &mut io, &vram, &palette, &oam);
         assert_eq!(io.vcount, 160);
         assert!(io.dispstat & 0x01 != 0); // V-blank flag set
     }
@@ -46,11 +48,12 @@ mod tests {
         io.dispstat = 0x08; // Enable V-blank IRQ
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Advance to V-blank
         let mut total_irqs = 0u16;
         for _ in 0..160 {
-            total_irqs |= ppu.tick(1232, &mut io, &vram, &palette);
+            total_irqs |= ppu.tick(1232, &mut io, &vram, &palette, &oam);
         }
         assert!(total_irqs & 0x01 != 0); // V-blank IRQ raised
     }
@@ -61,9 +64,10 @@ mod tests {
         let mut io = IoRegisters::new();
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Advance 960 cycles (past draw period into H-blank)
-        ppu.tick(960, &mut io, &vram, &palette);
+        ppu.tick(960, &mut io, &vram, &palette, &oam);
         assert!(io.dispstat & 0x02 != 0); // H-blank flag set
     }
 
@@ -73,9 +77,10 @@ mod tests {
         let mut io = IoRegisters::new();
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Full frame: 228 scanlines × 1232 cycles = 280896
-        ppu.tick(1232 * 228, &mut io, &vram, &palette);
+        ppu.tick(1232 * 228, &mut io, &vram, &palette, &oam);
         assert_eq!(io.vcount, 0); // Wrapped back
         assert!(io.dispstat & 0x01 == 0); // V-blank cleared
     }
@@ -93,7 +98,7 @@ mod tests {
         vram[1] = 0x00;
 
         // Tick one full scanline (enters H-blank, which triggers render of line 0)
-        ppu.tick(1232, &mut io, &vram, &palette);
+        ppu.tick(1232, &mut io, &vram, &palette, &oam);
 
         // Check framebuffer pixel 0: should be R=248, G=0, B=0, A=255
         assert_eq!(ppu.framebuffer[0], 0xF8); // R (31 << 3)
@@ -117,7 +122,7 @@ mod tests {
         // Set pixel (0,0) to palette index 1
         vram[0] = 1;
 
-        ppu.tick(1232, &mut io, &vram, &palette);
+        ppu.tick(1232, &mut io, &vram, &palette, &oam);
 
         assert_eq!(ppu.framebuffer[0], 0x00); // R
         assert_eq!(ppu.framebuffer[1], 0xF8); // G (31 << 3)
@@ -133,10 +138,11 @@ mod tests {
         io.dispstat = (5 << 8) | 0x20;
         let vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         let mut total_irqs = 0u16;
         for _ in 0..6 {
-            total_irqs |= ppu.tick(1232, &mut io, &vram, &palette);
+            total_irqs |= ppu.tick(1232, &mut io, &vram, &palette, &oam);
         }
         assert!(total_irqs & 0x04 != 0); // V-count match IRQ
     }
