@@ -1,10 +1,14 @@
-import init, { WasmEmulator } from '../pkg/rugb.js';
+import initGb, { WasmEmulator } from '../pkg/rugb/rugb.js';
+import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
 
 let emu = null;
+let currentSystem = null; // 'gb' or 'gba'
+let gbWasm = null;
+let gbaWasm = null;
 let animationId = null;
 let paused = false;
 let romBytes = null;
-let wasm = null;
+let wasm = null; // Active WASM module (gb or gba)
 let speed = 1;
 let muted = false;
 let fastForward = false;
@@ -520,19 +524,52 @@ function autoLoadState() {
     } catch { return false; }
 }
 
+function detectSystem(bytes) {
+    const u8 = new Uint8Array(bytes);
+    // GBA ROMs have fixed value 0x96 at offset 0xB2
+    if (u8.length >= 0xB3 && u8[0xB2] === 0x96) return 'gba';
+    return 'gb';
+}
+
+function switchShell(system) {
+    const gb = document.querySelector('.gameboy');
+    const gba = document.querySelector('.gba');
+    if (system === 'gba') {
+        gb.style.display = 'none';
+        gba.style.display = '';
+        canvas = document.getElementById('gba-screen');
+    } else {
+        gba.style.display = 'none';
+        gb.style.display = '';
+        canvas = document.getElementById('screen');
+    }
+    ctx = canvas.getContext('2d');
+}
+
 async function startEmulator(bytes) {
     // Save previous game's battery RAM before loading new one
     saveBatteryRAM();
     if (batterySaveTimer) clearInterval(batterySaveTimer);
 
-    if (!wasm) wasm = await init();
     romBytes = bytes;
+    const system = detectSystem(bytes);
+    currentSystem = system;
 
-    if (bootRomData) {
-        emu = WasmEmulator.new_with_boot(new Uint8Array(bytes), new Uint8Array(bootRomData));
+    if (system === 'gba') {
+        if (!gbaWasm) gbaWasm = await initGba();
+        wasm = gbaWasm;
+        emu = new WasmGbaEmulator(new Uint8Array(bytes));
     } else {
-        emu = new WasmEmulator(new Uint8Array(bytes));
+        if (!gbWasm) gbWasm = await initGb();
+        wasm = gbWasm;
+        if (bootRomData) {
+            emu = WasmEmulator.new_with_boot(new Uint8Array(bytes), new Uint8Array(bootRomData));
+        } else {
+            emu = new WasmEmulator(new Uint8Array(bytes));
+        }
     }
+
+    switchShell(system);
 
     const title = emu.title();
     if (title) {
@@ -768,8 +805,11 @@ gpRemapBtns.forEach(btn => {
     });
 });
 
-// Game Boy frame time: 70224 T-cycles at 4.194304 MHz ≈ 16.74ms
-const GB_FRAME_MS = 70224 / 4194304 * 1000;
+// Frame timing constants
+const GB_FRAME_MS = 70224 / 4194304 * 1000;   // ~16.74ms
+const GBA_FRAME_MS = 280896 / 16777216 * 1000; // ~16.74ms
+function getFrameMs() { return currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS; }
+function getScreenSize() { return currentSystem === 'gba' ? { w: 240, h: 160 } : { w: 160, h: 144 }; }
 let lastFrameTs = 0;
 let frameDebt = 0;
 
@@ -787,7 +827,8 @@ function frame(timestamp) {
     lastFrameTs = timestamp;
 
     // Cap delta to avoid spiral of death after tab was backgrounded
-    if (delta > 100) delta = GB_FRAME_MS;
+    const FRAME_MS = getFrameMs();
+    if (delta > 100) delta = FRAME_MS;
 
     let framesRun = 0;
 
@@ -800,7 +841,7 @@ function frame(timestamp) {
         frameDebt += delta * effectiveSpeed;
 
         const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
-        while (frameDebt >= GB_FRAME_MS && framesRun < maxFrames) {
+        while (frameDebt >= FRAME_MS && framesRun < maxFrames) {
             pollGamepad();
             // Turbo: toggle A/B every other frame
             turboFrame++;
@@ -809,7 +850,7 @@ function frame(timestamp) {
             if (turboB) emu.set_button(5, turboOn);
             emu.run_frame();
             applyGameSharkCheats();
-            frameDebt -= GB_FRAME_MS;
+            frameDebt -= FRAME_MS;
             framesRun++;
 
             // Capture rewind state periodically
@@ -820,12 +861,12 @@ function frame(timestamp) {
             }
         }
         // Prevent debt accumulation during fast forward
-        if (fastForward && frameDebt > GB_FRAME_MS * 4) frameDebt = 0;
+        if (fastForward && frameDebt > FRAME_MS * 4) frameDebt = 0;
 
         if (framesRun > 0) {
             feedAudioWorklet();
-            // Rumble feedback via Gamepad haptics
-            if (emu.rumble()) {
+            // Rumble feedback via Gamepad haptics (GB only)
+            if (currentSystem === 'gb' && emu.rumble()) {
                 try {
                     const gamepads = navigator.getGamepads();
                     if (gamepads) {
@@ -843,10 +884,12 @@ function frame(timestamp) {
     }
 
     if (framesRun > 0) {
+        const { w, h } = getScreenSize();
         const ptr = emu.framebuffer_ptr();
-        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, 160 * 144 * 4);
-        let imageData = new ImageData(new Uint8ClampedArray(pixels), 160, 144);
-        imageData = applyPalette(imageData);
+        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, w * h * 4);
+        let imageData = new ImageData(new Uint8ClampedArray(pixels), w, h);
+        // Palette only applies to GB (GBA uses direct color)
+        if (currentSystem !== 'gba') imageData = applyPalette(imageData);
         // Frame blending: mix 50% current + 50% previous frame (no allocation)
         if (frameBlending) {
             const cur = imageData.data;
@@ -1367,6 +1410,29 @@ gbInputBtns.forEach(el => {
         if (!el.classList.contains('pressed')) return;
         el.classList.remove('pressed');
         if (emu) emu.set_button(gbBtn, false);
+    };
+    el.addEventListener('mousedown', press);
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+    el.addEventListener('touchstart', press);
+    el.addEventListener('touchend', release);
+    el.addEventListener('touchcancel', release);
+});
+
+// --- Visual GBA buttons ---
+document.querySelectorAll('.gba-input').forEach(el => {
+    const gbaBtn = parseInt(el.dataset.btn);
+    const press = (e) => {
+        e.preventDefault();
+        el.classList.add('pressed');
+        if (e.type === 'touchstart') haptic(15);
+        if (emu) emu.set_button(gbaBtn, true);
+    };
+    const release = (e) => {
+        e.preventDefault();
+        if (!el.classList.contains('pressed')) return;
+        el.classList.remove('pressed');
+        if (emu) emu.set_button(gbaBtn, false);
     };
     el.addEventListener('mousedown', press);
     el.addEventListener('mouseup', release);
