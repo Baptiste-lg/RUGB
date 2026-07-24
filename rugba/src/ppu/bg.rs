@@ -231,10 +231,7 @@ pub fn render_affine_bg(
         // Bounds check / wrapping
         let (sx, sy) = if bg.overflow_wrap {
             // Wrap around
-            (
-                (px as usize) % map_size,
-                (py as usize) % map_size,
-            )
+            ((px as usize) % map_size, (py as usize) % map_size)
         } else {
             // Clamp — out of bounds is transparent
             if px < 0 || py < 0 || px >= map_size as i32 || py >= map_size as i32 {

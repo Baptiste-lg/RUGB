@@ -9,22 +9,22 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BackupType {
     None,
-    Sram,       // 32 KB, byte access
-    Flash64,    // 64 KB, command protocol
-    Flash128,   // 128 KB, command protocol
-    Eeprom512,  // 512 bytes, serial
-    Eeprom8K,   // 8 KB, serial
+    Sram,      // 32 KB, byte access
+    Flash64,   // 64 KB, command protocol
+    Flash128,  // 128 KB, command protocol
+    Eeprom512, // 512 bytes, serial
+    Eeprom8K,  // 8 KB, serial
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum FlashState {
     Ready,
-    Cmd1,     // Received 0xAA at 0x5555
-    Cmd2,     // Received 0x55 at 0x2AAA
-    IdMode,   // Chip identification mode
-    Erase,    // Waiting for erase command
-    Write,    // Single byte write mode
-    BankSel,  // Bank select (128 KB only)
+    Cmd1,    // Received 0xAA at 0x5555
+    Cmd2,    // Received 0x55 at 0x2AAA
+    IdMode,  // Chip identification mode
+    Erase,   // Waiting for erase command
+    Write,   // Single byte write mode
+    BankSel, // Bank select (128 KB only)
 }
 
 pub struct Cartridge {
@@ -32,7 +32,7 @@ pub struct Cartridge {
     pub sram: Vec<u8>,
     flash_state: FlashState,
     flash_bank: usize, // 0 or 1 (for 128 KB)
-    pub dirty: bool,    // Set when save data is modified
+    pub dirty: bool,   // Set when save data is modified
 }
 
 impl Cartridge {
@@ -41,10 +41,10 @@ impl Cartridge {
         let sram_size = match backup_type {
             BackupType::None => 0,
             BackupType::Sram => 0x8000,      // 32 KB
-            BackupType::Flash64 => 0x10000,   // 64 KB
-            BackupType::Flash128 => 0x20000,  // 128 KB
-            BackupType::Eeprom512 => 0x200,   // 512 bytes
-            BackupType::Eeprom8K => 0x2000,   // 8 KB
+            BackupType::Flash64 => 0x10000,  // 64 KB
+            BackupType::Flash128 => 0x20000, // 128 KB
+            BackupType::Eeprom512 => 0x200,  // 512 bytes
+            BackupType::Eeprom8K => 0x2000,  // 8 KB
         };
 
         Cartridge {

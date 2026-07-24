@@ -30,11 +30,7 @@ pub fn apply_brightness(fb: &mut [u8], line: usize, mode: u8, evy: u8) {
             )
         } else {
             // Brightness decrease: color - color * EVY / 16
-            (
-                r - (r * evy) / 16,
-                g - (g * evy) / 16,
-                b - (b * evy) / 16,
-            )
+            (r - (r * evy) / 16, g - (g * evy) / 16, b - (b * evy) / 16)
         };
 
         fb[dst] = nr.min(255) as u8;
