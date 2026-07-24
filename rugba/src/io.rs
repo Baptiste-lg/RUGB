@@ -44,6 +44,16 @@ pub struct IoRegisters {
     pub bldcnt: u16,
     pub bldalpha: u16,
     pub bldy: u16,
+    /// Sound control registers (readable copies; APU owns the real state)
+    pub soundcnt_l: u16,
+    pub soundcnt_h: u16,
+    pub soundcnt_x: u16,
+    pub soundbias: u16,
+    /// Pending FIFO writes (consumed by emulator loop each step)
+    pub fifo_a_pending: Option<u32>,
+    pub fifo_b_pending: Option<u32>,
+    /// Pending SOUNDCNT_H write (needs APU forwarding for FIFO reset)
+    pub soundcnt_h_dirty: bool,
     /// DMA controller
     pub dma: DmaController,
     /// Timer controller
@@ -91,6 +101,13 @@ impl IoRegisters {
             bldcnt: 0,
             bldalpha: 0,
             bldy: 0,
+            soundcnt_l: 0,
+            soundcnt_h: 0,
+            soundcnt_x: 0,
+            soundbias: 0x200,
+            fifo_a_pending: None,
+            fifo_b_pending: None,
+            soundcnt_h_dirty: false,
             dma: DmaController::new(),
             timers: TimerController::new(),
             ie: 0,
@@ -119,6 +136,11 @@ impl IoRegisters {
             0x040..=0x04A => 0,
             0x050 => self.bldcnt,
             0x052 => self.bldalpha,
+            // Sound registers
+            0x080 => self.soundcnt_l,
+            0x082 => self.soundcnt_h,
+            0x084 => self.soundcnt_x,
+            0x088 => self.soundbias,
             // DMA registers (0x0B0-0x0DE) — most are write-only
             0x0BA => self.dma.channels[0].ctrl,
             0x0C6 => self.dma.channels[1].ctrl,
@@ -209,6 +231,31 @@ impl IoRegisters {
             0x050 => self.bldcnt = val,
             0x052 => self.bldalpha = val,
             0x054 => self.bldy = val,
+            // Sound registers
+            0x080 => self.soundcnt_l = val,
+            0x082 => {
+                self.soundcnt_h = val;
+                self.soundcnt_h_dirty = true;
+            }
+            0x084 => self.soundcnt_x = (self.soundcnt_x & 0x0F) | (val & 0x80),
+            0x088 => self.soundbias = val,
+            // FIFO writes (32-bit, handled as two 16-bit writes)
+            0x0A0 => {
+                let prev = self.fifo_a_pending.unwrap_or(0) & 0xFFFF_0000;
+                self.fifo_a_pending = Some(prev | val as u32);
+            }
+            0x0A2 => {
+                let prev = self.fifo_a_pending.unwrap_or(0) & 0x0000_FFFF;
+                self.fifo_a_pending = Some(prev | ((val as u32) << 16));
+            }
+            0x0A4 => {
+                let prev = self.fifo_b_pending.unwrap_or(0) & 0xFFFF_0000;
+                self.fifo_b_pending = Some(prev | val as u32);
+            }
+            0x0A6 => {
+                let prev = self.fifo_b_pending.unwrap_or(0) & 0x0000_FFFF;
+                self.fifo_b_pending = Some(prev | ((val as u32) << 16));
+            }
             // DMA source/dest/count/ctrl
             0x0B0 => self.dma.channels[0].src = (self.dma.channels[0].src & !0xFFFF) | val as u32,
             0x0B2 => {
