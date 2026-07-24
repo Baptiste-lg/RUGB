@@ -49,6 +49,9 @@ ROM type is auto-detected — just drop any `.gb` or `.gba` file.
 - Sprite rendering — 128 OBJ from OAM (4bpp/8bpp, hflip/vflip, 1D/2D mapping)
 - DMA controller — 4 channels with immediate transfer support
 - Timer controller — 4 cascadable 16-bit timers with prescaler
+- Audio — DMA Sound FIFO A/B (8-bit PCM, timer-driven), PSG stubs
+- Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), auto-detected from ROM
+- Brightness fade — BLDCNT/BLDY for fade-to-white and fade-to-black effects
 - Scanline-accurate timing with H-blank, V-blank, and V-count match interrupts
 - 10-button keypad input (A, B, L, R, Start, Select, D-pad)
 
