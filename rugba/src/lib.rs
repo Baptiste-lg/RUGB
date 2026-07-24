@@ -2,11 +2,13 @@ mod arm7tdmi;
 mod bus;
 #[cfg(test)]
 mod bus_tests;
+mod dma;
 mod io;
 mod keypad;
 #[cfg(test)]
 mod keypad_tests;
 mod ppu;
+mod timer;
 
 use arm7tdmi::Arm7Tdmi;
 use bus::Bus;
@@ -45,17 +47,39 @@ impl GbaEmulator {
 
         while cycles_this_frame < frame_cycles {
             let cycles = self.cpu.step(&mut self.bus);
-            let irqs = self.ppu.tick(
+
+            // Tick PPU
+            let ppu_irqs = self.ppu.tick(
                 cycles,
                 &mut self.bus.io,
                 &self.bus.vram[..],
                 &self.bus.palette[..],
+                &self.bus.oam[..],
             );
-
-            // Raise IRQ if pending and enabled
-            if irqs != 0 {
-                self.bus.io.irq_flags |= irqs;
+            if ppu_irqs != 0 {
+                self.bus.io.irq_flags |= ppu_irqs;
             }
+
+            // Tick timers
+            let timer_irqs = self.bus.io.timers.tick(cycles);
+            if timer_irqs != 0 {
+                self.bus.io.irq_flags |= timer_irqs;
+            }
+
+            // Run immediate DMA transfers
+            let (_, dma_irqs) = self.bus.io.dma.run_immediate(
+                &mut self.bus.ewram,
+                &mut self.bus.iwram,
+                &mut self.bus.vram,
+                &mut self.bus.palette,
+                &mut self.bus.oam,
+                &self.bus.rom,
+            );
+            if dma_irqs != 0 {
+                self.bus.io.irq_flags |= dma_irqs;
+            }
+
+            // Check for IRQ
             if self.bus.io.ime != 0
                 && self.bus.io.irq_flags & self.bus.io.ie != 0
                 && self.cpu.cpsr & arm7tdmi::I_FLAG == 0
