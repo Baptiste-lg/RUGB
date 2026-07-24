@@ -14,6 +14,7 @@ use crate::savestate::*;
 
 const CPU_CLOCK: u32 = 4_194_304;
 const SAMPLE_RATE: u32 = 48_000;
+const RING_BUFFER_MASK: usize = RING_BUFFER_CAPACITY - 1;
 const RING_BUFFER_CAPACITY: usize = 8192;
 
 const DUTY_TABLE: [[u8; 8]; 4] = [
@@ -668,7 +669,7 @@ impl Apu {
     // --- Ring buffer helpers ---
 
     fn ring_available(&self) -> usize {
-        (self.write_pos + RING_BUFFER_CAPACITY - self.read_pos) % RING_BUFFER_CAPACITY
+        (self.write_pos + RING_BUFFER_CAPACITY - self.read_pos) & RING_BUFFER_MASK
     }
 
     fn ring_free(&self) -> usize {
@@ -677,7 +678,7 @@ impl Apu {
 
     fn ring_push(&mut self, sample: f32) {
         self.ring_buffer[self.write_pos] = sample;
-        self.write_pos = (self.write_pos + 1) % RING_BUFFER_CAPACITY;
+        self.write_pos = (self.write_pos + 1) & RING_BUFFER_MASK;
     }
 
     // --- Public API for WASM ---
@@ -704,7 +705,7 @@ impl Apu {
 
     pub fn ring_consume(&mut self, count: usize) {
         let count = count.min(self.ring_available());
-        self.read_pos = (self.read_pos + count) % RING_BUFFER_CAPACITY;
+        self.read_pos = (self.read_pos + count) & RING_BUFFER_MASK;
     }
 
     pub fn save_state(&self, d: &mut Vec<u8>) {
