@@ -538,11 +538,14 @@ function switchShell(system) {
         gb.style.display = 'none';
         gba.style.display = '';
         canvas = document.getElementById('gba-screen');
+        screenW = 240; screenH = 160;
     } else {
         gba.style.display = 'none';
         gb.style.display = '';
         canvas = document.getElementById('screen');
+        screenW = 160; screenH = 144;
     }
+    screenBytes = screenW * screenH * 4;
     ctx = canvas.getContext('2d');
 }
 
@@ -810,6 +813,8 @@ const GB_FRAME_MS = 70224 / 4194304 * 1000;   // ~16.74ms
 const GBA_FRAME_MS = 280896 / 16777216 * 1000; // ~16.74ms
 function getFrameMs() { return currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS; }
 function getScreenSize() { return currentSystem === 'gba' ? { w: 240, h: 160 } : { w: 160, h: 144 }; }
+// Cached screen dimensions (updated on system switch)
+let screenW = 160, screenH = 144, screenBytes = 160 * 144 * 4;
 let lastFrameTs = 0;
 let frameDebt = 0;
 
@@ -884,10 +889,9 @@ function frame(timestamp) {
     }
 
     if (framesRun > 0) {
-        const { w, h } = getScreenSize();
         const ptr = emu.framebuffer_ptr();
-        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, w * h * 4);
-        let imageData = new ImageData(new Uint8ClampedArray(pixels), w, h);
+        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, screenBytes);
+        let imageData = new ImageData(new Uint8ClampedArray(pixels), screenW, screenH);
         // Palette only applies to GB (GBA uses direct color)
         if (currentSystem !== 'gba') imageData = applyPalette(imageData);
         // Frame blending: mix 50% current + 50% previous frame (no allocation)
