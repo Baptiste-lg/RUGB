@@ -1094,3 +1094,198 @@ canvas.filter-smooth {
     font-size: 1rem;
     margin-bottom: 24px;
 }
+
+/* ==========================================================================
+   GBA Shell — Classic Indigo
+   ========================================================================== */
+
+.gba {
+    --gba-w: 720px;
+    width: var(--gba-w);
+    max-width: 95vw;
+    min-width: 400px;
+    aspect-ratio: 2.2 / 1;
+    margin: 40px auto;
+    position: relative;
+    background: linear-gradient(175deg, #3d2680 0%, #2d1b69 40%, #1a0f3a 100%);
+    border-radius: 18px 18px 12px 12px;
+    box-shadow:
+        5px 8px 25px rgba(0, 0, 0, 0.7),
+        inset 0 2px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    padding: calc(var(--gba-w) * 0.04);
+    user-select: none;
+    touch-action: manipulation;
+}
+
+/* --- Shoulder buttons --- */
+.gba-shoulder-l, .gba-shoulder-r {
+    position: absolute;
+    top: calc(var(--gba-w) * -0.035);
+    width: calc(var(--gba-w) * 0.12);
+    height: calc(var(--gba-w) * 0.04);
+    background: linear-gradient(to bottom, #261558, #1e1048);
+    border-radius: 8px 8px 0 0;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: calc(var(--gba-w) * 0.016);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    transition: background 0.05s;
+}
+.gba-shoulder-l { left: calc(var(--gba-w) * 0.06); }
+.gba-shoulder-r { right: calc(var(--gba-w) * 0.06); }
+.gba-shoulder-l:active, .gba-shoulder-r:active,
+.gba-shoulder-l.pressed, .gba-shoulder-r.pressed {
+    background: linear-gradient(to bottom, #1a0e40, #140a38);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Screen bezel --- */
+.gba-bezel {
+    width: calc(var(--gba-w) * 0.5);
+    margin: calc(var(--gba-w) * 0.015) auto calc(var(--gba-w) * 0.02);
+    text-align: center;
+}
+
+.gba-title-text {
+    display: block;
+    color: rgba(200, 190, 230, 0.5);
+    font-size: calc(var(--gba-w) * 0.014);
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    margin-bottom: calc(var(--gba-w) * 0.008);
+    text-transform: uppercase;
+}
+
+.gba-screen-frame {
+    background: #0a0a18;
+    padding: calc(var(--gba-w) * 0.012);
+    border-radius: 6px;
+    border: 2px solid #111;
+    box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.6);
+    position: relative;
+}
+
+.gba-screen-frame canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 240 / 160;
+    image-rendering: pixelated;
+    background: #1a1a2e;
+    border-radius: 2px;
+}
+
+/* --- Controls layout --- */
+.gba-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 calc(var(--gba-w) * 0.04);
+    margin-top: calc(var(--gba-w) * 0.01);
+}
+
+.gba-dpad-area {
+    flex: 0 0 auto;
+}
+.gba-dpad-area .gb-dpad {
+    width: calc(var(--gba-w) * 0.1);
+    height: calc(var(--gba-w) * 0.1);
+}
+.gba-dpad-area .dpad-arm {
+    background: linear-gradient(to bottom, #2a1860, #201050);
+}
+.gba-dpad-area .dpad-center {
+    background: radial-gradient(circle, #1e1050, #180c45);
+}
+
+.gba-ab-area {
+    flex: 0 0 auto;
+}
+.gba-ab-area .gb-ab {
+    gap: calc(var(--gba-w) * 0.02);
+}
+.gba-ab-area .gb-round-btn {
+    width: calc(var(--gba-w) * 0.055);
+    height: calc(var(--gba-w) * 0.055);
+    background: radial-gradient(circle at 38% 35%, #7a1848, #651440, #501035);
+    border-color: #401030;
+    box-shadow: 0 3px 0 #2a0a20, 0 4px 6px rgba(0, 0, 0, 0.5);
+}
+.gba-ab-area .gb-btn-label {
+    color: rgba(200, 180, 220, 0.4);
+    font-size: calc(var(--gba-w) * 0.014);
+}
+
+/* --- Start / Select --- */
+.gba-meta-area {
+    display: flex;
+    justify-content: center;
+    gap: calc(var(--gba-w) * 0.04);
+    margin-top: calc(var(--gba-w) * 0.005);
+    transform: rotate(-25deg);
+}
+.gba-meta-area .gb-pill-btn {
+    width: calc(var(--gba-w) * 0.04);
+    height: calc(var(--gba-w) * 0.014);
+    background: linear-gradient(to bottom, #2a1860, #201050);
+    border-radius: calc(var(--gba-w) * 0.008);
+    box-shadow: 0 2px 0 #100830, 0 3px 4px rgba(0, 0, 0, 0.4);
+}
+.gba-meta-area .gb-meta-label {
+    color: rgba(200, 180, 220, 0.35);
+    font-size: calc(var(--gba-w) * 0.01);
+}
+
+/* --- Speaker --- */
+.gba-speaker {
+    position: absolute;
+    bottom: calc(var(--gba-w) * 0.035);
+    right: calc(var(--gba-w) * 0.06);
+    display: flex;
+    gap: calc(var(--gba-w) * 0.008);
+    transform: rotate(-25deg);
+}
+.gba-speaker .gb-grille-line {
+    width: calc(var(--gba-w) * 0.006);
+    height: calc(var(--gba-w) * 0.04);
+    background: linear-gradient(to bottom,
+        transparent, rgba(0, 0, 0, 0.2) 20%, rgba(0, 0, 0, 0.2) 80%, transparent);
+    border-radius: calc(var(--gba-w) * 0.003);
+}
+
+/* --- Bottom label --- */
+.gba-bottom-label {
+    position: absolute;
+    bottom: calc(var(--gba-w) * 0.018);
+    left: calc(var(--gba-w) * 0.08);
+    color: rgba(200, 190, 230, 0.2);
+    font-size: calc(var(--gba-w) * 0.011);
+    font-weight: bold;
+    letter-spacing: 0.12em;
+}
+
+/* GBA screen-only mode */
+.gba.screen-only {
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    aspect-ratio: auto;
+    width: 100%;
+    max-width: 800px;
+}
+.gba.screen-only .gba-shoulder-l,
+.gba.screen-only .gba-shoulder-r,
+.gba.screen-only .gba-controls,
+.gba.screen-only .gba-meta-area,
+.gba.screen-only .gba-speaker,
+.gba.screen-only .gba-bottom-label,
+.gba.screen-only .gba-title-text { display: none; }
+.gba.screen-only .gba-bezel { width: 100%; margin: 0; }
+.gba.screen-only .gba-screen-frame { border: none; border-radius: 0; padding: 0; }
