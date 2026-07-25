@@ -19,15 +19,22 @@ A Game Boy and Game Boy Advance emulator written in Rust, compiled to WebAssembl
 | System | CPU | Resolution | Status |
 |--------|-----|-----------|--------|
 | Game Boy (DMG) | SM83 @ 4.19 MHz | 160x144 | Full emulation |
-| Game Boy Advance | ARM7TDMI @ 16.78 MHz | 240x160 | Bitmap modes (Mode 3/4/5) |
+| Game Boy Color | SM83 @ 4.19/8.39 MHz | 160x144 | Full color emulation |
+| Game Boy Advance | ARM7TDMI @ 16.78 MHz | 240x160 | Full emulation |
 
 ROM type is auto-detected — just drop any `.gb` or `.gba` file.
 
 ## Features
 
-### Game Boy Emulation
+### Game Boy / Game Boy Color Emulation
 - Full SM83 CPU — all 512 opcodes (256 base + 256 CB-prefixed)
-- Scanline-accurate PPU — background, window, and sprite rendering
+- Game Boy Color support — auto-detected from ROM header (0x0143)
+  - VRAM banking (2 × 8 KB, VBK register)
+  - WRAM banking (8 × 4 KB, SVBK register)
+  - CGB color palettes — 8 BG + 8 OBJ palettes (RGB555) via BCPS/BCPD/OCPS/OCPD
+  - CGB tile attributes (palette, VRAM bank, flip, priority from bank 1)
+  - Double-speed CPU mode (KEY1 register)
+- Scanline-accurate PPU — background, window, and sprite rendering (DMG + CGB color)
 - Sample-accurate APU — all 4 channels with DC-blocking high-pass filter and AudioWorklet output
 - Cartridge support — NoMBC, MBC1, MBC2, MBC3 (with RTC), MBC5 (with rumble)
 - Timer subsystem with falling-edge detection
