@@ -1110,6 +1110,21 @@ canvas.filter-smooth {
     border-color: #8be9fd;
 }
 
+.touch-shoulders {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 10px;
+    margin-bottom: 8px;
+}
+.touch-shoulder {
+    width: auto !important;
+    border-radius: 20px !important;
+    padding: 8px 24px;
+    height: 40px;
+    font-size: 0.85rem;
+}
+
 .touch-select, .touch-start {
     width: auto;
     border-radius: 20px;
