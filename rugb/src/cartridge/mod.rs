@@ -30,6 +30,14 @@ pub trait Cartridge {
     fn set_rtc_offset(&mut self, _seconds: i32) {}
 }
 
+/// Detect if ROM is a Game Boy Color title (header byte 0x0143).
+pub fn is_cgb(data: &[u8]) -> bool {
+    if data.len() <= 0x0143 {
+        return false;
+    }
+    data[0x0143] == 0x80 || data[0x0143] == 0xC0
+}
+
 /// Parse ROM header byte 0x0147 and return the appropriate mapper.
 pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
     if data.len() < 0x150 {
