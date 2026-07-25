@@ -278,6 +278,7 @@ function feedAudioWorklet() {
 
     const ptr = emu.audio_ring_ptr();
     const capacity = emu.audio_ring_capacity();
+    const mask = capacity - 1;
     const wasmBuf = new Float32Array(wasm.memory.buffer, ptr, capacity);
     let rp = emu.audio_ring_read_pos();
 
@@ -285,9 +286,9 @@ function feedAudioWorklet() {
     const right = new Float32Array(count);
     for (let i = 0; i < count; i++) {
         left[i] = wasmBuf[rp];
-        rp = (rp + 1) % capacity;
+        rp = (rp + 1) & mask;
         right[i] = wasmBuf[rp];
-        rp = (rp + 1) % capacity;
+        rp = (rp + 1) & mask;
     }
 
     emu.audio_ring_consume(count * 2);
@@ -1659,7 +1660,7 @@ function addRecentRom(name) {
 }
 
 function renderRecentRoms() {
-    recentRomsEl.innerHTML = '';
+    recentRomsEl.replaceChildren();
     const list = getRecentRoms();
     for (const name of list) {
         const el = document.createElement('div');
@@ -1787,7 +1788,7 @@ async function loadCheatDb() {
 function populateCheatsUI(title) {
     const section = document.getElementById('cheats-section');
     const list = document.getElementById('cheats-list');
-    list.innerHTML = '';
+    list.replaceChildren();
 
     if (!cheatDb || !title) { section.style.display = 'none'; return; }
 
