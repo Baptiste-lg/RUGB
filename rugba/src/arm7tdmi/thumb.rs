@@ -240,7 +240,7 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
                         a
                     } else {
                         let rot = shift & 31;
-                        
+
                         if rot == 0 {
                             cpu.set_flag(C_FLAG, a >> 31 != 0);
                             a
