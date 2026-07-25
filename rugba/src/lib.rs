@@ -87,11 +87,11 @@ impl GbaEmulator {
 
             // Run immediate DMA transfers
             let (_, dma_irqs) = self.bus.io.dma.run_immediate(
-                &mut self.bus.ewram,
-                &mut self.bus.iwram,
-                &mut self.bus.vram,
-                &mut self.bus.palette,
-                &mut self.bus.oam,
+                &mut *self.bus.ewram,
+                &mut *self.bus.iwram,
+                &mut *self.bus.vram,
+                &mut *self.bus.palette,
+                &mut *self.bus.oam,
                 &self.bus.rom,
             );
             if dma_irqs != 0 {

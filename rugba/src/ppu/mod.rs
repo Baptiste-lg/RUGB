@@ -189,7 +189,7 @@ impl Ppu {
                                 }
                             };
                             bg::render_affine_bg(
-                                &mut self.framebuffer,
+                                &mut *self.framebuffer,
                                 line,
                                 &bgctrl,
                                 vram,
@@ -197,16 +197,16 @@ impl Ppu {
                                 &affine,
                             );
                         } else {
-                            bg::render_text_bg(&mut self.framebuffer, line, &bgctrl, vram, palette);
+                            bg::render_text_bg(&mut *self.framebuffer, line, &bgctrl, vram, palette);
                         }
                     }
                 }
             }
-            3 => modes::render_mode3_scanline(&mut self.framebuffer, line, vram),
+            3 => modes::render_mode3_scanline(&mut *self.framebuffer, line, vram),
             4 => {
-                modes::render_mode4_scanline(&mut self.framebuffer, line, io.dispcnt, vram, palette)
+                modes::render_mode4_scanline(&mut *self.framebuffer, line, io.dispcnt, vram, palette)
             }
-            5 => modes::render_mode5_scanline(&mut self.framebuffer, line, io.dispcnt, vram),
+            5 => modes::render_mode5_scanline(&mut *self.framebuffer, line, io.dispcnt, vram),
             _ => {
                 let start = line * SCREEN_WIDTH * 4;
                 self.framebuffer[start..start + SCREEN_WIDTH * 4].fill(0);
@@ -216,11 +216,11 @@ impl Ppu {
         // Save BG-only buffer for alpha blending (2nd target)
         let start = line * SCREEN_WIDTH * 4;
         let end = start + SCREEN_WIDTH * 4;
-        self.bg_buffer[start..end].copy_from_slice(&self.framebuffer[start..end]);
+        self.bg_buffer[start..end].copy_from_slice(&(*self.framebuffer)[start..end]);
 
         // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
         if io.dispcnt & (1 << 12) != 0 {
-            obj::render_sprites(&mut self.framebuffer, line, io.dispcnt, oam, vram, palette);
+            obj::render_sprites(&mut *self.framebuffer, line, io.dispcnt, oam, vram, palette);
         }
 
         // Apply blend effects
@@ -229,11 +229,17 @@ impl Ppu {
             1 => {
                 let eva = (io.bldalpha & 0x1F) as u8;
                 let evb = ((io.bldalpha >> 8) & 0x1F) as u8;
-                blend::apply_alpha_blend(&mut self.framebuffer, &self.bg_buffer, line, eva, evb);
+                blend::apply_alpha_blend(
+                    &mut *self.framebuffer,
+                    &self.bg_buffer[..],
+                    line,
+                    eva,
+                    evb,
+                );
             }
             2 | 3 => {
                 let evy = (io.bldy & 0x1F) as u8;
-                blend::apply_brightness(&mut self.framebuffer, line, blend_mode as u8, evy);
+                blend::apply_brightness(&mut *self.framebuffer, line, blend_mode as u8, evy);
             }
             _ => {}
         }
