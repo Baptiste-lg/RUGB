@@ -3,7 +3,6 @@
 /// Each timer has: counter, reload value, control register.
 /// Prescaler rates: F/1, F/64, F/256, F/1024 (F = 16.78 MHz).
 /// Cascade mode: timer N increments when timer N-1 overflows.
-
 const PRESCALER_SHIFTS: [u32; 4] = [0, 6, 8, 10]; // F/1, F/64, F/256, F/1024
 
 #[derive(Clone, Copy)]
@@ -15,7 +14,7 @@ pub struct Timer {
     /// Control register (prescaler, cascade, IRQ, enable)
     pub ctrl: u16,
     /// Internal cycle accumulator for prescaler
-    cycles: u32,
+    pub cycles: u32,
 }
 
 impl Timer {

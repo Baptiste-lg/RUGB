@@ -6,12 +6,10 @@
 ///   Bits 8-13: 2nd target (BG0-BG3, OBJ, BD)
 /// BLDALPHA (0x04000052): EVA (bits 0-4) / EVB (bits 8-12) for alpha blend
 /// BLDY (0x04000054): EVY (bits 0-4) for brightness
-
 const SCREEN_WIDTH: usize = 240;
 
 /// Per-pixel layer info for compositing (stored during BG/OBJ rendering).
 /// For now we use a simplified approach: blend the entire scanline post-render.
-
 /// Apply alpha blending between the framebuffer (1st target) and a saved
 /// "below" layer. Since we don't have per-pixel layer tracking yet, this
 /// blends the current framebuffer toward a reference color (backdrop or

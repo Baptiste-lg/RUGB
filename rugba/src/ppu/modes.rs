@@ -1,5 +1,4 @@
 /// Bitmap PPU rendering modes (Mode 3, 4, 5).
-
 const SCREEN_WIDTH: usize = 240;
 
 /// Convert a GBA 15-bit RGB555 color to RGBA bytes.
