@@ -1,9 +1,9 @@
-use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, I_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
+use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
 
 /// Barrel shifter: applies shift operation and updates carry flag.
 #[inline]
 fn barrel_shift(
-    cpu: &Arm7Tdmi,
+    _cpu: &Arm7Tdmi,
     operand: u32,
     shift_type: u32,
     amount: u32,
@@ -125,7 +125,7 @@ fn decode_operand2_reg_shift(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool)
 
 /// Decode immediate operand (rotated 8-bit value).
 #[inline]
-fn decode_rotated_imm(cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
+fn decode_rotated_imm(_cpu: &Arm7Tdmi, instruction: u32, carry: &mut bool) -> u32 {
     let imm = instruction & 0xFF;
     let rotate = ((instruction >> 8) & 0xF) * 2;
     if rotate == 0 {
@@ -581,7 +581,7 @@ fn exec_single_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> 
         base
     };
 
-    let mut cycles = 1u32;
+    let cycles;
 
     if load {
         let val = if byte {
@@ -666,7 +666,7 @@ fn exec_halfword_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -
         base
     };
 
-    let mut cycles;
+    let cycles;
 
     if load {
         let val = match sh {
@@ -730,7 +730,7 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
     let rn = ((instruction >> 16) & 0xF) as usize;
     let reg_list = instruction & 0xFFFF;
 
-    let mut base = cpu.regs[rn];
+    let base = cpu.regs[rn];
     let reg_count = reg_list.count_ones();
 
     // Empty register list: transfer PC only, offset 0x40
@@ -755,7 +755,7 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
         base.wrapping_sub(reg_count * 4)
     };
 
-    let mut addr = start_addr;
+    let _addr = start_addr;
     if !up && pre {
         // Decrement before is same as going up from (base - n*4)
     }

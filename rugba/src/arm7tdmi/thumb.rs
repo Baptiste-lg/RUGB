@@ -1,4 +1,4 @@
-use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
+use super::{Arm7Tdmi, Bus, CpuMode, C_FLAG, T_FLAG, V_FLAG};
 
 /// Execute a single THUMB (16-bit) instruction and return cycles consumed.
 pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32 {
