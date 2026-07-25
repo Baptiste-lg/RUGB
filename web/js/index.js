@@ -534,16 +534,19 @@ function detectSystem(bytes) {
 function switchShell(system) {
     const gb = document.querySelector('.gameboy');
     const gba = document.querySelector('.gba');
+    const shoulders = document.getElementById('touch-shoulders');
     if (system === 'gba') {
         gb.style.display = 'none';
         gba.style.display = '';
         canvas = document.getElementById('gba-screen');
         screenW = 240; screenH = 160;
+        if (shoulders) shoulders.style.display = '';
     } else {
         gba.style.display = 'none';
         gb.style.display = '';
         canvas = document.getElementById('screen');
         screenW = 160; screenH = 144;
+        if (shoulders) shoulders.style.display = 'none';
     }
     screenBytes = screenW * screenH * 4;
     ctx = canvas.getContext('2d');
