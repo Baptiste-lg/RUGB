@@ -112,7 +112,7 @@ impl Bus {
         let addr = addr & !3; // Force alignment
         match addr >> 24 {
             0x02 => {
-                let a = (addr & 0x3FFFF) as usize;
+                let a = (addr & 0x3FFFC) as usize;
                 u32::from_le_bytes([
                     self.ewram[a],
                     self.ewram[a + 1],
@@ -121,7 +121,7 @@ impl Bus {
                 ])
             }
             0x03 => {
-                let a = (addr & 0x7FFF) as usize;
+                let a = (addr & 0x7FFC) as usize;
                 u32::from_le_bytes([
                     self.iwram[a],
                     self.iwram[a + 1],
@@ -247,11 +247,11 @@ impl Bus {
         let bytes = val.to_le_bytes();
         match addr >> 24 {
             0x02 => {
-                let a = (addr & 0x3FFFF) as usize;
+                let a = (addr & 0x3FFFC) as usize;
                 self.ewram[a..a + 4].copy_from_slice(&bytes);
             }
             0x03 => {
-                let a = (addr & 0x7FFF) as usize;
+                let a = (addr & 0x7FFC) as usize;
                 self.iwram[a..a + 4].copy_from_slice(&bytes);
             }
             0x04 => {
