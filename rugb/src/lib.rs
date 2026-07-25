@@ -3,6 +3,8 @@ mod cartridge;
 mod cpu;
 mod interrupt;
 mod joypad;
+
+pub use cartridge::is_cgb;
 mod mmu;
 mod ppu;
 pub mod savestate;
