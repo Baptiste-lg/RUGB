@@ -18,13 +18,7 @@ const SCREEN_WIDTH: usize = 240;
 /// semi-transparent approximation).
 ///
 /// EVA = 1st target coefficient (0-16), EVB = 2nd target coefficient (0-16).
-pub fn apply_alpha_blend(
-    fb: &mut [u8],
-    below: &[u8],
-    line: usize,
-    eva: u8,
-    evb: u8,
-) {
+pub fn apply_alpha_blend(fb: &mut [u8], below: &[u8], line: usize, eva: u8, evb: u8) {
     let eva = eva.min(16) as u16;
     let evb = evb.min(16) as u16;
     if eva == 16 && evb == 0 {
@@ -72,11 +66,7 @@ pub fn apply_brightness(fb: &mut [u8], line: usize, mode: u8, evy: u8) {
                 b + ((255 - b) * evy) / 16,
             )
         } else {
-            (
-                r - (r * evy) / 16,
-                g - (g * evy) / 16,
-                b - (b * evy) / 16,
-            )
+            (r - (r * evy) / 16, g - (g * evy) / 16, b - (b * evy) / 16)
         };
 
         fb[dst] = nr.min(255) as u8;

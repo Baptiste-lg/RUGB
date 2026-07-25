@@ -99,22 +99,14 @@ pub fn render_sprites(
         if is_affine {
             // --- Affine sprite rendering ---
             let affine_group = ((attr1 >> 9) & 0x1F) as usize;
-            let pa = i16::from_le_bytes([
-                oam[affine_group * 32 + 6],
-                oam[affine_group * 32 + 7],
-            ]) as i32;
-            let pb = i16::from_le_bytes([
-                oam[affine_group * 32 + 14],
-                oam[affine_group * 32 + 15],
-            ]) as i32;
-            let pc = i16::from_le_bytes([
-                oam[affine_group * 32 + 22],
-                oam[affine_group * 32 + 23],
-            ]) as i32;
-            let pd = i16::from_le_bytes([
-                oam[affine_group * 32 + 30],
-                oam[affine_group * 32 + 31],
-            ]) as i32;
+            let pa =
+                i16::from_le_bytes([oam[affine_group * 32 + 6], oam[affine_group * 32 + 7]]) as i32;
+            let pb = i16::from_le_bytes([oam[affine_group * 32 + 14], oam[affine_group * 32 + 15]])
+                as i32;
+            let pc = i16::from_le_bytes([oam[affine_group * 32 + 22], oam[affine_group * 32 + 23]])
+                as i32;
+            let pd = i16::from_le_bytes([oam[affine_group * 32 + 30], oam[affine_group * 32 + 31]])
+                as i32;
 
             let half_rw = (render_w / 2) as i32;
             let half_rh = (render_h / 2) as i32;
@@ -137,11 +129,7 @@ pub fn render_sprites(
                 let tex_y = ((pc * ix + pd * iy) >> 8) + half_sh;
 
                 // Bounds check against actual sprite dimensions.
-                if tex_x < 0
-                    || tex_x >= sprite_w as i32
-                    || tex_y < 0
-                    || tex_y >= sprite_h as i32
-                {
+                if tex_x < 0 || tex_x >= sprite_w as i32 || tex_y < 0 || tex_y >= sprite_h as i32 {
                     continue;
                 }
 
@@ -219,7 +207,11 @@ pub fn render_sprites(
             let hflip = attr1 & (1 << 12) != 0;
             let vflip = attr1 & (1 << 13) != 0;
 
-            let row = if vflip { sprite_h - 1 - local_y } else { local_y };
+            let row = if vflip {
+                sprite_h - 1 - local_y
+            } else {
+                local_y
+            };
             let tile_row = row / 8;
             let pixel_y = row % 8;
 
@@ -291,8 +283,7 @@ pub fn render_sprites(
                         continue;
                     }
 
-                    let color =
-                        u16::from_le_bytes([palette[pal_addr], palette[pal_addr + 1]]);
+                    let color = u16::from_le_bytes([palette[pal_addr], palette[pal_addr + 1]]);
                     let rgba = rgb555_to_rgba(color);
 
                     let dst = fb_row + sx * 4;

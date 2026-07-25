@@ -229,13 +229,7 @@ impl Ppu {
             1 => {
                 let eva = (io.bldalpha & 0x1F) as u8;
                 let evb = ((io.bldalpha >> 8) & 0x1F) as u8;
-                blend::apply_alpha_blend(
-                    &mut self.framebuffer,
-                    &self.bg_buffer,
-                    line,
-                    eva,
-                    evb,
-                );
+                blend::apply_alpha_blend(&mut self.framebuffer, &self.bg_buffer, line, eva, evb);
             }
             2 | 3 => {
                 let evy = (io.bldy & 0x1F) as u8;
