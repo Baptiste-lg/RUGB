@@ -12,19 +12,19 @@ fn make_cgb_rom(cart_type: u8) -> Vec<u8> {
 #[test]
 fn test_cgb_detection() {
     let rom = make_cgb_rom(0x00);
-    assert!(rugb::cartridge::is_cgb(&rom));
+    assert!(rugb::is_cgb(&rom));
 
     // DMG-only ROM
     let mut dmg_rom = vec![0x76u8; 0x8000];
     dmg_rom[0x143] = 0x00;
-    assert!(!rugb::cartridge::is_cgb(&dmg_rom));
+    assert!(!rugb::is_cgb(&dmg_rom));
 }
 
 #[test]
 fn test_cgb_only_detection() {
     let mut rom = vec![0x76u8; 0x8000];
     rom[0x143] = 0xC0; // CGB only
-    assert!(rugb::cartridge::is_cgb(&rom));
+    assert!(rugb::is_cgb(&rom));
 }
 
 #[test]
