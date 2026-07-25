@@ -24,6 +24,8 @@ pub const CYCLES_PER_FRAME: u32 = TOTAL_LINES * CYCLES_PER_SCANLINE;
 
 pub struct Ppu {
     pub framebuffer: Box<[u8; SCREEN_WIDTH * SCREEN_HEIGHT * 4]>,
+    /// Saved BG-only framebuffer for alpha blending (2nd target)
+    bg_buffer: Box<[u8; SCREEN_WIDTH * SCREEN_HEIGHT * 4]>,
     /// Cycle counter within current scanline (0..1232)
     dot_cycles: u32,
     /// Current scanline (0..227)
@@ -36,6 +38,7 @@ impl Ppu {
     pub fn new() -> Self {
         Ppu {
             framebuffer: Box::new([0; SCREEN_WIDTH * SCREEN_HEIGHT * 4]),
+            bg_buffer: Box::new([0; SCREEN_WIDTH * SCREEN_HEIGHT * 4]),
             dot_cycles: 0,
             line: 0,
             pending_irqs: 0,
@@ -210,16 +213,35 @@ impl Ppu {
             }
         }
 
+        // Save BG-only buffer for alpha blending (2nd target)
+        let start = line * SCREEN_WIDTH * 4;
+        let end = start + SCREEN_WIDTH * 4;
+        self.bg_buffer[start..end].copy_from_slice(&self.framebuffer[start..end]);
+
         // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
         if io.dispcnt & (1 << 12) != 0 {
             obj::render_sprites(&mut self.framebuffer, line, io.dispcnt, oam, vram, palette);
         }
 
-        // Apply brightness fade (BLDCNT mode 2 or 3)
+        // Apply blend effects
         let blend_mode = (io.bldcnt >> 6) & 3;
-        if blend_mode == 2 || blend_mode == 3 {
-            let evy = (io.bldy & 0x1F) as u8;
-            blend::apply_brightness(&mut self.framebuffer, line, blend_mode as u8, evy);
+        match blend_mode {
+            1 => {
+                let eva = (io.bldalpha & 0x1F) as u8;
+                let evb = ((io.bldalpha >> 8) & 0x1F) as u8;
+                blend::apply_alpha_blend(
+                    &mut self.framebuffer,
+                    &self.bg_buffer,
+                    line,
+                    eva,
+                    evb,
+                );
+            }
+            2 | 3 => {
+                let evy = (io.bldy & 0x1F) as u8;
+                blend::apply_brightness(&mut self.framebuffer, line, blend_mode as u8, evy);
+            }
+            _ => {}
         }
     }
 }
