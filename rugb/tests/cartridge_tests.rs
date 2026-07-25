@@ -11,7 +11,7 @@ fn make_rom(cart_type: u8, ram_size: u8) -> Vec<u8> {
 #[test]
 fn test_no_mbc_creation() {
     let rom = make_rom(0x00, 0x00);
-    let emu = Emulator::new(&rom);
+    let mut emu = Emulator::new(&rom);
     emu.run_frame();
     assert_eq!(emu.framebuffer().len(), 160 * 144 * 4);
 }
