@@ -152,7 +152,7 @@ impl DmaController {
         let step = if word32 { 4u32 } else { 2u32 };
         let src_adj = channel.src_adjust() * step as i32;
         let dst_adj = channel.dst_adjust() * step as i32;
-        let count = channel.internal_count;
+        let count = channel.internal_count.min(0x10000); // Cap to prevent runaway transfers
 
         let mut src = channel.internal_src;
         let mut dst = channel.internal_dst;
