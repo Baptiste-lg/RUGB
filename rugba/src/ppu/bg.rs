@@ -212,13 +212,10 @@ pub fn render_affine_bg(
 
     // Starting texture coordinates (20.8 fixed point)
     // ref_x/ref_y are updated per-scanline by the caller (ref += pb/pd each line)
-    let mut tex_x = affine.ref_x + (affine.pa as i32) * 0; // dot 0
-    let mut tex_y = affine.ref_y + (affine.pc as i32) * 0;
-
-    // Actually the reference point already accounts for the scanline offset,
+    // The reference point already accounts for the scanline offset,
     // so we just advance by PA/PC per pixel
-    tex_x = affine.ref_x;
-    tex_y = affine.ref_y;
+    let mut tex_x = affine.ref_x;
+    let mut tex_y = affine.ref_y;
 
     for x in 0..SCREEN_WIDTH {
         // Convert 20.8 fixed point to integer pixel coords
