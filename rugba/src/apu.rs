@@ -168,16 +168,14 @@ impl Apu {
     pub fn timer_overflow(&mut self, timer_id: usize) -> u8 {
         let mut needs_dma: u8 = 0;
 
-        if self.fifo_a_timer() == timer_id {
-            if self.fifo_a.pop() {
+        if self.fifo_a_timer() == timer_id
+            && self.fifo_a.pop() {
                 needs_dma |= 1;
             }
-        }
-        if self.fifo_b_timer() == timer_id {
-            if self.fifo_b.pop() {
+        if self.fifo_b_timer() == timer_id
+            && self.fifo_b.pop() {
                 needs_dma |= 2;
             }
-        }
 
         needs_dma
     }

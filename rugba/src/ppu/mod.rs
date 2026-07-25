@@ -132,7 +132,7 @@ impl Ppu {
         let line = self.line as usize;
 
         match mode {
-            0 | 1 | 2 => {
+            0..=2 => {
                 // Clear scanline to backdrop color (palette[0])
                 let backdrop = if palette.len() >= 2 {
                     let c = (palette[0] as u16) | ((palette[1] as u16) << 8);
@@ -197,15 +197,25 @@ impl Ppu {
                                 &affine,
                             );
                         } else {
-                            bg::render_text_bg(&mut *self.framebuffer, line, &bgctrl, vram, palette);
+                            bg::render_text_bg(
+                                &mut *self.framebuffer,
+                                line,
+                                &bgctrl,
+                                vram,
+                                palette,
+                            );
                         }
                     }
                 }
             }
             3 => modes::render_mode3_scanline(&mut *self.framebuffer, line, vram),
-            4 => {
-                modes::render_mode4_scanline(&mut *self.framebuffer, line, io.dispcnt, vram, palette)
-            }
+            4 => modes::render_mode4_scanline(
+                &mut *self.framebuffer,
+                line,
+                io.dispcnt,
+                vram,
+                palette,
+            ),
             5 => modes::render_mode5_scanline(&mut *self.framebuffer, line, io.dispcnt, vram),
             _ => {
                 let start = line * SCREEN_WIDTH * 4;

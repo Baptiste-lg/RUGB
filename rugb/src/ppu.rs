@@ -50,13 +50,13 @@ pub struct Ppu {
 
     // --- CGB color palette ---
     pub cgb_mode: bool,
-    pub bg_palette_data: [u8; 64],   // 8 palettes × 4 colors × 2 bytes (RGB555)
-    pub obj_palette_data: [u8; 64],  // 8 palettes × 4 colors × 2 bytes (RGB555)
-    pub bg_palette_index: u8,        // BCPS: index + auto-increment (bit 7)
-    pub obj_palette_index: u8,       // OCPS: index + auto-increment (bit 7)
+    pub bg_palette_data: [u8; 64], // 8 palettes × 4 colors × 2 bytes (RGB555)
+    pub obj_palette_data: [u8; 64], // 8 palettes × 4 colors × 2 bytes (RGB555)
+    pub bg_palette_index: u8,      // BCPS: index + auto-increment (bit 7)
+    pub obj_palette_index: u8,     // OCPS: index + auto-increment (bit 7)
     // --- CGB VRAM bank 1 (bank 0 is the existing vram) ---
     pub vram_bank1: [u8; 0x2000],
-    pub vram_bank: u8,               // VBK register (0 or 1)
+    pub vram_bank: u8, // VBK register (0 or 1)
     // --- HDMA ---
     pub hdma_src: u16,
     pub hdma_dst: u16,
@@ -252,9 +252,11 @@ impl Ppu {
                 };
 
                 let actual_pixel_col = if cgb_x_flip { 7 - pixel_col } else { pixel_col };
-                let color_id = self.get_tile_pixel_banked(actual_tile_addr, actual_pixel_col, tile_bank);
+                let color_id =
+                    self.get_tile_pixel_banked(actual_tile_addr, actual_pixel_col, tile_bank);
                 self.bg_color_ids[x as usize] = color_id;
-                let rgba = Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
+                let rgba =
+                    Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
                 self.set_pixel_rgba(x as usize, self.ly as usize, rgba);
             } else {
                 let color_id = self.get_tile_pixel(tile_addr, pixel_col);
@@ -324,9 +326,11 @@ impl Ppu {
                 };
 
                 let actual_pixel_col = if cgb_x_flip { 7 - pixel_col } else { pixel_col };
-                let color_id = self.get_tile_pixel_banked(actual_tile_addr, actual_pixel_col, tile_bank);
+                let color_id =
+                    self.get_tile_pixel_banked(actual_tile_addr, actual_pixel_col, tile_bank);
                 self.bg_color_ids[x as usize] = color_id;
-                let rgba = Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
+                let rgba =
+                    Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
                 self.set_pixel_rgba(x as usize, self.ly as usize, rgba);
             } else {
                 let color_id = self.get_tile_pixel(tile_addr, pixel_col);
@@ -417,7 +421,11 @@ impl Ppu {
                         continue;
                     }
 
-                    let rgba = Self::cgb_palette_color(&self.obj_palette_data, cgb_palette_num, color_id as usize);
+                    let rgba = Self::cgb_palette_color(
+                        &self.obj_palette_data,
+                        cgb_palette_num,
+                        color_id as usize,
+                    );
                     self.set_pixel_rgba(screen_x, self.ly as usize, rgba);
                 } else {
                     let bit = if x_flip { 7 - pixel_x } else { pixel_x };
@@ -664,7 +672,8 @@ impl Ppu {
                 let idx = (self.obj_palette_index & 0x3F) as usize;
                 self.obj_palette_data[idx] = val;
                 if self.obj_palette_index & 0x80 != 0 {
-                    self.obj_palette_index = 0x80 | ((self.obj_palette_index.wrapping_add(1)) & 0x3F);
+                    self.obj_palette_index =
+                        0x80 | ((self.obj_palette_index.wrapping_add(1)) & 0x3F);
                 }
             }
             _ => {}

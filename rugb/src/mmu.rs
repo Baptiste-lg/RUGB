@@ -192,15 +192,11 @@ impl Mmu {
             0xC000..=0xCFFF => self.wram[0][(addr - 0xC000) as usize],
 
             // Work RAM bank 1-7 (switchable 0xD000-0xDFFF, controlled by SVBK)
-            0xD000..=0xDFFF => {
-                self.wram[self.wram_bank as usize][(addr - 0xD000) as usize]
-            }
+            0xD000..=0xDFFF => self.wram[self.wram_bank as usize][(addr - 0xD000) as usize],
 
             // Echo RAM — mirrors 0xC000-0xDDFF
             0xE000..=0xEFFF => self.wram[0][(addr - 0xE000) as usize],
-            0xF000..=0xFDFF => {
-                self.wram[self.wram_bank as usize][(addr - 0xF000) as usize]
-            }
+            0xF000..=0xFDFF => self.wram[self.wram_bank as usize][(addr - 0xF000) as usize],
 
             // OAM — sprite attribute table
             0xFE00..=0xFE9F => self.ppu.read_oam(addr),
