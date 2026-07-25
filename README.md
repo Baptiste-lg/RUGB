@@ -51,9 +51,11 @@ ROM type is auto-detected — just drop any `.gb` or `.gba` file.
 - Timer controller — 4 cascadable 16-bit timers with prescaler
 - Audio — DMA Sound FIFO A/B (8-bit PCM, timer-driven), PSG stubs
 - Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), auto-detected from ROM
-- Brightness fade — BLDCNT/BLDY for fade-to-white and fade-to-black effects
+- Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), auto-detected from ROM
+- Color effects — alpha blending (EVA/EVB), brightness increase/decrease (EVY)
+- Affine sprites — rotation/scaling via OAM affine parameter groups
 - Scanline-accurate timing with H-blank, V-blank, and V-count match interrupts
-- 10-button keypad input (A, B, L, R, Start, Select, D-pad)
+- 10-button keypad input with mobile L/R touch controls
 
 ### Interface
 - Faithful DMG-01 Game Boy shell with interactive, animated buttons
@@ -207,7 +209,7 @@ GBA audio is not yet implemented (Phase 4).
 
 ### GBA
 
-Supports tile-based (Mode 0-2) and bitmap (Mode 3-5) games with sprites, DMA, and timers. Audio not yet implemented.
+Supports all 6 display modes, sprites (regular + affine), DMA sound, Flash/SRAM saves, and alpha blending.
 
 ## Project Structure
 
