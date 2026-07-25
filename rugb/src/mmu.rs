@@ -18,8 +18,10 @@ pub struct Mmu {
     pub apu: Apu,
     pub timer: Timer,
     pub joypad: Joypad,
-    /// Work RAM — 8 KB
-    wram: [u8; 0x2000],
+    /// Work RAM — 8 banks × 4 KB for CGB (bank 0 always at 0xC000, banks 1-7 switchable at 0xD000)
+    wram: [[u8; 0x1000]; 8],
+    /// Current WRAM bank (SVBK register, 0xFF70). Bank 0 always at 0xC000.
+    wram_bank: u8,
     /// High RAM — 127 bytes, CPU-accessible during OAM DMA
     hram: [u8; 0x7F],
     /// Interrupt Enable register at 0xFFFF
@@ -33,6 +35,12 @@ pub struct Mmu {
     pub boot_rom_active: bool,
     /// Game Genie cheats — intercept ROM reads
     pub gg_cheats: Vec<GgCheat>,
+    /// CGB mode flag
+    pub cgb_mode: bool,
+    /// KEY1 speed switch register (0xFF4D). Bit 7 = current speed, bit 0 = prepare switch.
+    pub key1: u8,
+    /// True when CPU is in double-speed mode
+    pub double_speed: bool,
 }
 
 impl Mmu {
@@ -43,7 +51,8 @@ impl Mmu {
             apu: Apu::new(),
             timer: Timer::new(),
             joypad: Joypad::new(),
-            wram: [0; 0x2000],
+            wram: [[0; 0x1000]; 8],
+            wram_bank: 1,
             hram: [0; 0x7F],
             ie: 0,
             interrupt_flag: 0,
@@ -51,6 +60,9 @@ impl Mmu {
             boot_rom: None,
             boot_rom_active: false,
             gg_cheats: Vec::new(),
+            cgb_mode: false,
+            key1: 0,
+            double_speed: false,
         }
     }
 
@@ -109,7 +121,9 @@ impl Mmu {
     }
 
     pub fn save_state(&self, d: &mut Vec<u8>) {
-        d.extend_from_slice(&self.wram);
+        for bank in &self.wram {
+            d.extend_from_slice(bank);
+        }
         d.extend_from_slice(&self.hram);
         push_u8(d, self.ie);
         push_u8(d, self.interrupt_flag);
@@ -121,8 +135,10 @@ impl Mmu {
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
-        self.wram.copy_from_slice(&d[..0x2000]);
-        *d = &d[0x2000..];
+        for bank in &mut self.wram {
+            bank.copy_from_slice(&d[..0x1000]);
+            *d = &d[0x1000..];
+        }
         self.hram.copy_from_slice(&d[..0x7F]);
         *d = &d[0x7F..];
         self.ie = pop_u8(d);
@@ -160,17 +176,31 @@ impl Mmu {
                 val
             }
 
-            // VRAM
-            0x8000..=0x9FFF => self.ppu.read_vram(addr),
+            // VRAM (banked in CGB mode)
+            0x8000..=0x9FFF => {
+                if self.cgb_mode {
+                    self.ppu.read_vram_banked(addr)
+                } else {
+                    self.ppu.read_vram(addr)
+                }
+            }
 
             // External RAM — routed through cartridge mapper
             0xA000..=0xBFFF => self.cartridge.read(addr),
 
-            // Work RAM
-            0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize],
+            // Work RAM bank 0 (always 0xC000-0xCFFF)
+            0xC000..=0xCFFF => self.wram[0][(addr - 0xC000) as usize],
+
+            // Work RAM bank 1-7 (switchable 0xD000-0xDFFF, controlled by SVBK)
+            0xD000..=0xDFFF => {
+                self.wram[self.wram_bank as usize][(addr - 0xD000) as usize]
+            }
 
             // Echo RAM — mirrors 0xC000-0xDDFF
-            0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize],
+            0xE000..=0xEFFF => self.wram[0][(addr - 0xE000) as usize],
+            0xF000..=0xFDFF => {
+                self.wram[self.wram_bank as usize][(addr - 0xF000) as usize]
+            }
 
             // OAM — sprite attribute table
             0xFE00..=0xFE9F => self.ppu.read_oam(addr),
@@ -186,6 +216,11 @@ impl Mmu {
             0xFF0F => self.interrupt_flag,
             0xFF10..=0xFF3F => self.apu.read(addr),
             0xFF40..=0xFF4B => self.ppu.read_register(addr),
+            // CGB registers
+            0xFF4D => self.key1 | if self.double_speed { 0x80 } else { 0 },
+            0xFF4F => self.ppu.vram_bank | 0xFE,
+            0xFF68..=0xFF6B => self.ppu.read_register(addr),
+            0xFF70 => self.wram_bank,
             // Remaining I/O returns 0xFF
             0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => 0xFF,
 
@@ -202,17 +237,31 @@ impl Mmu {
             // ROM area — writes go to the cartridge mapper (bank switching)
             0x0000..=0x7FFF => self.cartridge.write(addr, val),
 
-            // VRAM
-            0x8000..=0x9FFF => self.ppu.write_vram(addr, val),
+            // VRAM (banked in CGB mode)
+            0x8000..=0x9FFF => {
+                if self.cgb_mode {
+                    self.ppu.write_vram_banked(addr, val);
+                } else {
+                    self.ppu.write_vram(addr, val);
+                }
+            }
 
             // External RAM
             0xA000..=0xBFFF => self.cartridge.write(addr, val),
 
-            // Work RAM
-            0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = val,
+            // Work RAM bank 0
+            0xC000..=0xCFFF => self.wram[0][(addr - 0xC000) as usize] = val,
+
+            // Work RAM bank 1-7
+            0xD000..=0xDFFF => {
+                self.wram[self.wram_bank as usize][(addr - 0xD000) as usize] = val;
+            }
 
             // Echo RAM
-            0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize] = val,
+            0xE000..=0xEFFF => self.wram[0][(addr - 0xE000) as usize] = val,
+            0xF000..=0xFDFF => {
+                self.wram[self.wram_bank as usize][(addr - 0xF000) as usize] = val;
+            }
 
             // OAM
             0xFE00..=0xFE9F => self.ppu.write_oam(addr, val),
@@ -253,7 +302,17 @@ impl Mmu {
                     self.boot_rom_active = false;
                 }
             }
-            0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => {} // Unhandled I/O — ignore
+            // CGB registers
+            0xFF4D => self.key1 = (self.key1 & 0x80) | (val & 0x01),
+            0xFF4F => self.ppu.vram_bank = val & 1,
+            0xFF68..=0xFF6B => self.ppu.write_register(addr, val),
+            0xFF70 => {
+                self.wram_bank = val & 0x07;
+                if self.wram_bank == 0 {
+                    self.wram_bank = 1;
+                }
+            }
+            0xFF03 | 0xFF08..=0xFF0E | 0xFF4C..=0xFF7F => {} // Unhandled I/O
 
             // High RAM
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = val,
