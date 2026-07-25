@@ -232,11 +232,7 @@ pub fn render_sprites(
                     }
                 };
 
-                let tile_addr = if is_8bpp {
-                    tile_base + tile_idx * 32
-                } else {
-                    tile_base + tile_idx * 32
-                };
+                let tile_addr = tile_base + tile_idx * 32;
 
                 for px in 0..8u16 {
                     let pixel_x = if hflip { 7 - px } else { px } as usize;

@@ -63,11 +63,16 @@ impl Fifo {
 // ---------------------------------------------------------------------------
 
 pub struct Apu {
-    // PSG channels (simplified -- register storage + basic output, stubbed silent)
+    // PSG channels (stubbed silent, reserved for future implementation)
+    #[allow(dead_code)]
     pub psg_enabled: bool,
+    #[allow(dead_code)]
     pub ch1_vol: u8,
+    #[allow(dead_code)]
     pub ch2_vol: u8,
+    #[allow(dead_code)]
     pub ch3_vol: u8,
+    #[allow(dead_code)]
     pub ch4_vol: u8,
 
     // DMA Sound FIFOs

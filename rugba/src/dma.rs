@@ -137,6 +137,7 @@ impl DmaController {
     }
 
     /// Execute a specific DMA channel transfer.
+    #[allow(clippy::too_many_arguments)]
     fn execute_channel(
         &mut self,
         ch: usize,

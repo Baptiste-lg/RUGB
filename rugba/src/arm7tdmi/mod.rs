@@ -75,6 +75,7 @@ impl Arm7Tdmi {
     }
 
     /// Set the SPSR for the current mode.
+    #[allow(dead_code)]
     pub fn set_spsr(&mut self, val: u32) {
         let idx = self.mode().bank_index();
         if idx != 0 {
@@ -185,6 +186,7 @@ impl Arm7Tdmi {
     }
 
     /// Handle a software interrupt (SWI) with HLE BIOS emulation.
+    #[allow(dead_code)]
     pub fn handle_swi(&mut self, bus: &mut Bus, comment: u32) {
         match comment {
             0x00 => {

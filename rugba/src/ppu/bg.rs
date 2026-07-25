@@ -5,11 +5,13 @@ const SCREEN_WIDTH: usize = 240;
 
 /// Decoded BG control register + scroll values, ready for the renderer.
 pub struct BgControl {
-    /// Priority (0 = highest, 3 = lowest)
+    /// Priority (0 = highest, 3 = lowest) — used by PPU compositing
+    #[allow(dead_code)]
     pub priority: u8,
     /// Character (tile data) base address in VRAM (bits 2-3 of BGCNT * 0x4000)
     pub char_base: u32,
-    /// Mosaic enable
+    /// Mosaic enable (TODO: implement mosaic effect)
+    #[allow(dead_code)]
     pub mosaic: bool,
     /// True = 256-color / 1-palette (8bpp), false = 16-color / 16-palette (4bpp)
     pub palette_256: bool,
@@ -177,8 +179,10 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
 /// Affine parameters for rotation/scaling BGs.
 pub struct AffineParams {
     pub pa: i16,
+    #[allow(dead_code)]
     pub pb: i16,
     pub pc: i16,
+    #[allow(dead_code)]
     pub pd: i16,
     pub ref_x: i32, // 20.8 fixed point
     pub ref_y: i32, // 20.8 fixed point
