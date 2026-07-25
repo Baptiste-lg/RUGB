@@ -65,6 +65,8 @@ def scan_directory(cht_dir, system_name):
     for fname in sorted(os.listdir(cht_dir)):
         if not fname.endswith(".cht"):
             continue
+        if ".." in fname or fname.startswith("/"):
+            continue
         path = os.path.join(cht_dir, fname)
         cheats = parse_cht_file(path)
         if not cheats:
