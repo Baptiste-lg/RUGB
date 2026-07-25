@@ -21,8 +21,14 @@ pub struct Emulator {
 
 impl Emulator {
     pub fn new(rom: &[u8]) -> Self {
+        let cgb = cartridge::is_cgb(rom);
         let mut mmu = Mmu::new();
         mmu.load_rom(rom);
+        mmu.cgb_mode = cgb;
+        mmu.ppu.cgb_mode = cgb;
+        if cgb {
+            // CGB post-boot register A = 0x11
+        }
         Emulator {
             cpu: Cpu::new(),
             mmu,
@@ -30,11 +36,13 @@ impl Emulator {
     }
 
     pub fn new_with_boot(rom: &[u8], boot_rom: &[u8]) -> Self {
+        let cgb = cartridge::is_cgb(rom);
         let mut mmu = Mmu::new();
         mmu.load_rom(rom);
+        mmu.cgb_mode = cgb;
+        mmu.ppu.cgb_mode = cgb;
         mmu.set_boot_rom(boot_rom.to_vec());
         let mut cpu = Cpu::new();
-        // Boot ROM starts execution at 0x0000 with zeroed registers
         cpu.regs.reset_for_boot();
         Emulator { cpu, mmu }
     }
