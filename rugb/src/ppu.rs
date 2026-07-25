@@ -57,10 +57,14 @@ pub struct Ppu {
     // --- CGB VRAM bank 1 (bank 0 is the existing vram) ---
     pub vram_bank1: [u8; 0x2000],
     pub vram_bank: u8, // VBK register (0 or 1)
-    // --- HDMA ---
+    // --- HDMA (CGB high-speed DMA, TODO: implement transfer logic) ---
+    #[allow(dead_code)]
     pub hdma_src: u16,
+    #[allow(dead_code)]
     pub hdma_dst: u16,
+    #[allow(dead_code)]
     pub hdma_len: u8,
+    #[allow(dead_code)]
     pub hdma_active: bool,
 }
 
