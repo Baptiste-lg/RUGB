@@ -6,6 +6,8 @@ mod bus_tests;
 mod cartridge;
 mod dma;
 mod io;
+#[cfg(test)]
+mod io_tests;
 mod keypad;
 #[cfg(test)]
 mod keypad_tests;
