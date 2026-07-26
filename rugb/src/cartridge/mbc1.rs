@@ -266,17 +266,19 @@ mod tests {
 
     #[test]
     fn save_load_roundtrip() {
-        let mut c = cart(4);
+        let rom = make_rom(4);
+        // Use 0x8000 RAM (4 banks) so ram_bank=1 is accessible
+        let mut c = Mbc1::new(&rom, 0x8000, String::from("TEST"), false);
         c.write(0x0000, 0x0A); // enable RAM
         c.write(0x2000, 0x03); // rom_bank = 3
         c.write(0x4000, 0x01); // ram_bank = 1
         c.write(0x6000, 0x01); // banking_mode = 1
-        c.write(0xA000, 0xCC); // write to RAM
+        c.write(0xA000, 0xCC); // write to RAM bank 1
 
         let mut state: Vec<u8> = Vec::new();
         c.save_state(&mut state);
 
-        let mut c2 = cart(4);
+        let mut c2 = Mbc1::new(&rom, 0x8000, String::from("TEST"), false);
         let mut slice: &[u8] = &state;
         c2.load_state(&mut slice);
 
