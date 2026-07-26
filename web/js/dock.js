@@ -11,6 +11,9 @@
     const EDGE_THRESHOLD = 80; // px from viewport edge to trigger dock zone
     const STORAGE_KEY = 'rugb-dock-side';
 
+    /* ---- Menu toggle (click to open/close) ---- */
+    toggle.addEventListener('click', () => menu.classList.toggle('open'));
+
     /* ---- Restore saved dock ---- */
     const saved = localStorage.getItem(STORAGE_KEY) || 'left';
     applyDock(saved);
