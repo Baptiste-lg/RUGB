@@ -529,8 +529,9 @@ mod tests {
         // Channel still enabled (repeat)
         assert!(dma.channels[0].enabled());
         // internal_dst should be reset to original dst (0x03000000)
-        // We verify by running again and checking iwram[0] again (dst reloaded)
-        ewram[0] = 0x88;
+        // We verify by running again and checking iwram[0] again (dst reloaded).
+        // Note: internal_src was NOT reloaded, so the second run reads from ewram[2].
+        ewram[2] = 0x88;
         dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
         assert_eq!(iwram[0], 0x88, "dst should reload to original address on repeat");
     }
