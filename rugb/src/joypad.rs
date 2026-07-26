@@ -37,6 +37,9 @@ impl Joypad {
     /// Set button state from the JS side.
     /// Button mapping: 0=Right, 1=Left, 2=Up, 3=Down, 4=A, 5=B, 6=Start, 7=Select
     pub fn set_button(&mut self, button: u8, pressed: bool, interrupt_flag: &mut u8) {
+        if button > 7 {
+            return;
+        }
         let was_released = !self.is_pressed(button);
         match button {
             0 => self.right = pressed,
