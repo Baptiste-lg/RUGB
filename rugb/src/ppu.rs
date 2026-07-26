@@ -684,3 +684,324 @@ impl Ppu {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    /// Tick the PPU by `total` T-cycles in 4-cycle increments.
+    fn tick_cycles(ppu: &mut Ppu, if_: &mut u8, total: u32) {
+        let mut remaining = total;
+        while remaining > 0 {
+            let step = remaining.min(4);
+            ppu.tick(step, if_);
+            remaining -= step;
+        }
+    }
+
+    /// Advance through exactly `n` complete scanlines (456 T-cycles each).
+    fn tick_scanlines(ppu: &mut Ppu, if_: &mut u8, n: u32) {
+        tick_cycles(ppu, if_, n * 456);
+    }
+
+    // -----------------------------------------------------------------------
+    // Initial state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn ppu_initial_state() {
+        let ppu = Ppu::new();
+        // Mode bits in STAT: OamScan = 2
+        let mode_bits = ppu.read_register(0xFF41) & 0x03;
+        assert_eq!(mode_bits, 2, "initial mode should be OamScan (2)");
+        assert_eq!(ppu.read_register(0xFF44), 0, "initial LY should be 0");
+        // dots is private; verify indirectly — after 79 cycles still OamScan
+        let mut ppu2 = Ppu::new();
+        let mut if_ = 0u8;
+        tick_cycles(&mut ppu2, &mut if_, 79);
+        assert_eq!(ppu2.read_register(0xFF41) & 0x03, 2, "still OamScan at 79 dots");
+    }
+
+    // -----------------------------------------------------------------------
+    // Mode transitions
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn tick_oam_to_pixel_transfer() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        tick_cycles(&mut ppu, &mut if_, 80);
+        let mode = ppu.read_register(0xFF41) & 0x03;
+        assert_eq!(mode, 3, "after 80 dots should be PixelTransfer (3)");
+    }
+
+    #[test]
+    fn tick_to_hblank() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // OamScan(80) + PixelTransfer(172) = 252 dots → HBlank
+        tick_cycles(&mut ppu, &mut if_, 80 + 172);
+        let mode = ppu.read_register(0xFF41) & 0x03;
+        assert_eq!(mode, 0, "after 252 dots should be HBlank (0)");
+    }
+
+    #[test]
+    fn tick_full_scanline_increments_ly() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        tick_scanlines(&mut ppu, &mut if_, 1);
+        assert_eq!(ppu.read_register(0xFF44), 1, "after 456 T-cycles LY should be 1");
+    }
+
+    #[test]
+    fn tick_to_vblank_at_144() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        tick_scanlines(&mut ppu, &mut if_, 144);
+        let mode = ppu.read_register(0xFF41) & 0x03;
+        assert_eq!(mode, 1, "after 144 scanlines should be VBlank (1)");
+        assert_ne!(if_ & 0x01, 0, "VBlank interrupt (bit 0) should be set");
+    }
+
+    #[test]
+    fn vblank_wraps_to_0() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // 154 scanlines = full frame; LY wraps back to 0 and mode returns to OamScan
+        tick_scanlines(&mut ppu, &mut if_, 154);
+        assert_eq!(ppu.read_register(0xFF44), 0, "after 154 scanlines LY should wrap to 0");
+        let mode = ppu.read_register(0xFF41) & 0x03;
+        assert_eq!(mode, 2, "after full frame should be back in OamScan (2)");
+    }
+
+    // -----------------------------------------------------------------------
+    // STAT / LYC
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn stat_lyc_match() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // Set LYC = 5
+        ppu.write_register(0xFF45, 5);
+        // Advance to scanline 5
+        tick_scanlines(&mut ppu, &mut if_, 5);
+        let stat = ppu.read_register(0xFF41);
+        assert_ne!(stat & 0x04, 0, "STAT bit 2 (LYC=LY) should be set on scanline 5");
+    }
+
+    #[test]
+    fn stat_lyc_irq_fires() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // Enable LYC=LY IRQ (STAT bit 6)
+        ppu.write_register(0xFF41, 0x40);
+        // Set LYC = 3
+        ppu.write_register(0xFF45, 3);
+        // Advance to scanline 3
+        tick_scanlines(&mut ppu, &mut if_, 3);
+        assert_ne!(if_ & 0x02, 0, "STAT interrupt (bit 1 of IF) should fire on LYC=LY");
+    }
+
+    #[test]
+    fn stat_oam_irq() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // Enable OAM STAT IRQ (bit 5). We must advance to scanline 1 first so
+        // the PPU enters OamScan again after being reset; then the IRQ fires on
+        // the rising edge of the STAT line.
+        ppu.write_register(0xFF41, 0x20);
+        // Tick one full scanline so we enter OamScan for line 1
+        tick_scanlines(&mut ppu, &mut if_, 1);
+        assert_ne!(if_ & 0x02, 0, "STAT OAM interrupt should fire when entering OamScan");
+    }
+
+    #[test]
+    fn stat_hblank_irq() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // Enable HBlank STAT IRQ (bit 3)
+        ppu.write_register(0xFF41, 0x08);
+        // Advance past OamScan + PixelTransfer to trigger HBlank
+        tick_cycles(&mut ppu, &mut if_, 80 + 172);
+        assert_ne!(if_ & 0x02, 0, "STAT HBlank interrupt should fire on entering HBlank");
+    }
+
+    // -----------------------------------------------------------------------
+    // LCD disable
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn lcd_disabled_noop() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+        // Disable LCD (clear bit 7 of LCDC)
+        ppu.write_register(0xFF40, 0x00);
+        // Tick many cycles — nothing should change
+        tick_cycles(&mut ppu, &mut if_, 1000);
+        assert_eq!(ppu.read_register(0xFF44), 0, "LY must stay 0 when LCD is off");
+        // Mode bits stay at OamScan (2) after LCD-off reset
+        assert_eq!(ppu.read_register(0xFF41) & 0x03, 2, "mode unchanged when LCD off");
+        assert_eq!(if_, 0, "no interrupts when LCD is off");
+    }
+
+    // -----------------------------------------------------------------------
+    // Rendering
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn bg_tile_renders_pixel() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+
+        // LCD on, BG on, BG tile data at 0x8000 (LCDC bit 4), BG map at 0x9800
+        ppu.write_register(0xFF40, 0x91); // 0b10010001
+        // Standard DMG palette: color 0→white(0xFF), 1→light, 2→dark, 3→black
+        ppu.write_register(0xFF47, 0xE4); // 0b11100100
+
+        // Write tile 0 data: all pixels = color ID 3 (both bits set → 0xFF, 0xFF per row)
+        // Tile 0 lives at VRAM 0x0000 (bus addr 0x8000); 8 rows × 2 bytes = 16 bytes
+        for row in 0..8u16 {
+            ppu.write_vram(0x8000 + row * 2, 0xFF);     // low bit plane
+            ppu.write_vram(0x8000 + row * 2 + 1, 0xFF); // high bit plane
+        }
+        // Tile map entry 0 (top-left tile) already 0x00 (tile 0) — no write needed
+
+        // Tick one full scanline to render line 0
+        tick_scanlines(&mut ppu, &mut if_, 1);
+
+        // Pixel (0,0): color ID 3 → palette 0xE4 → shade index (0xE4 >> 6) & 3 = 3 → SHADES[3] = 0x00 (black)
+        let fb_r = ppu.framebuffer[0];
+        assert_eq!(fb_r, 0x00, "pixel (0,0) R channel should be black (0x00) for color ID 3");
+        assert_eq!(ppu.framebuffer[3], 0xFF, "alpha channel should be 0xFF");
+    }
+
+    #[test]
+    fn sprite_renders_pixel() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+
+        // LCD on, BG on, sprites on (LCDC bits 7,1,0 — bit 1 enables sprites)
+        // 0x93 = 0b10010011: LCD on, sprites on, BG on, tile data at 0x8000
+        ppu.write_register(0xFF40, 0x93);
+        // BGP: map everything to white so sprite contrast is clear
+        ppu.write_register(0xFF47, 0x00); // color 0→white,1→white,2→white,3→white
+        // OBP0: color 1→black (for sprite pixel)
+        // 0b00000001 = palette: c0→white,c1→dark,c2→light,c3→white ... let's use 0xFC
+        // OBP0 = 0xFC: c3=black,c2=dark,c1=light,c0=transparent
+        ppu.write_register(0xFF48, 0xFC);
+
+        // Tile 1 for sprite: all pixels = color ID 1
+        // Tile 1 at VRAM 0x0010 (bus 0x8010)
+        for row in 0..8u16 {
+            ppu.write_vram(0x8010 + row * 2, 0xFF); // low bit: all 1
+            ppu.write_vram(0x8010 + row * 2 + 1, 0x00); // high bit: all 0 → color ID = 1
+        }
+
+        // OAM entry 0: Y=16 (screen y=0), X=8 (screen x=0), tile=1, attr=0
+        ppu.write_oam(0xFE00, 16); // Y (sprite shows at screen y = Y-16 = 0)
+        ppu.write_oam(0xFE01, 8);  // X (sprite shows at screen x = X-8 = 0)
+        ppu.write_oam(0xFE02, 1);  // tile index 1
+        ppu.write_oam(0xFE03, 0);  // attributes: no flip, OBP0, no bg priority
+
+        // Tick one full scanline
+        tick_scanlines(&mut ppu, &mut if_, 1);
+
+        // Pixel (0,0): sprite color ID 1 through OBP0=0xFC
+        // shade_idx = (0xFC >> (1*2)) & 3 = (0xFC >> 2) & 3 = 0x3F & 3 = 3 → SHADES[3] = 0x00 (black)
+        let fb_r = ppu.framebuffer[0];
+        assert_eq!(fb_r, 0x00, "sprite pixel (0,0) should be black");
+    }
+
+    // -----------------------------------------------------------------------
+    // CGB palette
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn cgb_bg_palette_write_read() {
+        let mut ppu = Ppu::new();
+
+        // Write individual bytes by setting BCPS index explicitly each time
+        // (no auto-increment: bit 7 of BCPS is clear)
+        ppu.write_register(0xFF68, 0x00); // index 0
+        ppu.write_register(0xFF69, 0xAB);
+
+        ppu.write_register(0xFF68, 0x01); // index 1
+        ppu.write_register(0xFF69, 0xCD);
+
+        // Read back
+        ppu.write_register(0xFF68, 0x00);
+        assert_eq!(ppu.read_register(0xFF69), 0xAB, "BCPD byte 0 should read back 0xAB");
+        ppu.write_register(0xFF68, 0x01);
+        assert_eq!(ppu.read_register(0xFF69), 0xCD, "BCPD byte 1 should read back 0xCD");
+    }
+
+    #[test]
+    fn cgb_bg_palette_auto_increment() {
+        let mut ppu = Ppu::new();
+
+        // BCPS with auto-increment bit set (bit 7)
+        ppu.write_register(0xFF68, 0x80); // index 0, auto-increment
+        ppu.write_register(0xFF69, 0x11);
+        ppu.write_register(0xFF69, 0x22);
+        ppu.write_register(0xFF69, 0x33);
+
+        // Index should have auto-incremented to 3
+        ppu.write_register(0xFF68, 0x00);
+        assert_eq!(ppu.read_register(0xFF69), 0x11);
+        ppu.write_register(0xFF68, 0x01);
+        assert_eq!(ppu.read_register(0xFF69), 0x22);
+        ppu.write_register(0xFF68, 0x02);
+        assert_eq!(ppu.read_register(0xFF69), 0x33);
+    }
+
+    // -----------------------------------------------------------------------
+    // STAT register read-only bits
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn stat_register_bits() {
+        let mut ppu = Ppu::new();
+
+        // Bit 7 is always 1 in reads
+        let stat = ppu.read_register(0xFF41);
+        assert_ne!(stat & 0x80, 0, "STAT bit 7 should always read as 1");
+
+        // Mode bits (0-1) are read-only; writing 0 to them should have no effect
+        // In OamScan the mode bits read as 2; try to clear them via STAT write
+        ppu.write_register(0xFF41, 0x00); // attempt to write mode bits to 0
+        let stat_after = ppu.read_register(0xFF41);
+        assert_eq!(stat_after & 0x03, stat & 0x03, "mode bits are read-only");
+        assert_ne!(stat_after & 0x80, 0, "bit 7 still 1 after write");
+    }
+
+    // -----------------------------------------------------------------------
+    // Save / load round-trip
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn save_load_roundtrip() {
+        let mut ppu = Ppu::new();
+        let mut if_ = 0u8;
+
+        // Advance to scanline 7 and set a custom LYC
+        tick_scanlines(&mut ppu, &mut if_, 7);
+        ppu.write_register(0xFF45, 42);
+
+        // Serialize
+        let mut buf = Vec::new();
+        ppu.save_state(&mut buf);
+
+        // Deserialize into a fresh PPU
+        let mut ppu2 = Ppu::new();
+        let mut slice: &[u8] = &buf;
+        ppu2.load_state(&mut slice);
+
+        assert_eq!(ppu2.read_register(0xFF44), 7, "loaded LY should be 7");
+        assert_eq!(ppu2.read_register(0xFF45), 42, "loaded LYC should be 42");
+    }
+}
