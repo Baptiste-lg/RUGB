@@ -148,4 +148,47 @@ mod tests {
         }
         assert!(total_irqs & 0x04 != 0); // V-count match IRQ
     }
+
+    // ---- hblank_irq_fires ----
+
+    #[test]
+    fn hblank_irq_fires() {
+        let mut ppu = Ppu::new();
+        let mut io = IoRegisters::new();
+        // Set DISPSTAT bit 4 to enable H-blank IRQ
+        io.dispstat = 0x10;
+        let vram = vec![0u8; 0x18000];
+        let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
+
+        // Advance 960 cycles (past the draw period into H-blank)
+        let irqs = ppu.tick(960, &mut io, &vram, &palette, &oam);
+        // IRQ bit 1 should be set (H-blank IRQ)
+        assert!(irqs & 0x02 != 0, "H-blank IRQ bit 1 should be set");
+    }
+
+    // ---- mode5_renders_160_wide ----
+
+    #[test]
+    fn mode5_renders_160_wide() {
+        let mut ppu = Ppu::new();
+        let mut io = IoRegisters::new();
+        // DISPCNT mode 5
+        io.dispcnt = 5;
+        let vram = vec![0u8; 0x18000];
+        let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
+
+        // Tick one full scanline to render line 0
+        ppu.tick(1232, &mut io, &vram, &palette, &oam);
+
+        // Pixels 160-239 of line 0 should be black (RGBA all zero)
+        for x in 160..240usize {
+            let dst = x * 4;
+            assert_eq!(ppu.framebuffer[dst], 0, "pixel {} R should be 0", x);
+            assert_eq!(ppu.framebuffer[dst + 1], 0, "pixel {} G should be 0", x);
+            assert_eq!(ppu.framebuffer[dst + 2], 0, "pixel {} B should be 0", x);
+            assert_eq!(ppu.framebuffer[dst + 3], 0, "pixel {} A should be 0", x);
+        }
+    }
 }
