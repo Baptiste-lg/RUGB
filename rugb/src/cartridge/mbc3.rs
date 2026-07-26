@@ -243,3 +243,159 @@ impl Cartridge for Mbc3 {
         self.rtc_offset = seconds as i64;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cartridge::Cartridge;
+
+    /// Build a multi-bank ROM where each 16 KB bank is filled with its bank index.
+    fn make_rom(num_banks: usize) -> Vec<u8> {
+        let mut rom = vec![0u8; num_banks * 0x4000];
+        for bank in 0..num_banks {
+            let start = bank * 0x4000;
+            for byte in &mut rom[start..start + 0x4000] {
+                *byte = bank as u8;
+            }
+        }
+        rom
+    }
+
+    fn cart(num_banks: usize) -> Mbc3 {
+        let rom = make_rom(num_banks);
+        Mbc3::new(&rom, 0x8000, String::from("TEST"), false)
+    }
+
+    fn latch(c: &mut Mbc3) {
+        c.write(0x6000, 0x00);
+        c.write(0x6000, 0x01);
+    }
+
+    // ---------- ROM bank select ----------
+
+    #[test]
+    fn rom_bank_0_maps_to_1() {
+        let mut c = cart(4);
+        c.write(0x2000, 0x00); // writing 0 must map to bank 1
+        assert_eq!(c.read(0x4000), 0x01);
+    }
+
+    #[test]
+    fn rom_bank_7bit_mask() {
+        let mut c = cart(4);
+        // Writing 0x82 — the 7-bit mask gives 0x02, which remaps to bank 2.
+        c.write(0x2000, 0x82);
+        assert_eq!(c.read(0x4000), 0x02);
+    }
+
+    // ---------- RAM bank access ----------
+
+    #[test]
+    fn ram_bank_normal_access() {
+        let mut c = cart(4);
+        c.write(0x0000, 0x0A); // enable RAM
+        for bank in 0u8..4 {
+            c.write(0x4000, bank); // select RAM bank
+            c.write(0xA000, 0xA0 + bank); // write sentinel
+        }
+        // Read back each bank.
+        for bank in 0u8..4 {
+            c.write(0x4000, bank);
+            assert_eq!(c.read(0xA000), 0xA0 + bank);
+        }
+    }
+
+    // ---------- RTC latch ----------
+
+    #[test]
+    fn rtc_latch_protocol() {
+        let mut c = cart(2);
+        // Advance the internal counter by exactly 5 seconds.
+        c.rtc_seconds = 5;
+        c.write(0x0000, 0x0A); // enable RAM
+        c.write(0x4000, 0x08); // select RTC seconds register
+
+        // Latch: write 0x00 then 0x01.
+        latch(&mut c);
+        assert_eq!(c.read(0xA000), 5);
+    }
+
+    #[test]
+    fn rtc_latch_wrong_sequence() {
+        let mut c = cart(2);
+        c.rtc_seconds = 10;
+        c.write(0x0000, 0x0A);
+        c.write(0x4000, 0x08);
+
+        // Writing only 0x01 without a preceding 0x00 must NOT latch.
+        c.write(0x6000, 0x01);
+        // The latched value is still 0 (initial latch state).
+        assert_eq!(c.read(0xA000), 0x00);
+    }
+
+    // ---------- RTC seconds register ----------
+
+    #[test]
+    fn rtc_seconds_register() {
+        let mut c = cart(2);
+        c.rtc_seconds = 42;
+        c.write(0x0000, 0x0A); // enable RAM
+        c.write(0x4000, 0x08); // map RTC seconds
+        latch(&mut c);
+        assert_eq!(c.read(0xA000), 42);
+    }
+
+    // ---------- RTC day overflow ----------
+
+    #[test]
+    fn rtc_day_overflow() {
+        let mut c = cart(2);
+        // Set internal seconds to just under 512-day boundary and advance one more second.
+        c.rtc_seconds = 512 * 86400 - 1;
+        c.advance_rtc(4_194_304); // +1 second → wraps and sets overflow
+        c.write(0x0000, 0x0A);
+        c.write(0x4000, 0x0C); // RTC DH register
+        latch(&mut c);
+        // Bit 7 of DH is the day-counter overflow flag.
+        assert!(c.read(0xA000) & 0x80 != 0);
+    }
+
+    // ---------- tick_rtc ----------
+
+    #[test]
+    fn tick_rtc_advances() {
+        let mut c = cart(2);
+        c.tick_rtc(4_194_304); // one full second
+        c.write(0x0000, 0x0A);
+        c.write(0x4000, 0x08);
+        latch(&mut c);
+        assert_eq!(c.read(0xA000), 1);
+    }
+
+    // ---------- Save / load roundtrip ----------
+
+    #[test]
+    fn save_load_roundtrip() {
+        let mut c = cart(4);
+        c.write(0x0000, 0x0A);
+        c.write(0x2000, 0x03); // rom bank 3
+        c.write(0x4000, 0x01); // ram bank 1
+        c.write(0xA000, 0xDE);
+        c.rtc_seconds = 3661; // 1 hour, 1 minute, 1 second
+        c.rtc_halt = true;
+        c.rtc_day_overflow = true;
+
+        let mut state: Vec<u8> = Vec::new();
+        c.save_state(&mut state);
+
+        let mut c2 = cart(4);
+        let mut slice: &[u8] = &state;
+        c2.load_state(&mut slice);
+
+        assert_eq!(c2.read(0x4000), c.read(0x4000));
+        assert_eq!(c2.read(0xA000), 0xDE);
+        assert_eq!(c2.rtc_seconds, 3661);
+        assert!(c2.rtc_halt);
+        assert!(c2.rtc_day_overflow);
+    }
+}
