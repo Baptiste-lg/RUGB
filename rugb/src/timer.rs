@@ -112,3 +112,228 @@ impl Timer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    /// Return a Timer whose div_counter is forced to 0 (simplifies cycle maths).
+    fn timer_zero_div() -> Timer {
+        let mut t = Timer::new();
+        let mut irq = 0u8;
+        // Writing to 0xFF04 resets div_counter to 0.
+        t.write(0xFF04, 0, &mut irq);
+        t
+    }
+
+    // -----------------------------------------------------------------------
+    // Initialisation
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn new_div_reads_initial() {
+        // Post-boot div_counter = 0xAB00 → upper byte = 0xAB.
+        let t = Timer::new();
+        assert_eq!(t.read(0xFF04), 0xAB);
+    }
+
+    // -----------------------------------------------------------------------
+    // DIV always advances
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn div_advances_always() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        // Timer disabled (TAC = 0x00).
+        // Tick 256 cycles → div_counter = 256 = 0x0100 → upper byte = 0x01.
+        t.tick(256, &mut irq);
+        assert_eq!(t.read(0xFF04), 0x01, "DIV must advance even when timer is disabled");
+    }
+
+    // -----------------------------------------------------------------------
+    // TIMA disabled
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn tima_not_incremented_when_disabled() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        // TAC bit 2 = 0 → timer disabled.
+        t.write(0xFF07, 0x00, &mut irq);
+        t.tick(100_000, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "TIMA must stay 0 when timer is disabled");
+    }
+
+    // -----------------------------------------------------------------------
+    // TAC clock frequencies
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn tac_clock_00_1024_cycles() {
+        // freq=0 → bit 9 of div_counter → falling edge every 1024 T-cycles.
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x04, &mut irq); // enable, freq 0
+        // After 1023 cycles TIMA must still be 0.
+        t.tick(1023, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 1024 cycles");
+        // The 1024th cycle crosses the falling edge.
+        t.tick(1, &mut irq);
+        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 1024 cycles");
+    }
+
+    #[test]
+    fn tac_clock_01_16_cycles() {
+        // freq=1 → bit 3 → falling edge every 16 T-cycles.
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x05, &mut irq); // enable, freq 1
+        t.tick(15, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 16 cycles");
+        t.tick(1, &mut irq);
+        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 16 cycles");
+    }
+
+    #[test]
+    fn tac_clock_10_64_cycles() {
+        // freq=2 → bit 5 → falling edge every 64 T-cycles.
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x06, &mut irq); // enable, freq 2
+        t.tick(63, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 64 cycles");
+        t.tick(1, &mut irq);
+        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 64 cycles");
+    }
+
+    #[test]
+    fn tac_clock_11_256_cycles() {
+        // freq=3 → bit 7 → falling edge every 256 T-cycles.
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x07, &mut irq); // enable, freq 3
+        t.tick(255, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 256 cycles");
+        t.tick(1, &mut irq);
+        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 256 cycles");
+    }
+
+    // -----------------------------------------------------------------------
+    // TIMA overflow
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn tima_overflow_fires_interrupt() {
+        // Set TIMA to 0xFF and TMA to 0x00, then tick one more increment.
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x05, &mut irq); // enable, freq 1 (16 cycles/tick)
+        t.write(0xFF05, 0xFF, &mut irq); // TIMA = 255
+        t.tick(16, &mut irq);            // one more increment → overflow
+        assert_eq!(irq & 0x04, 0x04, "timer interrupt (bit 2) must fire on TIMA overflow");
+    }
+
+    #[test]
+    fn tima_overflow_reloads_tma() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x05, &mut irq); // enable, freq 1
+        t.write(0xFF06, 0x42, &mut irq); // TMA = 0x42
+        t.write(0xFF05, 0xFF, &mut irq); // TIMA = 255
+        t.tick(16, &mut irq);            // overflow
+        assert_eq!(t.read(0xFF05), 0x42, "TIMA must reload from TMA after overflow");
+    }
+
+    // -----------------------------------------------------------------------
+    // DIV write resets counter
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn div_write_resets_to_zero() {
+        let mut t = Timer::new(); // div_counter starts at 0xAB00
+        let mut irq = 0u8;
+        assert_eq!(t.read(0xFF04), 0xAB);
+        t.write(0xFF04, 0, &mut irq); // any write resets div_counter to 0
+        assert_eq!(t.read(0xFF04), 0x00, "DIV must read 0 after write");
+    }
+
+    #[test]
+    fn div_reset_falling_edge_increments_tima() {
+        // Set up: timer enabled with freq 1 (bit_mask = bit 3).
+        // Force div_counter so that bit 3 is set, then write to 0xFF04.
+        // The falling edge should increment TIMA by 1.
+        let mut t = timer_zero_div(); // div_counter = 0
+        let mut irq = 0u8;
+        t.write(0xFF07, 0x05, &mut irq); // enable, freq 1 (bit 3)
+        // Advance until bit 3 is set: tick 8 cycles → div_counter = 8 = 0b1000.
+        t.tick(8, &mut irq);
+        assert_eq!(t.read(0xFF05), 0, "no overflow yet");
+        let tima_before = t.read(0xFF05);
+        // Writing to DIV resets div_counter to 0, creating a falling edge on bit 3.
+        t.write(0xFF04, 0, &mut irq);
+        assert_eq!(
+            t.read(0xFF05),
+            tima_before + 1,
+            "falling edge on DIV reset must increment TIMA"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Direct register writes
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn write_tima_directly() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF05, 0x55, &mut irq);
+        assert_eq!(t.read(0xFF05), 0x55);
+    }
+
+    #[test]
+    fn write_tma_directly() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        t.write(0xFF06, 0xAA, &mut irq);
+        assert_eq!(t.read(0xFF06), 0xAA);
+    }
+
+    // -----------------------------------------------------------------------
+    // Save / load state
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn save_load_roundtrip() {
+        let mut t = timer_zero_div();
+        let mut irq = 0u8;
+        // Set up a distinctive state.
+        t.write(0xFF07, 0x07, &mut irq); // enable, freq 3
+        t.write(0xFF05, 0x12, &mut irq); // TIMA
+        t.write(0xFF06, 0x34, &mut irq); // TMA
+        t.tick(128, &mut irq);           // advance div_counter a bit
+
+        let mut buf: Vec<u8> = Vec::new();
+        t.save_state(&mut buf);
+
+        let mut t2 = Timer::new();
+        let mut slice: &[u8] = &buf;
+        t2.load_state(&mut slice);
+
+        assert_eq!(t.read(0xFF04), t2.read(0xFF04), "DIV mismatch");
+        assert_eq!(t.read(0xFF05), t2.read(0xFF05), "TIMA mismatch");
+        assert_eq!(t.read(0xFF06), t2.read(0xFF06), "TMA mismatch");
+        assert_eq!(t.read(0xFF07), t2.read(0xFF07), "TAC mismatch");
+
+        // Verify that the loaded timer behaves identically (bit_mask restored).
+        let mut irq1 = 0u8;
+        let mut irq2 = 0u8;
+        t.tick(256, &mut irq1);
+        t2.tick(256, &mut irq2);
+        assert_eq!(t.read(0xFF05), t2.read(0xFF05), "TIMA must evolve identically after load");
+    }
+}
