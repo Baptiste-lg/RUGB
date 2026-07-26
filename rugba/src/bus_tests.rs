@@ -3,7 +3,10 @@ mod tests {
     use crate::bus::Bus;
 
     fn make_bus() -> Bus {
-        let rom = vec![0xAA; 0x200]; // Small test ROM
+        let mut rom = vec![0x00; 0x200]; // Small test ROM
+        // Include "SRAM_V" so backup detection enables SRAM
+        let tag = b"SRAM_V";
+        rom[0x100..0x100 + tag.len()].copy_from_slice(tag);
         Bus::new(rom)
     }
 
@@ -68,8 +71,8 @@ mod tests {
     #[test]
     fn test_vram_mirroring() {
         let mut bus = make_bus();
-        bus.write16(0x0600_0000, 0xAAAA);
-        // VRAM is 96KB, mirrors at 0x18000 (upper 32KB mirrors lower 32KB)
+        bus.write16(0x0601_0000, 0xAAAA);
+        // VRAM is 96KB; 0x18000-0x1FFFF mirrors 0x10000-0x17FFF
         assert_eq!(bus.read16(0x0601_8000), 0xAAAA);
     }
 

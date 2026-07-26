@@ -1,9 +1,10 @@
 /// Integration tests for ARM instruction execution.
 /// These write ARM instructions directly into IWRAM and execute them.
 
+#[allow(dead_code)]
 fn make_emu_with_arm_code(instructions: &[u32]) -> (rugba::GbaEmulator, Vec<u8>) {
     // Build a minimal ROM that branches to IWRAM where we place test code
-    let mut rom = vec![0u8; 0x100];
+    let _rom = vec![0u8; 0x100];
     // ARM instruction: B to IWRAM (0x03000000)
     // LDR PC, [PC, #-4] with the address following
     // Actually, simplest: put the instructions directly in ROM at 0x08000000
