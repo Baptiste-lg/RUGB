@@ -235,6 +235,11 @@ impl Apu {
 
     // -- Internal -----------------------------------------------------------
 
+    #[cfg(test)]
+    pub fn ring_write_pos(&self) -> usize {
+        self.write_pos
+    }
+
     fn generate_sample(&mut self) {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
@@ -271,5 +276,179 @@ impl Apu {
             self.ring_buffer[self.write_pos] = right;
             self.write_pos = (self.write_pos + 1) & RING_BUFFER_MASK;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // Fifo tests
+    // =========================================================================
+
+    // ---- fifo_new_empty ----
+
+    #[test]
+    fn fifo_new_empty() {
+        let fifo = Fifo::new();
+        assert_eq!(fifo.count, 0);
+    }
+
+    // ---- fifo_write32_fills_4 ----
+
+    #[test]
+    fn fifo_write32_fills_4() {
+        let mut fifo = Fifo::new();
+        // 0x04030201 in little-endian bytes: b0=0x01, b1=0x02, b2=0x03, b3=0x04
+        fifo.write32(0x0403_0201);
+        assert_eq!(fifo.count, 4);
+
+        // Pop 4 times and check bytes in LE order
+        fifo.pop(); // pops b0=0x01
+        assert_eq!(fifo.current_sample, 0x01_i8);
+        fifo.pop(); // pops b1=0x02
+        assert_eq!(fifo.current_sample, 0x02_i8);
+        fifo.pop(); // pops b2=0x03
+        assert_eq!(fifo.current_sample, 0x03_i8);
+        fifo.pop(); // pops b3=0x04
+        assert_eq!(fifo.current_sample, 0x04_i8);
+    }
+
+    // ---- fifo_pop_needs_refill ----
+
+    #[test]
+    fn fifo_pop_needs_refill() {
+        let mut fifo = Fifo::new();
+        // Fill exactly 16 bytes (4 × write32)
+        for _ in 0..4 {
+            fifo.write32(0x0101_0101);
+        }
+        assert_eq!(fifo.count, 16);
+        // Popping when count == 16 → after pop count becomes 15 ≤ 16 → needs refill
+        let needs = fifo.pop();
+        assert!(needs, "should need refill when count drops to <= 16");
+    }
+
+    // ---- fifo_reset_clears ----
+
+    #[test]
+    fn fifo_reset_clears() {
+        let mut fifo = Fifo::new();
+        fifo.write32(0xDEAD_BEEF);
+        assert_eq!(fifo.count, 4);
+        fifo.reset();
+        assert_eq!(fifo.count, 0);
+        assert_eq!(fifo.current_sample, 0);
+    }
+
+    // ---- fifo_full_drops ----
+
+    #[test]
+    fn fifo_full_drops() {
+        let mut fifo = Fifo::new();
+        // Push 9 times × 4 bytes = 36 bytes; FIFO capacity is 32
+        for _ in 0..9 {
+            fifo.write32(0x0101_0101);
+        }
+        // Only 32 bytes should be stored
+        assert_eq!(fifo.count, 32);
+    }
+
+    // =========================================================================
+    // Apu tests
+    // =========================================================================
+
+    // ---- apu_initial_state ----
+
+    #[test]
+    fn apu_initial_state() {
+        let apu = Apu::new();
+        assert_eq!(apu.soundbias, 0x0200);
+    }
+
+    // ---- apu_tick_disabled_no_samples ----
+
+    #[test]
+    fn apu_tick_disabled_no_samples() {
+        let mut apu = Apu::new();
+        // soundcnt_x bit 7 = master enable; default is 0 (disabled)
+        apu.soundcnt_x = 0;
+        apu.tick(512 * 10); // tick many cycles
+        assert_eq!(apu.ring_buffer_available(), 0);
+    }
+
+    // ---- write_soundcnt_h_resets_fifo_a ----
+
+    #[test]
+    fn write_soundcnt_h_resets_fifo_a() {
+        let mut apu = Apu::new();
+        apu.fifo_a.write32(0xDEAD_BEEF);
+        assert_eq!(apu.fifo_a.count, 4);
+        // Bit 11 set → reset FIFO A
+        apu.write_soundcnt_h(1 << 11);
+        assert_eq!(apu.fifo_a.count, 0);
+    }
+
+    // ---- write_soundcnt_h_resets_fifo_b ----
+
+    #[test]
+    fn write_soundcnt_h_resets_fifo_b() {
+        let mut apu = Apu::new();
+        apu.fifo_b.write32(0xDEAD_BEEF);
+        assert_eq!(apu.fifo_b.count, 4);
+        // Bit 15 set → reset FIFO B
+        apu.write_soundcnt_h(1 << 15);
+        assert_eq!(apu.fifo_b.count, 0);
+    }
+
+    // ---- timer_overflow_pops_fifo ----
+
+    #[test]
+    fn timer_overflow_pops_fifo() {
+        let mut apu = Apu::new();
+        // fifo_a_timer() reads bit 10 of soundcnt_h; 0 → timer 0
+        apu.soundcnt_h = 0; // timer 0 for FIFO A
+        apu.fifo_a.write32(0x0102_0304);
+
+        let count_before = apu.fifo_a.count;
+        apu.timer_overflow(0);
+        // One sample should have been popped
+        assert_eq!(apu.fifo_a.count, count_before - 1);
+    }
+
+    // ---- timer_overflow_wrong_timer ----
+
+    #[test]
+    fn timer_overflow_wrong_timer() {
+        let mut apu = Apu::new();
+        // FIFO A expects timer 0 (bit 10 of soundcnt_h = 0)
+        apu.soundcnt_h = 0;
+        apu.fifo_a.write32(0x0102_0304);
+
+        let count_before = apu.fifo_a.count;
+        // Overflow on timer 1 → FIFO A should NOT pop
+        apu.timer_overflow(1);
+        assert_eq!(apu.fifo_a.count, count_before);
+    }
+
+    // ---- ring_buffer_consume ----
+
+    #[test]
+    fn ring_buffer_consume() {
+        let mut apu = Apu::new();
+        // Enable master and left output for FIFO A so samples are generated
+        apu.soundcnt_x = 0x80; // master enable
+        apu.soundcnt_h = 1 << 9; // FIFO A enable left
+        apu.fifo_a.write32(0x4040_4040); // non-silent data
+
+        // Tick enough cycles to generate at least 2 samples (1 L+R pair = 2 f32)
+        apu.tick(512 * 2);
+
+        let avail_before = apu.ring_buffer_available();
+        assert!(avail_before >= 2, "should have generated at least one L+R pair");
+
+        apu.ring_consume(2);
+        assert_eq!(apu.ring_buffer_available(), avail_before - 2);
     }
 }
