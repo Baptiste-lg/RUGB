@@ -92,6 +92,7 @@ mod tests {
         io.dispcnt = 3; // Mode 3
         let mut vram = vec![0u8; 0x18000];
         let palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Write a red pixel (RGB555: R=31, G=0, B=0 = 0x001F) at (0,0)
         vram[0] = 0x1F;
@@ -114,6 +115,7 @@ mod tests {
         io.dispcnt = 4; // Mode 4
         let mut vram = vec![0u8; 0x18000];
         let mut palette = vec![0u8; 0x400];
+        let oam = vec![0u8; 0x400];
 
         // Set palette entry 1 to green (RGB555: 0x03E0)
         palette[2] = 0xE0;
