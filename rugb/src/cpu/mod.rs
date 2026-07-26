@@ -469,4 +469,294 @@ mod tests {
         cpu.cb_bit(1, 0x01);
         assert!(cpu.regs.flag_z()); // bit 1 is not set
     }
+
+    // -- ADC --
+
+    #[test]
+    fn alu_adc_no_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x10;
+        cpu.regs.set_flag_c(false);
+        cpu.alu_adc(0x05);
+        assert_eq!(cpu.regs.a, 0x15);
+        assert!(!cpu.regs.flag_c());
+        assert!(!cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_n());
+    }
+
+    #[test]
+    fn alu_adc_with_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x10;
+        cpu.regs.set_flag_c(true);
+        cpu.alu_adc(0x05);
+        assert_eq!(cpu.regs.a, 0x16); // 0x10 + 0x05 + 1
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_adc_carry_propagates_overflow() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0xFF;
+        cpu.regs.set_flag_c(true);
+        cpu.alu_adc(0x00);
+        assert_eq!(cpu.regs.a, 0x00); // 0xFF + 0 + 1 = 0x100, wraps to 0
+        assert!(cpu.regs.flag_z());
+        assert!(cpu.regs.flag_c());
+    }
+
+    // -- SBC --
+
+    #[test]
+    fn alu_sbc_no_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x10;
+        cpu.regs.set_flag_c(false);
+        cpu.alu_sbc(0x05);
+        assert_eq!(cpu.regs.a, 0x0B);
+        assert!(cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_sbc_with_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x10;
+        cpu.regs.set_flag_c(true);
+        cpu.alu_sbc(0x05);
+        assert_eq!(cpu.regs.a, 0x0A); // 0x10 - 0x05 - 1
+        assert!(cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_sbc_underflow() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x00;
+        cpu.regs.set_flag_c(true);
+        cpu.alu_sbc(0x00); // 0 - 0 - 1 underflows
+        assert_eq!(cpu.regs.a, 0xFF);
+        assert!(cpu.regs.flag_c()); // borrow occurred (result > 0xFF as u16)
+        assert!(cpu.regs.flag_n());
+    }
+
+    // -- AND --
+
+    #[test]
+    fn alu_and_zero_result() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0xF0;
+        cpu.alu_and(0x0F);
+        assert_eq!(cpu.regs.a, 0x00);
+        assert!(cpu.regs.flag_z());
+        assert!(cpu.regs.flag_h());
+        assert!(!cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_and_nonzero() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0xFF;
+        cpu.alu_and(0xAA);
+        assert_eq!(cpu.regs.a, 0xAA);
+        assert!(!cpu.regs.flag_z());
+        assert!(cpu.regs.flag_h());
+    }
+
+    // -- XOR --
+
+    #[test]
+    fn alu_xor_self_gives_zero() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0xCD;
+        cpu.alu_xor(0xCD);
+        assert_eq!(cpu.regs.a, 0x00);
+        assert!(cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_h());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_xor_nonzero() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0b1010_1010;
+        cpu.alu_xor(0b0101_0101);
+        assert_eq!(cpu.regs.a, 0xFF);
+        assert!(!cpu.regs.flag_z());
+    }
+
+    // -- OR --
+
+    #[test]
+    fn alu_or_sets_bits() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0xF0;
+        cpu.alu_or(0x0F);
+        assert_eq!(cpu.regs.a, 0xFF);
+        assert!(!cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_h());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_or_zero_when_both_zero() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0x00;
+        cpu.alu_or(0x00);
+        assert_eq!(cpu.regs.a, 0x00);
+        assert!(cpu.regs.flag_z());
+    }
+
+    // -- ADD HL --
+
+    #[test]
+    fn alu_add_hl_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.set_hl(0xFFFF);
+        cpu.alu_add_hl(0x0001);
+        assert_eq!(cpu.regs.hl(), 0x0000);
+        assert!(cpu.regs.flag_c());
+        assert!(!cpu.regs.flag_n());
+    }
+
+    #[test]
+    fn alu_add_hl_half_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.set_hl(0x0FFF);
+        cpu.alu_add_hl(0x0001);
+        assert_eq!(cpu.regs.hl(), 0x1000);
+        assert!(cpu.regs.flag_h());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn alu_add_hl_z_unchanged() {
+        let (mut cpu, _) = make_cpu_mmu();
+        // Set Z before calling add_hl; it must not be touched.
+        cpu.regs.set_flag_z(true);
+        cpu.regs.set_hl(0x0100);
+        cpu.alu_add_hl(0x0100);
+        assert_eq!(cpu.regs.hl(), 0x0200);
+        assert!(cpu.regs.flag_z(), "Z flag must not be modified by ADD HL");
+    }
+
+    // -- Non-CB rotates --
+
+    #[test]
+    fn rlca_bit7_wraps_to_bit0() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0b1000_0001;
+        cpu.rlca();
+        // bit 7 rotates into bit 0; old bit 7 becomes carry
+        assert_eq!(cpu.regs.a, 0b0000_0011);
+        assert!(cpu.regs.flag_c());
+        assert!(!cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_h());
+    }
+
+    #[test]
+    fn rrca_bit0_wraps_to_bit7() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0b0000_0011;
+        cpu.rrca();
+        assert_eq!(cpu.regs.a, 0b1000_0001);
+        assert!(cpu.regs.flag_c()); // old bit 0 was 1
+        assert!(!cpu.regs.flag_z());
+    }
+
+    #[test]
+    fn rla_uses_old_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0b0100_0000;
+        cpu.regs.set_flag_c(true);
+        cpu.rla();
+        // shifted left by 1; old carry goes into bit 0
+        assert_eq!(cpu.regs.a, 0b1000_0001);
+        assert!(!cpu.regs.flag_c()); // old bit 7 was 0
+    }
+
+    #[test]
+    fn rra_uses_old_carry() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.a = 0b0000_0010;
+        cpu.regs.set_flag_c(true);
+        cpu.rra();
+        // shifted right by 1; old carry goes into bit 7
+        assert_eq!(cpu.regs.a, 0b1000_0001);
+        assert!(!cpu.regs.flag_c()); // old bit 0 was 0
+    }
+
+    // -- CB-prefix rotates/shifts --
+
+    #[test]
+    fn cb_rlc_zero_result() {
+        let (mut cpu, _) = make_cpu_mmu();
+        let result = cpu.cb_rlc(0x00);
+        assert_eq!(result, 0x00);
+        assert!(cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_c());
+    }
+
+    #[test]
+    fn cb_rrc_bit0_to_bit7() {
+        let (mut cpu, _) = make_cpu_mmu();
+        let result = cpu.cb_rrc(0b0000_0001);
+        assert_eq!(result, 0b1000_0000);
+        assert!(cpu.regs.flag_c());
+        assert!(!cpu.regs.flag_z());
+    }
+
+    #[test]
+    fn cb_rl_zero_with_carry_in() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.set_flag_c(true);
+        let result = cpu.cb_rl(0x00);
+        // 0x00 << 1 | 1 (old carry) = 0x01
+        assert_eq!(result, 0x01);
+        assert!(!cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_c()); // old bit 7 was 0
+    }
+
+    #[test]
+    fn cb_rr_carry_out() {
+        let (mut cpu, _) = make_cpu_mmu();
+        cpu.regs.set_flag_c(false);
+        let result = cpu.cb_rr(0b0000_0001);
+        // bit 0 shifts out to carry; bit 7 gets old carry (0)
+        assert_eq!(result, 0b0000_0000);
+        assert!(cpu.regs.flag_c());
+        assert!(cpu.regs.flag_z());
+    }
+
+    #[test]
+    fn cb_sla_shifts_out_msb() {
+        let (mut cpu, _) = make_cpu_mmu();
+        let result = cpu.cb_sla(0b1000_0010);
+        assert_eq!(result, 0b0000_0100);
+        assert!(cpu.regs.flag_c()); // MSB was 1
+        assert!(!cpu.regs.flag_z());
+    }
+
+    #[test]
+    fn cb_sra_preserves_msb() {
+        let (mut cpu, _) = make_cpu_mmu();
+        // Arithmetic right shift keeps bit 7
+        let result = cpu.cb_sra(0b1000_0010);
+        assert_eq!(result, 0b1100_0001);
+        assert!(!cpu.regs.flag_c()); // old bit 0 was 0
+        assert!(!cpu.regs.flag_z());
+    }
+
+    #[test]
+    fn cb_srl_bit7_becomes_zero() {
+        let (mut cpu, _) = make_cpu_mmu();
+        let result = cpu.cb_srl(0b1000_0001);
+        assert_eq!(result, 0b0100_0000); // bit 7 becomes 0
+        assert!(cpu.regs.flag_c()); // old bit 0 was 1
+        assert!(!cpu.regs.flag_z());
+    }
 }
