@@ -324,12 +324,10 @@ mod tests {
         cart.write(0x0E00_0000, 0x55);
         assert_eq!(cart.read(0x0E00_0000), 0x55);
 
-        // Sector erase: unlock, 0x80, unlock again, 0x30 at sector address
+        // Sector erase: unlock, 0x80, then 0x30 at sector address (in Erase state)
         cart.write(0x0E00_5555, 0xAA);
         cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_5555, 0x80);
-        cart.write(0x0E00_5555, 0xAA);
-        cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_0000, 0x30); // erase sector containing offset 0
 
         // After erase the sector should read 0xFF
@@ -350,12 +348,10 @@ mod tests {
         cart.write(0x0E00_5555, 0xA0);
         cart.write(0x0E00_1234, 0x77);
 
-        // Chip erase: unlock, 0x80, unlock again, 0x10 at 0x5555
+        // Chip erase: unlock, 0x80, then 0x10 at 0x5555 (in Erase state)
         cart.write(0x0E00_5555, 0xAA);
         cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_5555, 0x80);
-        cart.write(0x0E00_5555, 0xAA);
-        cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_5555, 0x10);
 
         // All bytes should be 0xFF
