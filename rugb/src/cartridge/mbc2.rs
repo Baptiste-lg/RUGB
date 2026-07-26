@@ -106,3 +106,94 @@ impl Cartridge for Mbc2 {
         self.ram[..len].copy_from_slice(&data[..len]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cartridge::Cartridge;
+
+    /// Build a multi-bank ROM where each 16 KB bank is filled with its bank index.
+    fn make_rom(num_banks: usize) -> Vec<u8> {
+        let mut rom = vec![0u8; num_banks * 0x4000];
+        for bank in 0..num_banks {
+            let start = bank * 0x4000;
+            for byte in &mut rom[start..start + 0x4000] {
+                *byte = bank as u8;
+            }
+        }
+        rom
+    }
+
+    fn cart(num_banks: usize) -> Mbc2 {
+        let rom = make_rom(num_banks);
+        Mbc2::new(&rom, String::from("TEST"), false)
+    }
+
+    // ---------- RAM enable ----------
+
+    #[test]
+    fn ram_enable_bit8_zero() {
+        // Bit 8 of address must be 0 to target the RAM-enable register.
+        // Address 0x0000 has bit 8 = 0.
+        let mut c = cart(2);
+        c.write(0x0000, 0x0A); // enable RAM
+        // RAM is all-zero; read should return 0x00 | 0xF0 = 0xF0 (upper nibble always set).
+        assert_eq!(c.read(0xA000), 0xF0);
+    }
+
+    #[test]
+    fn ram_disabled_returns_0xff() {
+        let c = cart(2);
+        assert_eq!(c.read(0xA000), 0xFF);
+    }
+
+    // ---------- ROM bank select ----------
+
+    #[test]
+    fn rom_bank_select_bit8_one() {
+        // Bit 8 of address = 1 selects the ROM bank.  Address 0x0100 has bit 8 set.
+        let mut c = cart(4);
+        c.write(0x0100, 0x02); // select bank 2
+        assert_eq!(c.read(0x4000), 0x02); // bank 2 is filled with 0x02
+    }
+
+    #[test]
+    fn bank_0_maps_to_1() {
+        let mut c = cart(4);
+        c.write(0x0100, 0x00); // attempt to select bank 0
+        // Bank 0 is forbidden; hardware remaps it to bank 1.
+        assert_eq!(c.read(0x4000), 0x01);
+    }
+
+    // ---------- RAM upper nibble ----------
+
+    #[test]
+    fn ram_4bit_upper_nibble() {
+        let mut c = cart(2);
+        c.write(0x0000, 0x0A); // enable RAM
+        c.write(0xA000, 0x0F); // write lower nibble 0xF
+        // On read, upper nibble must be forced to 0xF.
+        assert_eq!(c.read(0xA000), 0xFF);
+    }
+
+    #[test]
+    fn ram_only_lower_nibble_stored() {
+        let mut c = cart(2);
+        c.write(0x0000, 0x0A);
+        c.write(0xA000, 0xAB); // write 0xAB — only lower nibble 0xB stored
+        // Read back: lower nibble is 0xB, upper is forced 0xF → 0xFB.
+        assert_eq!(c.read(0xA000), 0xFB);
+    }
+
+    // ---------- RAM mirroring ----------
+
+    #[test]
+    fn ram_mirrored_512_bytes() {
+        let mut c = cart(2);
+        c.write(0x0000, 0x0A); // enable RAM
+        // Write to offset 0 (0xA000) and read back at offset 0x200 (which wraps to 0 via & 0x1FF).
+        c.write(0xA000, 0x07);
+        // 0xA200 - 0xA000 = 0x200, 0x200 & 0x1FF = 0, so this should read the same cell.
+        assert_eq!(c.read(0xA200), 0xF7); // 0x07 | 0xF0
+    }
+}
