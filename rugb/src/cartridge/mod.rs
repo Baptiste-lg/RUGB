@@ -98,3 +98,114 @@ fn parse_ram_size(code: u8) -> usize {
         _ => 0,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal ROM of the correct size for the given header fields.
+    /// Byte 0x0147 = cart_type, 0x0148 = rom_size_code, 0x0149 = ram_size_code.
+    /// The ROM size code 0x00 = 2 banks = 32 KB, 0x01 = 4 banks = 64 KB, etc.
+    fn make_rom(cart_type: u8, rom_size_code: u8, ram_size_code: u8) -> Vec<u8> {
+        // Minimum size so all header indices are valid (0x150 bytes minimum).
+        // ROM size: 32 KB << rom_size_code, clamped to at least 0x150 bytes.
+        let num_banks = 2usize << rom_size_code as usize;
+        let rom_len = (num_banks * 0x4000).max(0x150);
+        let mut rom = vec![0u8; rom_len];
+        rom[0x0147] = cart_type;
+        rom[0x0148] = rom_size_code;
+        rom[0x0149] = ram_size_code;
+        rom
+    }
+
+    // ---------- is_cgb ----------
+
+    #[test]
+    fn is_cgb_false_for_dmg() {
+        let mut rom = vec![0u8; 0x0144];
+        rom[0x0143] = 0x00; // plain DMG byte
+        assert!(!is_cgb(&rom));
+    }
+
+    #[test]
+    fn is_cgb_true_for_0x80() {
+        let mut rom = vec![0u8; 0x0144];
+        rom[0x0143] = 0x80;
+        assert!(is_cgb(&rom));
+    }
+
+    #[test]
+    fn is_cgb_true_for_0xc0() {
+        let mut rom = vec![0u8; 0x0144];
+        rom[0x0143] = 0xC0;
+        assert!(is_cgb(&rom));
+    }
+
+    #[test]
+    fn is_cgb_short_rom() {
+        // ROM that ends before index 0x0143 — must return false, not panic.
+        let rom = vec![0u8; 0x0100];
+        assert!(!is_cgb(&rom));
+    }
+
+    // ---------- from_rom ----------
+
+    #[test]
+    fn from_rom_short_returns_no_mbc() {
+        // A ROM shorter than 0x150 should silently create a NoMbc.
+        let short = vec![0u8; 0x100];
+        let cart = from_rom(&short);
+        // NoMbc::read returns the byte stored in the ROM (here 0x00) for in-range addresses
+        // and 0xFF for out-of-range. Verifying it doesn't panic is sufficient, but we also
+        // confirm in-range reads work.
+        assert_eq!(cart.read(0x0000), 0x00);
+    }
+
+    #[test]
+    fn from_rom_type_0x00_no_mbc() {
+        let rom = make_rom(0x00, 0x00, 0x00);
+        let cart = from_rom(&rom);
+        // Should not panic and should read as ROM-only.
+        assert_eq!(cart.read(0x0000), 0x00);
+    }
+
+    #[test]
+    fn from_rom_type_0x01_mbc1() {
+        // Two-bank ROM: bank 0 at 0x0000-0x3FFF, bank 1 at 0x4000-0x7FFF.
+        // We fill bank 1 with a sentinel byte to confirm bank switching works.
+        let mut rom = make_rom(0x01, 0x00, 0x00); // rom_size_code 0x00 = 32 KB / 2 banks
+        // Bank 1 starts at offset 0x4000; write a sentinel at the very first byte.
+        rom[0x4000] = 0xAB;
+        let mut cart = from_rom(&rom);
+        // Default bank is 1, so reading 0x4000 should return the sentinel.
+        assert_eq!(cart.read(0x4000), 0xAB);
+        // Write bank register to select bank 2 (wraps to bank 1 on a 2-bank ROM).
+        cart.write(0x2000, 0x02);
+        // For a 2-bank ROM bank 2 % 2 = 0, but effective_rom_bank clamps to max(1) so
+        // the read should still return a valid byte (not panic).
+        let _ = cart.read(0x4000);
+    }
+
+    #[test]
+    fn from_rom_type_0x05_mbc2() {
+        let rom = make_rom(0x05, 0x00, 0x00);
+        let cart = from_rom(&rom);
+        assert_eq!(cart.read(0x0000), 0x00);
+    }
+
+    #[test]
+    fn from_rom_type_0x19_mbc5() {
+        let rom = make_rom(0x19, 0x00, 0x00);
+        let cart = from_rom(&rom);
+        assert_eq!(cart.read(0x0000), 0x00);
+    }
+
+    #[test]
+    fn from_rom_unsupported_falls_back() {
+        // Type 0xFE is not handled — must fall back gracefully without panicking.
+        let rom = make_rom(0xFE, 0x00, 0x00);
+        let cart = from_rom(&rom);
+        // If it fell back to NoMbc the first byte of ROM is 0x00.
+        assert_eq!(cart.read(0x0000), 0x00);
+    }
+}
