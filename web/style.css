@@ -41,14 +41,15 @@ body {
 .side-menu {
     position: fixed;
     top: 0;
-    left: -280px;
-    width: 260px;
+    left: -320px;
+    width: 300px;
     height: 100%;
     background: #0f1528;
     border-right: 1px solid #333;
     z-index: 150;
     transition: left 0.25s ease;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 60px 16px 24px;
 }
 
@@ -108,12 +109,14 @@ body {
 
 .menu-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
 }
 
 .menu-row button {
-    flex: 1;
-    padding: 0.35rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.35rem 0.5rem;
     font-size: 0.75rem;
     background: #16213e;
     color: #e0e0e0;
@@ -121,6 +124,7 @@ body {
     border-radius: 3px;
     cursor: pointer;
     font-family: inherit;
+    white-space: nowrap;
 }
 
 .menu-row button:hover {
