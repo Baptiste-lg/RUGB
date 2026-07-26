@@ -6,6 +6,8 @@ mod joypad;
 
 pub use cartridge::is_cgb;
 mod mmu;
+#[cfg(test)]
+mod mmu_tests;
 mod ppu;
 pub mod savestate;
 mod timer;
