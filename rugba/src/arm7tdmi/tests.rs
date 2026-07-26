@@ -144,4 +144,173 @@ mod tests {
         assert_eq!(cycles, 1);
         assert!(!bus.io.halted); // Woke up
     }
+
+    // ── New tests ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn fiq_banking_saves_r8_r12() {
+        let mut cpu = Arm7Tdmi::new();
+        // Set known values in R8-R12 while in System mode
+        for i in 0..5usize {
+            cpu.regs[8 + i] = 0x1000 + i as u32;
+        }
+
+        cpu.switch_mode(CpuMode::Fiq);
+        assert_eq!(cpu.mode(), CpuMode::Fiq);
+
+        // FIQ banked registers start at zero (from BankedRegisters::new)
+        for i in 0..5usize {
+            assert_eq!(
+                cpu.regs[8 + i], 0,
+                "FIQ R{} should be from FIQ bank (0)", 8 + i
+            );
+        }
+
+        // The old usr values should be stashed in banked.usr_r8_r12
+        for i in 0..5usize {
+            assert_eq!(
+                cpu.banked.usr_r8_r12[i],
+                0x1000 + i as u32,
+                "usr_r8_r12[{}] should be saved system value", i
+            );
+        }
+
+        // Switch back — usr values are restored
+        cpu.switch_mode(CpuMode::System);
+        for i in 0..5usize {
+            assert_eq!(
+                cpu.regs[8 + i],
+                0x1000 + i as u32,
+                "R{} should be restored after leaving FIQ", 8 + i
+            );
+        }
+    }
+
+    #[test]
+    fn spsr_in_irq_mode() {
+        let mut cpu = Arm7Tdmi::new();
+        cpu.switch_mode(CpuMode::Irq);
+        assert_eq!(cpu.mode(), CpuMode::Irq);
+
+        let sentinel = 0xDEAD_BEEF;
+        cpu.set_spsr(sentinel);
+        assert_eq!(cpu.spsr(), sentinel);
+    }
+
+    #[test]
+    fn condition_ge() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // GE: N == V — both clear
+        cpu.cpsr = CpuMode::System as u32; // N=0, V=0
+        assert!(cpu.check_condition(0xA), "GE should be true when N==V==0");
+
+        // GE: N == V — both set
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG | V_FLAG;
+        assert!(cpu.check_condition(0xA), "GE should be true when N==V==1");
+
+        // GE: N != V — N set, V clear
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG;
+        assert!(!cpu.check_condition(0xA), "GE should be false when N=1, V=0");
+
+        // GE: N != V — N clear, V set
+        cpu.cpsr = CpuMode::System as u32 | V_FLAG;
+        assert!(!cpu.check_condition(0xA), "GE should be false when N=0, V=1");
+    }
+
+    #[test]
+    fn condition_lt() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // LT: N != V — true when N set, V clear
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG;
+        assert!(cpu.check_condition(0xB), "LT true when N=1, V=0");
+
+        // LT: true when N clear, V set
+        cpu.cpsr = CpuMode::System as u32 | V_FLAG;
+        assert!(cpu.check_condition(0xB), "LT true when N=0, V=1");
+
+        // LT: false when N == V (both clear)
+        cpu.cpsr = CpuMode::System as u32;
+        assert!(!cpu.check_condition(0xB), "LT false when N==V==0");
+
+        // LT: false when N == V (both set)
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG | V_FLAG;
+        assert!(!cpu.check_condition(0xB), "LT false when N==V==1");
+    }
+
+    #[test]
+    fn condition_gt() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // GT: !Z && N==V
+        cpu.cpsr = CpuMode::System as u32; // Z=0, N=0, V=0
+        assert!(cpu.check_condition(0xC), "GT true when Z=0, N==V==0");
+
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG | V_FLAG; // Z=0, N=1, V=1
+        assert!(cpu.check_condition(0xC), "GT true when Z=0, N==V==1");
+
+        // GT: false when Z set
+        cpu.cpsr = CpuMode::System as u32 | Z_FLAG; // Z=1, N=0, V=0
+        assert!(!cpu.check_condition(0xC), "GT false when Z=1");
+
+        // GT: false when N != V
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG; // Z=0, N=1, V=0
+        assert!(!cpu.check_condition(0xC), "GT false when N!=V");
+    }
+
+    #[test]
+    fn condition_le() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // LE: Z || N!=V — true when Z set
+        cpu.cpsr = CpuMode::System as u32 | Z_FLAG;
+        assert!(cpu.check_condition(0xD), "LE true when Z=1");
+
+        // LE: true when N!=V (N=1, V=0)
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG;
+        assert!(cpu.check_condition(0xD), "LE true when N!=V");
+
+        // LE: false when Z=0 and N==V
+        cpu.cpsr = CpuMode::System as u32; // Z=0, N=0, V=0
+        assert!(!cpu.check_condition(0xD), "LE false when Z=0 and N==V==0");
+
+        // LE: false when Z=0 and N==V (both set)
+        cpu.cpsr = CpuMode::System as u32 | N_FLAG | V_FLAG;
+        assert!(!cpu.check_condition(0xD), "LE false when Z=0 and N==V==1");
+    }
+
+    #[test]
+    fn condition_hi() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // HI: C && !Z — true
+        cpu.cpsr = CpuMode::System as u32 | C_FLAG; // C=1, Z=0
+        assert!(cpu.check_condition(0x8), "HI true when C=1, Z=0");
+
+        // HI: false when C clear
+        cpu.cpsr = CpuMode::System as u32;
+        assert!(!cpu.check_condition(0x8), "HI false when C=0");
+
+        // HI: false when Z set (even if C set)
+        cpu.cpsr = CpuMode::System as u32 | C_FLAG | Z_FLAG;
+        assert!(!cpu.check_condition(0x8), "HI false when C=1, Z=1");
+    }
+
+    #[test]
+    fn condition_ls() {
+        let mut cpu = Arm7Tdmi::new();
+
+        // LS: !C || Z — true when C clear
+        cpu.cpsr = CpuMode::System as u32; // C=0, Z=0
+        assert!(cpu.check_condition(0x9), "LS true when C=0");
+
+        // LS: true when Z set (even if C set)
+        cpu.cpsr = CpuMode::System as u32 | C_FLAG | Z_FLAG;
+        assert!(cpu.check_condition(0x9), "LS true when C=1, Z=1");
+
+        // LS: false when C=1, Z=0
+        cpu.cpsr = CpuMode::System as u32 | C_FLAG;
+        assert!(!cpu.check_condition(0x9), "LS false when C=1, Z=0");
+    }
 }
