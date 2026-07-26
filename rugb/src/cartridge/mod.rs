@@ -174,7 +174,7 @@ mod tests {
         // Two-bank ROM: bank 0 at 0x0000-0x3FFF, bank 1 at 0x4000-0x7FFF.
         // We fill bank 1 with a sentinel byte to confirm bank switching works.
         let mut rom = make_rom(0x01, 0x00, 0x00); // rom_size_code 0x00 = 32 KB / 2 banks
-        // Bank 1 starts at offset 0x4000; write a sentinel at the very first byte.
+                                                  // Bank 1 starts at offset 0x4000; write a sentinel at the very first byte.
         rom[0x4000] = 0xAB;
         let mut cart = from_rom(&rom);
         // Default bank is 1, so reading 0x4000 should return the sentinel.

@@ -446,7 +446,10 @@ mod tests {
         apu.tick(512 * 2);
 
         let avail_before = apu.ring_buffer_available();
-        assert!(avail_before >= 2, "should have generated at least one L+R pair");
+        assert!(
+            avail_before >= 2,
+            "should have generated at least one L+R pair"
+        );
 
         apu.ring_consume(2);
         assert_eq!(apu.ring_buffer_available(), avail_before - 2);

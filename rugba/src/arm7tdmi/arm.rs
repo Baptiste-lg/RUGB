@@ -927,7 +927,13 @@ mod tests {
     /// opcode: 4-bit ALU op; s: S-bit; rn: 4-bit; rd: 4-bit; operand2: 12-bit.
     /// Set bit 25 to 1 for immediate operand2.
     fn dp_imm(opcode: u32, s: bool, rn: u32, rd: u32, imm12: u32) -> u32 {
-        0xE000_0000 | (1 << 25) | (opcode << 21) | ((s as u32) << 20) | (rn << 16) | (rd << 12) | imm12
+        0xE000_0000
+            | (1 << 25)
+            | (opcode << 21)
+            | ((s as u32) << 20)
+            | (rn << 16)
+            | (rd << 12)
+            | imm12
     }
 
     /// Build a data-processing instruction with register Rm (no shift).
@@ -1300,7 +1306,7 @@ mod tests {
         // STMIA: P=0, U=1, S=0, W=1, L=0, Rn=R0, rlist=0b1110 (R1|R2|R3)
         // Encoding: 0xE8A0_000E
         let stm_instr: u32 = 0xE8A0_000E; // STMIA R0!, {R1, R2, R3}
-        // LDMIA: 0xE8B4_00E0 (R4!, {R5, R6, R7} = bits 5,6,7 = 0xE0)
+                                          // LDMIA: 0xE8B4_00E0 (R4!, {R5, R6, R7} = bits 5,6,7 = 0xE0)
         let ldm_instr: u32 = 0xE8B4_00E0; // LDMIA R4!, {R5, R6, R7}
         let (mut cpu, mut bus) = make_cpu_bus();
         let base = 0x0300_0000u32;
@@ -1408,7 +1414,10 @@ mod tests {
         cpu.regs[1] = 0x8000_0001; // negative value
         cpu.regs[3] = 32;
         execute_arm(&mut cpu, &mut bus, instr);
-        assert_eq!(cpu.regs[0], 0xFFFF_FFFF, "ASR #32 on negative fills with sign");
+        assert_eq!(
+            cpu.regs[0], 0xFFFF_FFFF,
+            "ASR #32 on negative fills with sign"
+        );
         assert!(cpu.get_flag(C_FLAG), "carry = sign bit = 1");
         assert!(cpu.get_flag(N_FLAG), "result is negative");
     }
@@ -1439,7 +1448,10 @@ mod tests {
         cpu.regs[2] = 1;
         execute_arm(&mut cpu, &mut bus, instr);
         assert_eq!(cpu.regs[0], 0x8000_0000);
-        assert!(cpu.get_flag(V_FLAG), "V flag: signed overflow into negative");
+        assert!(
+            cpu.get_flag(V_FLAG),
+            "V flag: signed overflow into negative"
+        );
         assert!(cpu.get_flag(N_FLAG), "result is negative");
         assert!(!cpu.get_flag(C_FLAG), "no unsigned carry");
     }
@@ -1548,7 +1560,10 @@ mod tests {
         cpu.regs[1] = addr;
         bus.write16(addr, 0xBEEF);
         execute_arm(&mut cpu, &mut bus, instr);
-        assert_eq!(cpu.regs[0], 0x0000_BEEF, "halfword zero-extended to 32 bits");
+        assert_eq!(
+            cpu.regs[0], 0x0000_BEEF,
+            "halfword zero-extended to 32 bits"
+        );
     }
 
     #[test]
@@ -1587,7 +1602,10 @@ mod tests {
         cpu.regs[1] = addr;
         bus.write16(addr, 0x8001u16); // 0x8001 as i16 = -32767
         execute_arm(&mut cpu, &mut bus, instr);
-        assert_eq!(cpu.regs[0], 0xFFFF_8001, "0x8001 sign-extended to 0xFFFF8001");
+        assert_eq!(
+            cpu.regs[0], 0xFFFF_8001,
+            "0x8001 sign-extended to 0xFFFF8001"
+        );
     }
 
     // ── Additional block transfer tests ───────────────────────────────────────
@@ -1693,7 +1711,7 @@ mod tests {
         let (mut cpu, mut bus) = make_cpu_bus();
         cpu.regs[2] = 0x0001_0000; // Rm
         cpu.regs[3] = 0x0001_0000; // Rs
-        // product = 0x0001_0000 * 0x0001_0000 = 0x0000_0001_0000_0000
+                                   // product = 0x0001_0000 * 0x0001_0000 = 0x0000_0001_0000_0000
         execute_arm(&mut cpu, &mut bus, instr);
         assert_eq!(cpu.regs[0], 0x0000_0000, "RdLo = low 32 bits");
         assert_eq!(cpu.regs[1], 0x0000_0001, "RdHi = high 32 bits");

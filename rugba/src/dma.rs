@@ -350,7 +350,14 @@ mod tests {
             1,
             0x0000, // enabled bit NOT set
         );
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
         // IWRAM should be untouched
         assert_eq!(iwram[0], 0);
         assert_eq!(iwram[1], 0);
@@ -373,16 +380,14 @@ mod tests {
         ewram[1] = 0x12;
 
         // ctrl: enabled(0x8000), timing=immediate(bits 12:13=0), 16-bit, no repeat, src/dst increment
-        setup_channel(
-            &mut dma,
-            0,
-            0x0200_0000,
-            0x0300_0000,
-            1,
-            0x8000,
-        );
+        setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 1, 0x8000);
         let (_, irqs) = dma.run_immediate(
-            &mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom,
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
         );
         // Value should appear in IWRAM at offset 0x0000 (addr & 0x7FFE)
         assert_eq!(iwram[0], 0x34);
@@ -410,7 +415,14 @@ mod tests {
 
         // ctrl: enabled | 32-bit (bit 10)
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 1, 0x8400);
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         assert_eq!(iwram[0], 0x78);
         assert_eq!(iwram[1], 0x56);
@@ -438,7 +450,14 @@ mod tests {
 
         // ctrl: enabled, src increment (bits 7:8 = 0b00), dst increment (bits 5:6 = 0b00), 2 words
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 2, 0x8000);
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         assert_eq!(u16::from_le_bytes([iwram[0], iwram[1]]), 0x0001);
         assert_eq!(u16::from_le_bytes([iwram[2], iwram[3]]), 0x0002);
@@ -465,7 +484,14 @@ mod tests {
         // src starts at 0x02000002; src decrement = bits 7:8 = 0b01 → ctrl |= (1<<7)
         // Two transfers: reads 0x02000002 then 0x02000000
         setup_channel(&mut dma, 0, 0x0200_0002, 0x0300_0000, 2, 0x8000 | (1 << 7));
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         assert_eq!(iwram[0], 0xAA, "first read from 0x02000002");
         assert_eq!(iwram[2], 0xBB, "second read from 0x02000000");
@@ -488,7 +514,14 @@ mod tests {
 
         // src fixed = bits 7:8 = 0b10 → ctrl |= (2<<7)
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 3, 0x8000 | (2 << 7));
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         // All 3 destinations should have 0x0055
         assert_eq!(iwram[0], 0x55);
@@ -522,7 +555,14 @@ mod tests {
             0x8000 | (3 << 5) | (1 << 9), // enabled | dst mode 3 | repeat
         );
         // Run once — repeat keeps channel enabled, dst reloads
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         // The transfer wrote to 0x03000000 (internal_dst=0)
         assert_eq!(iwram[0], 0x77);
@@ -532,8 +572,18 @@ mod tests {
         // We verify by running again and checking iwram[0] again (dst reloaded).
         // Note: internal_src was NOT reloaded, so the second run reads from ewram[2].
         ewram[2] = 0x88;
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
-        assert_eq!(iwram[0], 0x88, "dst should reload to original address on repeat");
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
+        assert_eq!(
+            iwram[0], 0x88,
+            "dst should reload to original address on repeat"
+        );
     }
 
     // ---- zero_count_defaults_max ----
@@ -566,7 +616,14 @@ mod tests {
         let rom = make_rom();
 
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 0, 0x8000);
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         // Check last word (index 0x3FFF) was transferred
         let last = 0x3FFFusize;
@@ -589,10 +646,18 @@ mod tests {
         // channel 2, irq_enabled = bit 14
         setup_channel(&mut dma, 2, 0x0200_0000, 0x0300_0000, 1, 0x8000 | 0x4000);
         let (_, irqs) = dma.run_immediate(
-            &mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom,
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
         );
         // DMA channel 2 IRQ is bit 10 (8+2)
-        assert!(irqs & (1 << 10) != 0, "IRQ bit 10 should be set for channel 2");
+        assert!(
+            irqs & (1 << 10) != 0,
+            "IRQ bit 10 should be set for channel 2"
+        );
     }
 
     // ---- no_repeat_disables ----
@@ -609,8 +674,18 @@ mod tests {
 
         // No repeat bit → channel should be disabled after transfer
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 1, 0x8000);
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
-        assert!(!dma.channels[0].enabled(), "channel should be disabled after single-shot");
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
+        assert!(
+            !dma.channels[0].enabled(),
+            "channel should be disabled after single-shot"
+        );
     }
 
     // ---- latch_copies_internals ----
@@ -645,7 +720,14 @@ mod tests {
         dma.channels[0].ctrl = 0x8000;
         dma.channels[0].latch(0);
 
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         // IWRAM at 0x03005678 → offset = 0x5678 & 0x7FFE = 0x5678
         let iwram_off = 0x5678usize;
@@ -670,7 +752,14 @@ mod tests {
 
         // timing = 1 (bits 12:13 = 0b01) → run_immediate should skip
         setup_channel(&mut dma, 0, 0x0200_0000, 0x0300_0000, 1, 0x8000 | (1 << 12));
-        dma.run_immediate(&mut ewram, &mut iwram, &mut vram, &mut palette, &mut oam, &rom);
+        dma.run_immediate(
+            &mut ewram,
+            &mut iwram,
+            &mut vram,
+            &mut palette,
+            &mut oam,
+            &rom,
+        );
 
         assert_eq!(iwram[0], 0, "non-immediate DMA should not transfer");
         assert_eq!(iwram[1], 0);

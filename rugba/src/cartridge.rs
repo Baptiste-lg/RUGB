@@ -378,7 +378,7 @@ mod tests {
         cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_5555, 0xB0); // bank select command
         cart.write(0x0E00_0000, 0x01); // select bank 1
-        // Now write to offset 0 (goes to bank 1 → real offset 0x10000)
+                                       // Now write to offset 0 (goes to bank 1 → real offset 0x10000)
         cart.write(0x0E00_5555, 0xAA);
         cart.write(0x0E00_2AAA, 0x55);
         cart.write(0x0E00_5555, 0xA0);

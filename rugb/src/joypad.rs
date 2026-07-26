@@ -196,7 +196,11 @@ mod tests {
         }
         // Bits 0-3 should still read as 1 (not pressed output) since no group is selected.
         let val = pad.read();
-        assert_eq!(val & 0x0F, 0x0F, "all bits 0-3 remain 1 when no group is selected");
+        assert_eq!(
+            val & 0x0F,
+            0x0F,
+            "all bits 0-3 remain 1 when no group is selected"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -266,7 +270,11 @@ mod tests {
         let mut pad = new_pad();
         let mut irq = 0u8;
         pad.set_button(0, true, &mut irq);
-        assert_eq!(irq & 0x10, 0x10, "interrupt flag bit 4 must be set on press");
+        assert_eq!(
+            irq & 0x10,
+            0x10,
+            "interrupt flag bit 4 must be set on press"
+        );
     }
 
     #[test]
@@ -286,7 +294,11 @@ mod tests {
         pad.set_button(0, true, &mut irq); // first press — sets flag
         irq = 0;
         pad.set_button(0, true, &mut irq); // already pressed — must not re-fire
-        assert_eq!(irq & 0x10, 0, "pressing an already-pressed button must not fire interrupt");
+        assert_eq!(
+            irq & 0x10,
+            0,
+            "pressing an already-pressed button must not fire interrupt"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -303,7 +315,11 @@ mod tests {
         // Bits 6-7 must always be 1.
         assert_eq!(val & 0xC0, 0xC0, "bits 6-7 must always read as 1");
         // Bits 4-5 should reflect the masked write (0x30 → both select bits set).
-        assert_eq!(val & 0x30, 0x30, "bits 4-5 should reflect the masked select bits");
+        assert_eq!(
+            val & 0x30,
+            0x30,
+            "bits 4-5 should reflect the masked select bits"
+        );
         // Bits 0-3 high since neither group is active.
         assert_eq!(val & 0x0F, 0x0F, "bits 0-3 high when no group selected");
     }
@@ -321,6 +337,10 @@ mod tests {
         // No bit should have changed and no interrupt should fire.
         assert_eq!(irq & 0x10, 0, "invalid index must not fire interrupt");
         // All bits 0-3 remain 1 (nothing pressed).
-        assert_eq!(pad.read() & 0x0F, 0x0F, "invalid index must not alter button state");
+        assert_eq!(
+            pad.read() & 0x0F,
+            0x0F,
+            "invalid index must not alter button state"
+        );
     }
 }

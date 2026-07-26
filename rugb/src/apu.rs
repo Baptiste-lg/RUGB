@@ -978,7 +978,10 @@ mod tests {
         // produces only silent samples (ring buffer may grow but with silence).
         let mut apu = Apu::new();
         apu.write(0xFF26, 0x00); // power off
-        assert!(!apu.enabled, "APU should be disabled after writing 0x00 to NR52");
+        assert!(
+            !apu.enabled,
+            "APU should be disabled after writing 0x00 to NR52"
+        );
         let before = apu.ring_buffer_available();
         apu.tick(4096);
         // When disabled the APU still pushes silent (0.0) samples; what matters
@@ -991,7 +994,11 @@ mod tests {
     #[test]
     fn ring_buffer_initially_empty() {
         let apu = Apu::new();
-        assert_eq!(apu.ring_buffer_available(), 0, "ring buffer should be empty after new()");
+        assert_eq!(
+            apu.ring_buffer_available(),
+            0,
+            "ring buffer should be empty after new()"
+        );
     }
 
     #[test]
@@ -1001,7 +1008,10 @@ mod tests {
         apu.write(0xFF26, 0x00);
         assert!(!apu.enabled);
         apu.write(0xFF26, 0x80);
-        assert!(apu.enabled, "APU should be enabled after writing 0x80 to NR52");
+        assert!(
+            apu.enabled,
+            "APU should be enabled after writing 0x80 to NR52"
+        );
     }
 
     #[test]
@@ -1009,7 +1019,10 @@ mod tests {
         let mut apu = Apu::new();
         assert!(apu.enabled, "APU starts enabled");
         apu.write(0xFF26, 0x00);
-        assert!(!apu.enabled, "APU should be disabled after writing 0x00 to NR52");
+        assert!(
+            !apu.enabled,
+            "APU should be disabled after writing 0x00 to NR52"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1021,9 +1034,12 @@ mod tests {
         let mut apu = Apu::new();
         // Set up DAC: env_initial > 0, so DAC is enabled
         apu.write(0xFF12, 0xF0); // env_initial=15, direction=-1 (bit3=0), period=0
-        // Trigger CH1 via NR14 bit 7
+                                 // Trigger CH1 via NR14 bit 7
         apu.write(0xFF14, 0x80);
-        assert!(apu.ch1.enabled, "CH1 should be enabled after trigger with DAC on");
+        assert!(
+            apu.ch1.enabled,
+            "CH1 should be enabled after trigger with DAC on"
+        );
     }
 
     #[test]
@@ -1034,7 +1050,10 @@ mod tests {
         apu.write(0xFF12, 0x00);
         // Attempt to trigger
         apu.write(0xFF14, 0x80);
-        assert!(!apu.ch1.enabled, "CH1 should not enable when DAC is off (env_initial=0, direction=-1)");
+        assert!(
+            !apu.ch1.enabled,
+            "CH1 should not enable when DAC is off (env_initial=0, direction=-1)"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1048,9 +1067,21 @@ mod tests {
         apu.write(0xFF30, 0xAB);
         apu.write(0xFF31, 0xCD);
         apu.write(0xFF3F, 0x42);
-        assert_eq!(apu.read(0xFF30), 0xAB, "wave RAM byte 0 should read back 0xAB");
-        assert_eq!(apu.read(0xFF31), 0xCD, "wave RAM byte 1 should read back 0xCD");
-        assert_eq!(apu.read(0xFF3F), 0x42, "wave RAM last byte should read back 0x42");
+        assert_eq!(
+            apu.read(0xFF30),
+            0xAB,
+            "wave RAM byte 0 should read back 0xAB"
+        );
+        assert_eq!(
+            apu.read(0xFF31),
+            0xCD,
+            "wave RAM byte 1 should read back 0xCD"
+        );
+        assert_eq!(
+            apu.read(0xFF3F),
+            0x42,
+            "wave RAM last byte should read back 0x42"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1062,9 +1093,12 @@ mod tests {
         let mut apu = Apu::new();
         // Enable DAC via NR42 (0xFF21): env_initial=15
         apu.write(0xFF21, 0xF0); // env_initial=15, direction=-1, period=0
-        // Trigger via NR44 (0xFF23) bit 7
+                                 // Trigger via NR44 (0xFF23) bit 7
         apu.write(0xFF23, 0x80);
-        assert!(apu.ch4.enabled, "CH4 should be enabled after trigger with DAC on");
+        assert!(
+            apu.ch4.enabled,
+            "CH4 should be enabled after trigger with DAC on"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1104,7 +1138,11 @@ mod tests {
         apu.tick(500);
         assert!(apu.ring_buffer_available() > 0);
         apu.ring_clear();
-        assert_eq!(apu.ring_buffer_available(), 0, "ring_clear should empty the buffer");
+        assert_eq!(
+            apu.ring_buffer_available(),
+            0,
+            "ring_clear should empty the buffer"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1122,9 +1160,9 @@ mod tests {
         // Activate CH1 to produce non-zero output (without mute)
         apu.write(0xFF12, 0xF0); // DAC on, high volume
         apu.write(0xFF14, 0x80); // trigger
-        // With mute on, ch1 output is forced to 0.0 in generate_sample.
-        // We can't easily inspect individual channel contribution through the
-        // public API, so we verify the flag is honoured structurally.
+                                 // With mute on, ch1 output is forced to 0.0 in generate_sample.
+                                 // We can't easily inspect individual channel contribution through the
+                                 // public API, so we verify the flag is honoured structurally.
         assert!(apu.ch_mute[0]);
         apu.ch_mute[0] = false;
         assert!(!apu.ch_mute[0]);

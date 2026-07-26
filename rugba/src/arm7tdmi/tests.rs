@@ -161,8 +161,10 @@ mod tests {
         // FIQ banked registers start at zero (from BankedRegisters::new)
         for i in 0..5usize {
             assert_eq!(
-                cpu.regs[8 + i], 0,
-                "FIQ R{} should be from FIQ bank (0)", 8 + i
+                cpu.regs[8 + i],
+                0,
+                "FIQ R{} should be from FIQ bank (0)",
+                8 + i
             );
         }
 
@@ -171,7 +173,8 @@ mod tests {
             assert_eq!(
                 cpu.banked.usr_r8_r12[i],
                 0x1000 + i as u32,
-                "usr_r8_r12[{}] should be saved system value", i
+                "usr_r8_r12[{}] should be saved system value",
+                i
             );
         }
 
@@ -181,7 +184,8 @@ mod tests {
             assert_eq!(
                 cpu.regs[8 + i],
                 0x1000 + i as u32,
-                "R{} should be restored after leaving FIQ", 8 + i
+                "R{} should be restored after leaving FIQ",
+                8 + i
             );
         }
     }
@@ -211,11 +215,17 @@ mod tests {
 
         // GE: N != V — N set, V clear
         cpu.cpsr = CpuMode::System as u32 | N_FLAG;
-        assert!(!cpu.check_condition(0xA), "GE should be false when N=1, V=0");
+        assert!(
+            !cpu.check_condition(0xA),
+            "GE should be false when N=1, V=0"
+        );
 
         // GE: N != V — N clear, V set
         cpu.cpsr = CpuMode::System as u32 | V_FLAG;
-        assert!(!cpu.check_condition(0xA), "GE should be false when N=0, V=1");
+        assert!(
+            !cpu.check_condition(0xA),
+            "GE should be false when N=0, V=1"
+        );
     }
 
     #[test]

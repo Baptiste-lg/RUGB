@@ -20,7 +20,7 @@ mod tests {
         let mut io = IoRegisters::new();
         // Bits 0-2 are read-only (set by PPU hardware): pre-set them directly
         io.dispstat = 0x07; // bits 0, 1, 2 set
-        // Write a value that tries to clear bits 0-2
+                            // Write a value that tries to clear bits 0-2
         io.write16(IO_BASE + 0x004, 0xFFF8);
         // Bits 0-2 must be preserved from the original value
         assert_eq!(io.read16(IO_BASE + 0x004) & 0x07, 0x07);
@@ -50,12 +50,7 @@ mod tests {
 
         for (i, (&addr, &val)) in addrs.iter().zip(values.iter()).enumerate() {
             io.write16(IO_BASE + addr, val);
-            assert_eq!(
-                io.read16(IO_BASE + addr),
-                val,
-                "BG{}CNT mismatch",
-                i
-            );
+            assert_eq!(io.read16(IO_BASE + addr), val, "BG{}CNT mismatch", i);
         }
     }
 
@@ -116,7 +111,7 @@ mod tests {
         let mut io = IoRegisters::new();
         // Set up count so latch gives a known internal_count
         io.write16(IO_BASE + 0x0B8, 10); // DMA0 count = 10
-        // Write ctrl with enable bit (0x8000), timing=immediate (bits 12:13=0)
+                                         // Write ctrl with enable bit (0x8000), timing=immediate (bits 12:13=0)
         io.write16(IO_BASE + 0x0BA, 0x8000);
         // Channel should now be enabled
         assert!(io.dma.channels[0].enabled());

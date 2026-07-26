@@ -190,7 +190,7 @@ mod tests {
     fn ram_enable_0x0a() {
         let mut c = cart(2);
         c.write(0x1FFF, 0x0A); // write to 0x0000-0x1FFF range
-        // After enabling, RAM is zeroed so reading should return 0x00 (not 0xFF).
+                               // After enabling, RAM is zeroed so reading should return 0x00 (not 0xFF).
         assert_eq!(c.read(0xA000), 0x00);
     }
 
@@ -233,10 +233,10 @@ mod tests {
         c.write(0x6000, 0x01); // switch to mode 1
         c.write(0x4000, 0x01); // select RAM bank 1
         c.write(0xA000, 0xBB); // write to RAM bank 1 offset 0
-        // Switch to RAM bank 0 and verify bank 1 write did not corrupt it.
+                               // Switch to RAM bank 0 and verify bank 1 write did not corrupt it.
         c.write(0x4000, 0x00);
         assert_eq!(c.read(0xA000), 0x00); // bank 0 is clean
-        // Switch back to bank 1.
+                                          // Switch back to bank 1.
         c.write(0x4000, 0x01);
         assert_eq!(c.read(0xA000), 0xBB);
     }

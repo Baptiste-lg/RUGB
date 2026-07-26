@@ -723,7 +723,11 @@ mod tests {
         let mut ppu2 = Ppu::new();
         let mut if_ = 0u8;
         tick_cycles(&mut ppu2, &mut if_, 79);
-        assert_eq!(ppu2.read_register(0xFF41) & 0x03, 2, "still OamScan at 79 dots");
+        assert_eq!(
+            ppu2.read_register(0xFF41) & 0x03,
+            2,
+            "still OamScan at 79 dots"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -754,7 +758,11 @@ mod tests {
         let mut ppu = Ppu::new();
         let mut if_ = 0u8;
         tick_scanlines(&mut ppu, &mut if_, 1);
-        assert_eq!(ppu.read_register(0xFF44), 1, "after 456 T-cycles LY should be 1");
+        assert_eq!(
+            ppu.read_register(0xFF44),
+            1,
+            "after 456 T-cycles LY should be 1"
+        );
     }
 
     #[test]
@@ -773,7 +781,11 @@ mod tests {
         let mut if_ = 0u8;
         // 154 scanlines = full frame; LY wraps back to 0 and mode returns to OamScan
         tick_scanlines(&mut ppu, &mut if_, 154);
-        assert_eq!(ppu.read_register(0xFF44), 0, "after 154 scanlines LY should wrap to 0");
+        assert_eq!(
+            ppu.read_register(0xFF44),
+            0,
+            "after 154 scanlines LY should wrap to 0"
+        );
         let mode = ppu.read_register(0xFF41) & 0x03;
         assert_eq!(mode, 2, "after full frame should be back in OamScan (2)");
     }
@@ -791,7 +803,11 @@ mod tests {
         // Advance to scanline 5
         tick_scanlines(&mut ppu, &mut if_, 5);
         let stat = ppu.read_register(0xFF41);
-        assert_ne!(stat & 0x04, 0, "STAT bit 2 (LYC=LY) should be set on scanline 5");
+        assert_ne!(
+            stat & 0x04,
+            0,
+            "STAT bit 2 (LYC=LY) should be set on scanline 5"
+        );
     }
 
     #[test]
@@ -804,7 +820,11 @@ mod tests {
         ppu.write_register(0xFF45, 3);
         // Advance to scanline 3
         tick_scanlines(&mut ppu, &mut if_, 3);
-        assert_ne!(if_ & 0x02, 0, "STAT interrupt (bit 1 of IF) should fire on LYC=LY");
+        assert_ne!(
+            if_ & 0x02,
+            0,
+            "STAT interrupt (bit 1 of IF) should fire on LYC=LY"
+        );
     }
 
     #[test]
@@ -817,7 +837,11 @@ mod tests {
         ppu.write_register(0xFF41, 0x20);
         // Tick one full scanline so we enter OamScan for line 1
         tick_scanlines(&mut ppu, &mut if_, 1);
-        assert_ne!(if_ & 0x02, 0, "STAT OAM interrupt should fire when entering OamScan");
+        assert_ne!(
+            if_ & 0x02,
+            0,
+            "STAT OAM interrupt should fire when entering OamScan"
+        );
     }
 
     #[test]
@@ -828,7 +852,11 @@ mod tests {
         ppu.write_register(0xFF41, 0x08);
         // Advance past OamScan + PixelTransfer to trigger HBlank
         tick_cycles(&mut ppu, &mut if_, 80 + 172);
-        assert_ne!(if_ & 0x02, 0, "STAT HBlank interrupt should fire on entering HBlank");
+        assert_ne!(
+            if_ & 0x02,
+            0,
+            "STAT HBlank interrupt should fire on entering HBlank"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -843,9 +871,17 @@ mod tests {
         ppu.write_register(0xFF40, 0x00);
         // Tick many cycles — nothing should change
         tick_cycles(&mut ppu, &mut if_, 1000);
-        assert_eq!(ppu.read_register(0xFF44), 0, "LY must stay 0 when LCD is off");
+        assert_eq!(
+            ppu.read_register(0xFF44),
+            0,
+            "LY must stay 0 when LCD is off"
+        );
         // Mode bits stay at OamScan (2) after LCD-off reset
-        assert_eq!(ppu.read_register(0xFF41) & 0x03, 2, "mode unchanged when LCD off");
+        assert_eq!(
+            ppu.read_register(0xFF41) & 0x03,
+            2,
+            "mode unchanged when LCD off"
+        );
         assert_eq!(if_, 0, "no interrupts when LCD is off");
     }
 
@@ -860,13 +896,13 @@ mod tests {
 
         // LCD on, BG on, BG tile data at 0x8000 (LCDC bit 4), BG map at 0x9800
         ppu.write_register(0xFF40, 0x91); // 0b10010001
-        // Standard DMG palette: color 0→white(0xFF), 1→light, 2→dark, 3→black
+                                          // Standard DMG palette: color 0→white(0xFF), 1→light, 2→dark, 3→black
         ppu.write_register(0xFF47, 0xE4); // 0b11100100
 
         // Write tile 0 data: all pixels = color ID 3 (both bits set → 0xFF, 0xFF per row)
         // Tile 0 lives at VRAM 0x0000 (bus addr 0x8000); 8 rows × 2 bytes = 16 bytes
         for row in 0..8u16 {
-            ppu.write_vram(0x8000 + row * 2, 0xFF);     // low bit plane
+            ppu.write_vram(0x8000 + row * 2, 0xFF); // low bit plane
             ppu.write_vram(0x8000 + row * 2 + 1, 0xFF); // high bit plane
         }
         // Tile map entry 0 (top-left tile) already 0x00 (tile 0) — no write needed
@@ -876,7 +912,10 @@ mod tests {
 
         // Pixel (0,0): color ID 3 → palette 0xE4 → shade index (0xE4 >> 6) & 3 = 3 → SHADES[3] = 0x00 (black)
         let fb_r = ppu.framebuffer[0];
-        assert_eq!(fb_r, 0x00, "pixel (0,0) R channel should be black (0x00) for color ID 3");
+        assert_eq!(
+            fb_r, 0x00,
+            "pixel (0,0) R channel should be black (0x00) for color ID 3"
+        );
         assert_eq!(ppu.framebuffer[3], 0xFF, "alpha channel should be 0xFF");
     }
 
@@ -890,9 +929,9 @@ mod tests {
         ppu.write_register(0xFF40, 0x93);
         // BGP: map everything to white so sprite contrast is clear
         ppu.write_register(0xFF47, 0x00); // color 0→white,1→white,2→white,3→white
-        // OBP0: color 1→black (for sprite pixel)
-        // 0b00000001 = palette: c0→white,c1→dark,c2→light,c3→white ... let's use 0xFC
-        // OBP0 = 0xFC: c3=black,c2=dark,c1=light,c0=transparent
+                                          // OBP0: color 1→black (for sprite pixel)
+                                          // 0b00000001 = palette: c0→white,c1→dark,c2→light,c3→white ... let's use 0xFC
+                                          // OBP0 = 0xFC: c3=black,c2=dark,c1=light,c0=transparent
         ppu.write_register(0xFF48, 0xFC);
 
         // Tile 1 for sprite: all pixels = color ID 1
@@ -904,9 +943,9 @@ mod tests {
 
         // OAM entry 0: Y=16 (screen y=0), X=8 (screen x=0), tile=1, attr=0
         ppu.write_oam(0xFE00, 16); // Y (sprite shows at screen y = Y-16 = 0)
-        ppu.write_oam(0xFE01, 8);  // X (sprite shows at screen x = X-8 = 0)
-        ppu.write_oam(0xFE02, 1);  // tile index 1
-        ppu.write_oam(0xFE03, 0);  // attributes: no flip, OBP0, no bg priority
+        ppu.write_oam(0xFE01, 8); // X (sprite shows at screen x = X-8 = 0)
+        ppu.write_oam(0xFE02, 1); // tile index 1
+        ppu.write_oam(0xFE03, 0); // attributes: no flip, OBP0, no bg priority
 
         // Tick one full scanline
         tick_scanlines(&mut ppu, &mut if_, 1);
@@ -935,9 +974,17 @@ mod tests {
 
         // Read back
         ppu.write_register(0xFF68, 0x00);
-        assert_eq!(ppu.read_register(0xFF69), 0xAB, "BCPD byte 0 should read back 0xAB");
+        assert_eq!(
+            ppu.read_register(0xFF69),
+            0xAB,
+            "BCPD byte 0 should read back 0xAB"
+        );
         ppu.write_register(0xFF68, 0x01);
-        assert_eq!(ppu.read_register(0xFF69), 0xCD, "BCPD byte 1 should read back 0xCD");
+        assert_eq!(
+            ppu.read_register(0xFF69),
+            0xCD,
+            "BCPD byte 1 should read back 0xCD"
+        );
     }
 
     #[test]

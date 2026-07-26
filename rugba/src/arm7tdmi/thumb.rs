@@ -1026,7 +1026,7 @@ mod tests {
         // PUSH: 0b10110100_00000011 = 0xB403 (store_lr=0, rlist=0b00000011 = R0|R1)
         // POP:  0b10111100_00001100 = 0xBC0C (load_pc=0, rlist=0b00001100 = R2|R3)
         let push_instr: u16 = 0xB403; // PUSH {R0, R1}
-        let pop_instr: u16 = 0xBC0C;  // POP {R2, R3}
+        let pop_instr: u16 = 0xBC0C; // POP {R2, R3}
         let (mut cpu, mut bus) = make_cpu_bus();
         cpu.regs[13] = 0x0300_0100; // SP in IWRAM
         cpu.regs[0] = 0xAAAA;

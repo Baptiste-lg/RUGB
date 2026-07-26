@@ -109,7 +109,11 @@ mod tests {
         let (mut cpu, mut mmu) = armed(0x01);
         handle_interrupts(&mut cpu, &mut mmu);
         assert_eq!(cpu.regs.pc, 0x0040);
-        assert_eq!(mmu.interrupt_flag & 0x01, 0, "VBlank IF bit must be cleared");
+        assert_eq!(
+            mmu.interrupt_flag & 0x01,
+            0,
+            "VBlank IF bit must be cleared"
+        );
     }
 
     #[test]
@@ -189,6 +193,10 @@ mod tests {
         // Bit 1 (STAT) must still be set in IF
         assert_ne!(mmu.interrupt_flag & 0x02, 0, "STAT IF bit must remain set");
         // Bit 0 (VBlank) must be cleared
-        assert_eq!(mmu.interrupt_flag & 0x01, 0, "VBlank IF bit must be cleared");
+        assert_eq!(
+            mmu.interrupt_flag & 0x01,
+            0,
+            "VBlank IF bit must be cleared"
+        );
     }
 }

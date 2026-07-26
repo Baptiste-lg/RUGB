@@ -192,7 +192,7 @@ mod tests {
         let mut c = Mbc5::new(&rom, 0x2000, String::from("TEST"), false, false);
         c.write(0x2000, 0x01); // low byte = 1
         c.write(0x3000, 0x01); // set bit 8
-        // rom_bank = 0x101 = 257
+                               // rom_bank = 0x101 = 257
         assert_eq!(c.read(0x4000), 0xEE);
     }
 
@@ -226,9 +226,9 @@ mod tests {
         // On a rumble cart, only bits 0-2 are used for the RAM bank.
         let mut c = cart_rumble(4);
         c.write(0x0000, 0x0A); // enable RAM
-        // Writing 0x0F: bit 3 = rumble, bits 0-2 = bank 7 — but bank 7 is out of range for
-        // a 32 KB (4-bank) RAM, so the read falls back to 0xFF via get().unwrap_or.
-        // More usefully: write bank 1 (0x01, no rumble bit).
+                               // Writing 0x0F: bit 3 = rumble, bits 0-2 = bank 7 — but bank 7 is out of range for
+                               // a 32 KB (4-bank) RAM, so the read falls back to 0xFF via get().unwrap_or.
+                               // More usefully: write bank 1 (0x01, no rumble bit).
         c.write(0x4000, 0x01); // bit 3 = 0 (no rumble), bits 0-2 = 1
         c.write(0xA000, 0xBB); // write to RAM bank 1
         c.write(0x4000, 0x00);

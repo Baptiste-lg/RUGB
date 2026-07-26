@@ -152,7 +152,11 @@ mod tests {
         // Timer disabled (TAC = 0x00).
         // Tick 256 cycles → div_counter = 256 = 0x0100 → upper byte = 0x01.
         t.tick(256, &mut irq);
-        assert_eq!(t.read(0xFF04), 0x01, "DIV must advance even when timer is disabled");
+        assert_eq!(
+            t.read(0xFF04),
+            0x01,
+            "DIV must advance even when timer is disabled"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -179,12 +183,20 @@ mod tests {
         let mut t = timer_zero_div();
         let mut irq = 0u8;
         t.write(0xFF07, 0x04, &mut irq); // enable, freq 0
-        // After 1023 cycles TIMA must still be 0.
+                                         // After 1023 cycles TIMA must still be 0.
         t.tick(1023, &mut irq);
-        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 1024 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            0,
+            "TIMA should not increment before 1024 cycles"
+        );
         // The 1024th cycle crosses the falling edge.
         t.tick(1, &mut irq);
-        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 1024 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            1,
+            "TIMA should be 1 after exactly 1024 cycles"
+        );
     }
 
     #[test]
@@ -194,9 +206,17 @@ mod tests {
         let mut irq = 0u8;
         t.write(0xFF07, 0x05, &mut irq); // enable, freq 1
         t.tick(15, &mut irq);
-        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 16 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            0,
+            "TIMA should not increment before 16 cycles"
+        );
         t.tick(1, &mut irq);
-        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 16 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            1,
+            "TIMA should be 1 after exactly 16 cycles"
+        );
     }
 
     #[test]
@@ -206,9 +226,17 @@ mod tests {
         let mut irq = 0u8;
         t.write(0xFF07, 0x06, &mut irq); // enable, freq 2
         t.tick(63, &mut irq);
-        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 64 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            0,
+            "TIMA should not increment before 64 cycles"
+        );
         t.tick(1, &mut irq);
-        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 64 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            1,
+            "TIMA should be 1 after exactly 64 cycles"
+        );
     }
 
     #[test]
@@ -218,9 +246,17 @@ mod tests {
         let mut irq = 0u8;
         t.write(0xFF07, 0x07, &mut irq); // enable, freq 3
         t.tick(255, &mut irq);
-        assert_eq!(t.read(0xFF05), 0, "TIMA should not increment before 256 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            0,
+            "TIMA should not increment before 256 cycles"
+        );
         t.tick(1, &mut irq);
-        assert_eq!(t.read(0xFF05), 1, "TIMA should be 1 after exactly 256 cycles");
+        assert_eq!(
+            t.read(0xFF05),
+            1,
+            "TIMA should be 1 after exactly 256 cycles"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -234,8 +270,12 @@ mod tests {
         let mut irq = 0u8;
         t.write(0xFF07, 0x05, &mut irq); // enable, freq 1 (16 cycles/tick)
         t.write(0xFF05, 0xFF, &mut irq); // TIMA = 255
-        t.tick(16, &mut irq);            // one more increment → overflow
-        assert_eq!(irq & 0x04, 0x04, "timer interrupt (bit 2) must fire on TIMA overflow");
+        t.tick(16, &mut irq); // one more increment → overflow
+        assert_eq!(
+            irq & 0x04,
+            0x04,
+            "timer interrupt (bit 2) must fire on TIMA overflow"
+        );
     }
 
     #[test]
@@ -245,8 +285,12 @@ mod tests {
         t.write(0xFF07, 0x05, &mut irq); // enable, freq 1
         t.write(0xFF06, 0x42, &mut irq); // TMA = 0x42
         t.write(0xFF05, 0xFF, &mut irq); // TIMA = 255
-        t.tick(16, &mut irq);            // overflow
-        assert_eq!(t.read(0xFF05), 0x42, "TIMA must reload from TMA after overflow");
+        t.tick(16, &mut irq); // overflow
+        assert_eq!(
+            t.read(0xFF05),
+            0x42,
+            "TIMA must reload from TMA after overflow"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -270,7 +314,7 @@ mod tests {
         let mut t = timer_zero_div(); // div_counter = 0
         let mut irq = 0u8;
         t.write(0xFF07, 0x05, &mut irq); // enable, freq 1 (bit 3)
-        // Advance until bit 3 is set: tick 8 cycles → div_counter = 8 = 0b1000.
+                                         // Advance until bit 3 is set: tick 8 cycles → div_counter = 8 = 0b1000.
         t.tick(8, &mut irq);
         assert_eq!(t.read(0xFF05), 0, "no overflow yet");
         let tima_before = t.read(0xFF05);
@@ -315,7 +359,7 @@ mod tests {
         t.write(0xFF07, 0x07, &mut irq); // enable, freq 3
         t.write(0xFF05, 0x12, &mut irq); // TIMA
         t.write(0xFF06, 0x34, &mut irq); // TMA
-        t.tick(128, &mut irq);           // advance div_counter a bit
+        t.tick(128, &mut irq); // advance div_counter a bit
 
         let mut buf: Vec<u8> = Vec::new();
         t.save_state(&mut buf);
@@ -334,6 +378,10 @@ mod tests {
         let mut irq2 = 0u8;
         t.tick(256, &mut irq1);
         t2.tick(256, &mut irq2);
-        assert_eq!(t.read(0xFF05), t2.read(0xFF05), "TIMA must evolve identically after load");
+        assert_eq!(
+            t.read(0xFF05),
+            t2.read(0xFF05),
+            "TIMA must evolve identically after load"
+        );
     }
 }

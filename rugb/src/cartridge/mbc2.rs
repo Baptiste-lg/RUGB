@@ -137,7 +137,7 @@ mod tests {
         // Address 0x0000 has bit 8 = 0.
         let mut c = cart(2);
         c.write(0x0000, 0x0A); // enable RAM
-        // RAM is all-zero; read should return 0x00 | 0xF0 = 0xF0 (upper nibble always set).
+                               // RAM is all-zero; read should return 0x00 | 0xF0 = 0xF0 (upper nibble always set).
         assert_eq!(c.read(0xA000), 0xF0);
     }
 
@@ -161,7 +161,7 @@ mod tests {
     fn bank_0_maps_to_1() {
         let mut c = cart(4);
         c.write(0x0100, 0x00); // attempt to select bank 0
-        // Bank 0 is forbidden; hardware remaps it to bank 1.
+                               // Bank 0 is forbidden; hardware remaps it to bank 1.
         assert_eq!(c.read(0x4000), 0x01);
     }
 
@@ -172,7 +172,7 @@ mod tests {
         let mut c = cart(2);
         c.write(0x0000, 0x0A); // enable RAM
         c.write(0xA000, 0x0F); // write lower nibble 0xF
-        // On read, upper nibble must be forced to 0xF.
+                               // On read, upper nibble must be forced to 0xF.
         assert_eq!(c.read(0xA000), 0xFF);
     }
 
@@ -181,7 +181,7 @@ mod tests {
         let mut c = cart(2);
         c.write(0x0000, 0x0A);
         c.write(0xA000, 0xAB); // write 0xAB — only lower nibble 0xB stored
-        // Read back: lower nibble is 0xB, upper is forced 0xF → 0xFB.
+                               // Read back: lower nibble is 0xB, upper is forced 0xF → 0xFB.
         assert_eq!(c.read(0xA000), 0xFB);
     }
 
@@ -191,7 +191,7 @@ mod tests {
     fn ram_mirrored_512_bytes() {
         let mut c = cart(2);
         c.write(0x0000, 0x0A); // enable RAM
-        // Write to offset 0 (0xA000) and read back at offset 0x200 (which wraps to 0 via & 0x1FF).
+                               // Write to offset 0 (0xA000) and read back at offset 0x200 (which wraps to 0 via & 0x1FF).
         c.write(0xA000, 0x07);
         // 0xA200 - 0xA000 = 0x200, 0x200 & 0x1FF = 0, so this should read the same cell.
         assert_eq!(c.read(0xA200), 0xF7); // 0x07 | 0xF0

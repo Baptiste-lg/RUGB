@@ -146,7 +146,10 @@ mod tests {
         // ctrl bit 7 = 0 → disabled
         tc.timers[0] = make_timer(0x0010, 0, 0x00);
         tc.tick(1000);
-        assert_eq!(tc.timers[0].counter, 0x0010, "disabled timer must not change");
+        assert_eq!(
+            tc.timers[0].counter, 0x0010,
+            "disabled timer must not change"
+        );
     }
 
     // --- prescaler tests ---
@@ -197,7 +200,10 @@ mod tests {
         tc.timers[0] = make_timer(0xFFFF, 0, 0xC0);
         let irqs = tc.tick(1);
         // Timer 0 IRQ is bit 3
-        assert!(irqs & (1 << 3) != 0, "timer 0 IRQ should be raised on overflow");
+        assert!(
+            irqs & (1 << 3) != 0,
+            "timer 0 IRQ should be raised on overflow"
+        );
     }
 
     #[test]
@@ -206,8 +212,11 @@ mod tests {
         let mut tc = TimerController::new();
         tc.timers[0] = make_timer(0xFFFE, 0x1000, 0x80);
         tc.tick(2); // tick to 0xFFFF then overflow
-        // After overflow counter = reload + excess = 0x1000 + 0 = 0x1000
-        assert_eq!(tc.timers[0].counter, 0x1000, "counter should reload after overflow");
+                    // After overflow counter = reload + excess = 0x1000 + 0 = 0x1000
+        assert_eq!(
+            tc.timers[0].counter, 0x1000,
+            "counter should reload after overflow"
+        );
     }
 
     // --- cascade ---
@@ -220,7 +229,10 @@ mod tests {
         // timer1: enabled, cascade (bit 2)
         tc.timers[1] = make_timer(5, 0, 0x84); // 0x80 | 0x04
         tc.tick(1); // timer0 overflows → timer1 increments
-        assert_eq!(tc.timers[1].counter, 6, "cascade timer should increment on overflow");
+        assert_eq!(
+            tc.timers[1].counter, 6,
+            "cascade timer should increment on overflow"
+        );
     }
 
     #[test]
@@ -230,8 +242,11 @@ mod tests {
         tc.timers[0] = make_timer(0, 0, 0x80); // enabled, won't overflow
         tc.timers[1] = make_timer(10, 0, 0x84); // cascade
         tc.tick(1000); // lots of cycles, but timer0 doesn't overflow (counter = 1000 mod 65536, no OVF)
-        // Actually timer0 counter=1000, no overflow → timer1 stays at 10
-        assert_eq!(tc.timers[1].counter, 10, "cascade timer must not count its own cycles");
+                       // Actually timer0 counter=1000, no overflow → timer1 stays at 10
+        assert_eq!(
+            tc.timers[1].counter, 10,
+            "cascade timer must not count its own cycles"
+        );
     }
 
     // --- multiple overflows in batch ---
