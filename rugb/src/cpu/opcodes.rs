@@ -2182,4 +2182,477 @@ mod tests {
         assert!(!cpu.ime);
         assert_eq!(cycles, 4);
     }
+
+    // -------------------------------------------------------------------------
+    // LD rr, nn (DE and HL)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_de_nn() {
+        // 0x11 lo hi — load 0x5678 into DE. 12 cycles.
+        let (cpu, _, cycles) = exec(&[0x11, 0x78, 0x56]);
+        assert_eq!(cpu.regs.de(), 0x5678);
+        assert_eq!(cycles, 12);
+    }
+
+    #[test]
+    fn ld_hl_nn() {
+        // 0x21 lo hi — load 0xABCD into HL. 12 cycles.
+        let (cpu, _, cycles) = exec(&[0x21, 0xCD, 0xAB]);
+        assert_eq!(cpu.regs.hl(), 0xABCD);
+        assert_eq!(cycles, 12);
+    }
+
+    // -------------------------------------------------------------------------
+    // LD A, (HL+/-)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_a_hli() {
+        // 0x2A — A = (HL), HL increments. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0x2A], |cpu, mmu| {
+            cpu.regs.set_hl(0xC100);
+            mmu.write(0xC100, 0xAB);
+        });
+        assert_eq!(cpu.regs.a, 0xAB);
+        assert_eq!(cpu.regs.hl(), 0xC101);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_a_hld() {
+        // 0x3A — A = (HL), HL decrements. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0x3A], |cpu, mmu| {
+            cpu.regs.set_hl(0xC200);
+            mmu.write(0xC200, 0x77);
+        });
+        assert_eq!(cpu.regs.a, 0x77);
+        assert_eq!(cpu.regs.hl(), 0xC1FF);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // LD (nn), SP
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_nn_sp() {
+        // 0x08 lo hi — write SP to (nn) as 16-bit LE. SP=0x1234 → mem[addr]=0x34, mem[addr+1]=0x12.
+        let (_, mmu, cycles) = exec_with(&[0x08, 0x00, 0xC0], |cpu, _| {
+            cpu.regs.sp = 0x1234;
+        });
+        assert_eq!(mmu.read(0xC000), 0x34); // low byte
+        assert_eq!(mmu.read(0xC001), 0x12); // high byte
+        assert_eq!(cycles, 20);
+    }
+
+    // -------------------------------------------------------------------------
+    // INC rr (DE, HL, SP)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn inc_de() {
+        // 0x13 — DE=0x00D8 initially → 0x00D9. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x13]);
+        assert_eq!(cpu.regs.de(), 0x00D9);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn inc_hl() {
+        // 0x23 — HL=0x014D initially → 0x014E. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x23]);
+        assert_eq!(cpu.regs.hl(), 0x014E);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn inc_sp() {
+        // 0x33 — SP=0xFFFE initially → 0xFFFF. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x33]);
+        assert_eq!(cpu.regs.sp, 0xFFFF);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // DEC rr (BC, DE, SP)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn dec_bc() {
+        // 0x0B — BC=0x0013 initially → 0x0012. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x0B]);
+        assert_eq!(cpu.regs.bc(), 0x0012);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn dec_de() {
+        // 0x1B — DE=0x00D8 initially → 0x00D7. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x1B]);
+        assert_eq!(cpu.regs.de(), 0x00D7);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn dec_sp() {
+        // 0x3B — SP=0xFFFE initially → 0xFFFD. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x3B]);
+        assert_eq!(cpu.regs.sp, 0xFFFD);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // INC r (C, D, E, H, L, A)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn inc_c() {
+        // 0x0C — C=0x13 initially → 0x14. N clear. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x0C]);
+        assert_eq!(cpu.regs.c, 0x14);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn inc_d() {
+        // 0x14 — D=0x00 initially → 0x01. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x14]);
+        assert_eq!(cpu.regs.d, 0x01);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn inc_e() {
+        // 0x1C — E=0xD8 → 0xD9. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x1C]);
+        assert_eq!(cpu.regs.e, 0xD9);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn inc_h() {
+        // 0x24 — H=0x01 → 0x02. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x24]);
+        assert_eq!(cpu.regs.h, 0x02);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn inc_l() {
+        // 0x2C — L=0x4D → 0x4E. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x2C]);
+        assert_eq!(cpu.regs.l, 0x4E);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn inc_a() {
+        // 0x3C — A=0x01 initially → 0x02. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x3C]);
+        assert_eq!(cpu.regs.a, 0x02);
+        assert!(!cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    // -------------------------------------------------------------------------
+    // DEC r (B, D, E, H, L, A)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn dec_b() {
+        // 0x05 — B=0x00 → 0xFF (wraps). N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x05]);
+        assert_eq!(cpu.regs.b, 0xFF);
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn dec_d() {
+        // 0x15 — D=0x00 → 0xFF. N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x15]);
+        assert_eq!(cpu.regs.d, 0xFF);
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn dec_e() {
+        // 0x1D — E=0xD8 → 0xD7. N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x1D]);
+        assert_eq!(cpu.regs.e, 0xD7);
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn dec_h() {
+        // 0x25 — H=0x01 → 0x00. Z set, N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x25]);
+        assert_eq!(cpu.regs.h, 0x00);
+        assert!(cpu.regs.flag_z());
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn dec_l() {
+        // 0x2D — L=0x4D → 0x4C. N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x2D]);
+        assert_eq!(cpu.regs.l, 0x4C);
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn dec_a() {
+        // 0x3D — A=0x01 → 0x00. Z set, N set. 4 cycles.
+        let (cpu, _, cycles) = exec(&[0x3D]);
+        assert_eq!(cpu.regs.a, 0x00);
+        assert!(cpu.regs.flag_z());
+        assert!(cpu.regs.flag_n());
+        assert_eq!(cycles, 4);
+    }
+
+    // -------------------------------------------------------------------------
+    // LD r, n (C, D, E, H, L, A)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_c_imm() {
+        // 0x0E val — C ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x0E, 0xCC]);
+        assert_eq!(cpu.regs.c, 0xCC);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_d_imm() {
+        // 0x16 val — D ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x16, 0xDD]);
+        assert_eq!(cpu.regs.d, 0xDD);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_e_imm() {
+        // 0x1E val — E ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x1E, 0xEE]);
+        assert_eq!(cpu.regs.e, 0xEE);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_h_imm() {
+        // 0x26 val — H ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x26, 0x11]);
+        assert_eq!(cpu.regs.h, 0x11);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_l_imm() {
+        // 0x2E val — L ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x2E, 0x22]);
+        assert_eq!(cpu.regs.l, 0x22);
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn ld_a_imm() {
+        // 0x3E val — A ← val. 8 cycles.
+        let (cpu, _, cycles) = exec(&[0x3E, 0x99]);
+        assert_eq!(cpu.regs.a, 0x99);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // LD SP, HL
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_sp_hl() {
+        // 0xF9 — SP = HL. HL=0x1234 → SP=0x1234. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xF9], |cpu, _| {
+            cpu.regs.set_hl(0x1234);
+        });
+        assert_eq!(cpu.regs.sp, 0x1234);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // JP cc, nn (Z taken/not-taken, C taken, NC taken)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn jp_z_taken() {
+        // 0xCA lo hi — jump if Z set. Set Z flag.
+        let (cpu, _, cycles) = exec_with(&[0xCA, 0x00, 0x50], |cpu, _| {
+            cpu.regs.set_flag_z(true);
+        });
+        assert_eq!(cpu.regs.pc, 0x5000);
+        assert_eq!(cycles, 16);
+    }
+
+    #[test]
+    fn jp_z_not_taken() {
+        // 0xCA lo hi — no jump if Z clear. PC advances 3 bytes.
+        let (cpu, _, cycles) = exec_with(&[0xCA, 0x00, 0x50], |cpu, _| {
+            cpu.regs.set_flag_z(false);
+        });
+        assert_eq!(cpu.regs.pc, 0xFF83);
+        assert_eq!(cycles, 12);
+    }
+
+    #[test]
+    fn jp_c_taken() {
+        // 0xDA lo hi — jump if C set. Set C flag.
+        let (cpu, _, cycles) = exec_with(&[0xDA, 0x00, 0x60], |cpu, _| {
+            cpu.regs.set_flag_c(true);
+        });
+        assert_eq!(cpu.regs.pc, 0x6000);
+        assert_eq!(cycles, 16);
+    }
+
+    #[test]
+    fn jp_nc_taken() {
+        // 0xD2 lo hi — jump if C clear. Clear C flag.
+        let (cpu, _, cycles) = exec_with(&[0xD2, 0x00, 0x70], |cpu, _| {
+            cpu.regs.set_flag_c(false);
+        });
+        assert_eq!(cpu.regs.pc, 0x7000);
+        assert_eq!(cycles, 16);
+    }
+
+    // -------------------------------------------------------------------------
+    // JR cc (NZ taken, Z taken)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn jr_nz_taken() {
+        // 0x20 offset — jump if Z clear. PC after fetch = 0xFF82; add 3 → 0xFF85.
+        let (cpu, _, cycles) = exec_with(&[0x20, 0x03], |cpu, _| {
+            cpu.regs.set_flag_z(false);
+        });
+        assert_eq!(cpu.regs.pc, 0xFF85);
+        assert_eq!(cycles, 12);
+    }
+
+    #[test]
+    fn jr_z_taken() {
+        // 0x28 offset — jump if Z set. PC after fetch = 0xFF82; add 5 → 0xFF87.
+        let (cpu, _, cycles) = exec_with(&[0x28, 0x05], |cpu, _| {
+            cpu.regs.set_flag_z(true);
+        });
+        assert_eq!(cpu.regs.pc, 0xFF87);
+        assert_eq!(cycles, 12);
+    }
+
+    // -------------------------------------------------------------------------
+    // CALL NZ (taken and not taken)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn call_nz_taken() {
+        // 0xC4 lo hi — CALL if Z clear. Return addr = 0xFF83. 24 cycles.
+        let (cpu, mmu, cycles) = exec_with(&[0xC4, 0x00, 0x80], |cpu, _| {
+            cpu.regs.sp = 0xFFFE;
+            cpu.regs.set_flag_z(false);
+        });
+        assert_eq!(cpu.regs.pc, 0x8000);
+        assert_eq!(cpu.regs.sp, 0xFFFC);
+        assert_eq!(mmu.read(0xFFFC), 0x83); // return addr low
+        assert_eq!(mmu.read(0xFFFD), 0xFF); // return addr high
+        assert_eq!(cycles, 24);
+    }
+
+    #[test]
+    fn call_nz_not_taken() {
+        // 0xC4 lo hi — no call if Z set. PC advances past the 3-byte instruction. 12 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xC4, 0x00, 0x80], |cpu, _| {
+            cpu.regs.set_flag_z(true);
+        });
+        assert_eq!(cpu.regs.pc, 0xFF83);
+        assert_eq!(cycles, 12);
+    }
+
+    // -------------------------------------------------------------------------
+    // RET NZ (taken and not taken)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ret_nz_taken() {
+        // 0xC0 — RET if Z clear. Pop 0x4321 from stack. 20 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xC0], |cpu, mmu| {
+            cpu.regs.set_flag_z(false);
+            cpu.regs.sp = 0xFFFC;
+            mmu.write(0xFFFC, 0x21); // low byte
+            mmu.write(0xFFFD, 0x43); // high byte
+        });
+        assert_eq!(cpu.regs.pc, 0x4321);
+        assert_eq!(cpu.regs.sp, 0xFFFE);
+        assert_eq!(cycles, 20);
+    }
+
+    #[test]
+    fn ret_nz_not_taken() {
+        // 0xC0 — no RET if Z set. PC advances 1 byte. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xC0], |cpu, _| {
+            cpu.regs.set_flag_z(true);
+        });
+        assert_eq!(cpu.regs.pc, 0xFF81);
+        assert_eq!(cycles, 8);
+    }
+
+    // -------------------------------------------------------------------------
+    // LD A, (nn)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn ld_a_nn() {
+        // 0xFA lo hi — A = (nn). Write 0xDE to 0xC500, then load it. 16 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xFA, 0x00, 0xC5], |_, mmu| {
+            mmu.write(0xC500, 0xDE);
+        });
+        assert_eq!(cpu.regs.a, 0xDE);
+        assert_eq!(cycles, 16);
+    }
+
+    // -------------------------------------------------------------------------
+    // ADC A, imm  /  SBC A, imm
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn adc_a_imm() {
+        // 0xCE val — ADC A, val. A=0x10, val=0x01, carry=1 → A=0x12. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xCE, 0x01], |cpu, _| {
+            cpu.regs.a = 0x10;
+            cpu.regs.set_flag_c(true);
+        });
+        assert_eq!(cpu.regs.a, 0x12);
+        assert!(!cpu.regs.flag_z());
+        assert!(!cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_c());
+        assert_eq!(cycles, 8);
+    }
+
+    #[test]
+    fn sbc_a_imm() {
+        // 0xDE val — SBC A, val. A=0x10, val=0x05, carry=1 → A=0x0A. 8 cycles.
+        let (cpu, _, cycles) = exec_with(&[0xDE, 0x05], |cpu, _| {
+            cpu.regs.a = 0x10;
+            cpu.regs.set_flag_c(true);
+        });
+        assert_eq!(cpu.regs.a, 0x0A);
+        assert!(!cpu.regs.flag_z());
+        assert!(cpu.regs.flag_n());
+        assert!(!cpu.regs.flag_c());
+        assert_eq!(cycles, 8);
+    }
 }
