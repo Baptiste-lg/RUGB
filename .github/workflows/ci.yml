@@ -92,10 +92,10 @@ jobs:
       - name: Run WASM Tests — rugb
         run: |
           cargo install wasm-pack
-          wasm-pack test rugb --headless --chrome
+          wasm-pack test rugb --node
 
       - name: Run WASM Tests — rugba
-        run: wasm-pack test rugba --headless --chrome
+        run: wasm-pack test rugba --node
 
   deploy:
     name: Build & Deploy to GitHub Pages
