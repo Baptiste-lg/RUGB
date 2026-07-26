@@ -1,7 +1,6 @@
 # ============================================================
 # Stage 1: Builder
-# Compiles the Rust source into a WASM binary using wasm-pack.
-# Specific version pinning ensures reproducible builds.
+# Compiles the Rust workspace into WASM binaries using wasm-pack.
 # ============================================================
 FROM rust:1.91 AS builder
 
@@ -14,22 +13,28 @@ RUN rustup target add wasm32-unknown-unknown
 WORKDIR /usr/src/app
 
 # --- Dependency caching layer ---
-# Copy only the manifest files first so Docker can cache the dependency
-# download step. Source changes won't invalidate the expensive fetch.
+# Copy workspace manifest + member manifests first so Docker can cache deps.
 COPY Cargo.toml Cargo.lock* ./
+COPY rugb/Cargo.toml rugb/Cargo.toml
+COPY rugba/Cargo.toml rugba/Cargo.toml
 
-# Create a dummy lib.rs to pre-build dependencies
-RUN mkdir src && echo "// dummy" > src/lib.rs \
+# Create dummy lib.rs files to pre-build dependencies
+RUN mkdir -p rugb/src rugba/src \
+    && echo "// dummy" > rugb/src/lib.rs \
+    && echo "// dummy" > rugba/src/lib.rs \
     && cargo build --target wasm32-unknown-unknown --release 2>/dev/null || true \
-    && rm -rf src
+    && rm -rf rugb/src rugba/src
 
 # Copy the real source code
-COPY src/ src/
+COPY rugb/ rugb/
+COPY rugba/ rugba/
 
-# Build the WASM release bundle, output into web/pkg/
-# This produces the .wasm binary + JS glue code that the frontend imports
+# Copy web assets
 COPY web/ web/
-RUN wasm-pack build --target web --out-dir web/pkg --release
+
+# Build both WASM release bundles
+RUN wasm-pack build rugb --target web --out-dir ../web/pkg/rugb --release
+RUN wasm-pack build rugba --target web --out-dir ../web/pkg/rugba --release
 
 # ============================================================
 # Stage 2: Runtime
