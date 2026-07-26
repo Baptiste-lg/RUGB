@@ -907,3 +907,476 @@ fn exec_msr(cpu: &mut Arm7Tdmi, instruction: u32) -> u32 {
 fn exec_swi(cpu: &mut Arm7Tdmi) {
     cpu.enter_exception(CpuMode::Supervisor, 0x08);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::execute_arm;
+    use crate::arm7tdmi::{Arm7Tdmi, C_FLAG, N_FLAG, T_FLAG, V_FLAG, Z_FLAG};
+    use crate::bus::Bus;
+
+    fn make_cpu_bus() -> (Arm7Tdmi, Bus) {
+        let rom = vec![0u8; 0x200];
+        let cpu = Arm7Tdmi::new();
+        let bus = Bus::new(rom);
+        (cpu, bus)
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// Build a data-processing instruction (condition = AL = 0xE).
+    /// opcode: 4-bit ALU op; s: S-bit; rn: 4-bit; rd: 4-bit; operand2: 12-bit.
+    /// Set bit 25 to 1 for immediate operand2.
+    fn dp_imm(opcode: u32, s: bool, rn: u32, rd: u32, imm12: u32) -> u32 {
+        0xE000_0000 | (1 << 25) | (opcode << 21) | ((s as u32) << 20) | (rn << 16) | (rd << 12) | imm12
+    }
+
+    /// Build a data-processing instruction with register Rm (no shift).
+    fn dp_reg(opcode: u32, s: bool, rn: u32, rd: u32, rm: u32) -> u32 {
+        0xE000_0000 | (opcode << 21) | ((s as u32) << 20) | (rn << 16) | (rd << 12) | rm
+    }
+
+    // ── Barrel shifter ────────────────────────────────────────────────────────
+
+    #[test]
+    fn lsl_by_0_noop() {
+        // MOV R0, R1, LSL #0  →  R0 = R1  (shift_type=0, shift_amount=0)
+        // Encoding: cond=AL, I=0, op=MOV(0xD), S=0, Rn=0, Rd=0, shift_amount=0, shift_type=0, Rm=1
+        let instr = dp_reg(0xD, false, 0, 0, 1);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xABCD;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xABCD);
+    }
+
+    #[test]
+    fn lsl_by_1() {
+        // MOV R0, R1, LSL #1  →  R0 = R1 << 1
+        // shift_amount=1, shift_type=0(LSL) → bits [11:7]=00001, [6:5]=00
+        let instr: u32 = 0xE1A0_0081; // MOV R0, R1, LSL #1 (no S)
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 5;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 10);
+    }
+
+    #[test]
+    fn lsl_carry_out() {
+        // MOV R0, R1, LSL #1 with S set, R1=0x8000_0000 → carry = 1, result = 0
+        // MOVS R0, R1, LSL #1
+        let instr: u32 = 0xE1B0_0081; // MOVS R0, R1, LSL #1
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x8000_0000;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0);
+        assert!(cpu.get_flag(C_FLAG), "Carry should be set from bit 31");
+        assert!(cpu.get_flag(Z_FLAG), "Result is zero");
+    }
+
+    #[test]
+    fn lsr_by_0_means_32() {
+        // MOVS R0, R1, LSR #0  →  LSR #32  →  result=0, carry=bit31 of R1
+        // shift_type=1(LSR), shift_amount=0 (encodes LSR #32), S=1
+        let instr: u32 = 0xE1B0_0021; // MOVS R0, R1, LSR #0 (encodes LSR #32)
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x8000_0001; // bit31=1
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0);
+        assert!(cpu.get_flag(C_FLAG), "Carry = former bit 31");
+    }
+
+    #[test]
+    fn asr_sign_preserving() {
+        // MOVS R0, R1, ASR #1  →  arithmetic right shift preserves sign
+        // shift_type=2(ASR), shift_amount=1
+        let instr: u32 = 0xE1B0_00C1; // MOVS R0, R1, ASR #1
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x8000_0000u32; // negative
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xC000_0000); // sign preserved
+        assert!(cpu.get_flag(N_FLAG));
+    }
+
+    #[test]
+    fn ror_basic() {
+        // MOVS R0, R1, ROR #4  →  rotate right 4
+        // shift_type=3(ROR), shift_amount=4 → bits[11:7]=00100,[6:5]=11
+        let instr: u32 = 0xE1B0_0261; // MOVS R0, R1, ROR #4
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0000_0010; // bit4 set
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x0000_0001); // rotated to bit0
+    }
+
+    // ── Data processing ───────────────────────────────────────────────────────
+
+    #[test]
+    fn mov_immediate() {
+        // MOV R0, #42
+        let instr = dp_imm(0xD, false, 0, 0, 42);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 42);
+    }
+
+    #[test]
+    fn mov_sets_nz() {
+        // MOVS R0, #0  →  Z set, N clear
+        let instr = dp_imm(0xD, true, 0, 0, 0);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert!(!cpu.get_flag(N_FLAG));
+    }
+
+    #[test]
+    fn add_no_flags() {
+        // ADD R0, R1, R2 (no S bit) — flags not modified
+        let instr = dp_reg(0x4, false, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 10;
+        cpu.regs[2] = 20;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 30);
+        // Flags untouched (C should remain clear)
+        assert!(!cpu.get_flag(C_FLAG));
+    }
+
+    #[test]
+    fn add_with_s_sets_carry() {
+        // ADDS R0, R1, R2 — unsigned overflow → carry
+        let instr = dp_reg(0x4, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xFFFF_FFFF;
+        cpu.regs[2] = 1;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0);
+        assert!(cpu.get_flag(C_FLAG));
+        assert!(cpu.get_flag(Z_FLAG));
+    }
+
+    #[test]
+    fn sub_basic() {
+        // SUB R0, R1, #5
+        let instr = dp_imm(0x2, false, 1, 0, 5);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 10;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 5);
+    }
+
+    #[test]
+    fn sub_borrow() {
+        // SUBS R0, R1, #10  where R1=5 → result negative, C cleared (borrow)
+        let instr = dp_imm(0x2, true, 1, 0, 10);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 5;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0] as i32, -5);
+        assert!(!cpu.get_flag(C_FLAG)); // borrow occurred
+        assert!(cpu.get_flag(N_FLAG));
+    }
+
+    #[test]
+    fn and_basic() {
+        // ANDS R0, R1, R2
+        let instr = dp_reg(0x0, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xFF00;
+        cpu.regs[2] = 0x0F0F;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x0F00);
+    }
+
+    #[test]
+    fn orr_basic() {
+        // ORRS R0, R1, R2
+        let instr = dp_reg(0xC, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xF0;
+        cpu.regs[2] = 0x0F;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xFF);
+    }
+
+    #[test]
+    fn eor_basic() {
+        // EORS R0, R1, R2
+        let instr = dp_reg(0x1, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0b1100;
+        cpu.regs[2] = 0b1010;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0b0110);
+    }
+
+    #[test]
+    fn bic_basic() {
+        // BICS R0, R1, R2  →  R0 = R1 & ~R2
+        let instr = dp_reg(0xE, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xFF;
+        cpu.regs[2] = 0x0F;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xF0);
+    }
+
+    #[test]
+    fn cmp_sets_flags() {
+        // CMP R1, R1  →  result 0, Z set
+        // opcode=CMP(0xA), S always set for CMP, Rn=R1, Rd=0 (unused)
+        let instr = dp_reg(0xA, true, 1, 0, 1);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 42;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert!(cpu.get_flag(C_FLAG)); // no borrow
+        assert!(!cpu.get_flag(N_FLAG));
+    }
+
+    #[test]
+    fn tst_sets_z() {
+        // TST R1, #0  →  Z set (result=0)
+        let instr = dp_imm(0x8, true, 1, 0, 0);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xFFFF;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+    }
+
+    #[test]
+    fn mvn_inverts() {
+        // MVNS R0, R1  →  R0 = ~R1
+        let instr = dp_reg(0xF, true, 0, 0, 1);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0000_FF00;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], !0x0000_FF00u32);
+    }
+
+    #[test]
+    fn adc_with_carry() {
+        // ADCS R0, R1, R2  with carry=1  →  R0 = R1 + R2 + 1
+        // opcode=ADC(0x5)
+        let instr = dp_reg(0x5, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 10;
+        cpu.regs[2] = 20;
+        cpu.set_flag(C_FLAG, true);
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 31); // 10 + 20 + 1
+    }
+
+    #[test]
+    fn rsb_reverses() {
+        // RSBS R0, R1, R2  →  R0 = R2 - R1  (operands swapped)
+        // opcode=RSB(0x3), Rn=R1, Rd=R0, Rm=R2
+        let instr = dp_reg(0x3, true, 1, 0, 2);
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 3;
+        cpu.regs[2] = 10;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 7); // 10 - 3
+    }
+
+    // ── Branches ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn b_forward() {
+        // B +8 bytes from current PC (offset field = 0 → PC+8+0 = PC+8)
+        // Branch: cond=AL, bits[27:25]=101, L=0, offset24=0
+        // exec_branch: pc = cpu.regs[15]+8; target = pc + (offset<<2)
+        // offset=0 → target = cpu.regs[15]+8
+        let instr: u32 = 0xEA00_0000; // B +0 (i.e. PC+8)
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[15] = 0x0300_0000;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[15], 0x0300_0008);
+    }
+
+    #[test]
+    fn b_backward() {
+        // B -4 (offset = -1 in 24-bit signed → 0xFFFFFF, shifted: -1 * 4 = -4)
+        // But exec_branch adds +8 first: target = (PC+8) + (-4) = PC+4
+        let instr: u32 = 0xEAFF_FFFF; // B -4 bytes (signed offset = -1, *4 = -4)
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[15] = 0x0300_0010;
+        execute_arm(&mut cpu, &mut bus, instr);
+        // pc+8 = 0x0300_0018; + (-4) = 0x0300_0014
+        assert_eq!(cpu.regs[15], 0x0300_0014);
+    }
+
+    #[test]
+    fn bl_saves_lr() {
+        // BL saves LR = (PC+8) - 4 = PC+4
+        let instr: u32 = 0xEB00_0000; // BL offset=0
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[15] = 0x0800_0000;
+        execute_arm(&mut cpu, &mut bus, instr);
+        // LR = (PC+8) - 4 = PC+4
+        assert_eq!(cpu.regs[14], 0x0800_0004);
+        assert_eq!(cpu.regs[15], 0x0800_0008);
+    }
+
+    #[test]
+    fn bx_to_thumb() {
+        // BX R0 with R0 bit0=1 → THUMB mode, PC = R0 & ~1
+        // BX encoding: 0xE12FFF10 | Rm
+        let instr: u32 = 0xE12F_FF10; // BX R0
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x0300_0001; // bit0 set → THUMB
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert!(cpu.in_thumb_mode());
+        assert_eq!(cpu.regs[15], 0x0300_0000);
+    }
+
+    // ── Load / Store ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn str_ldr_roundtrip() {
+        // STR R1, [R2]  then  LDR R0, [R2]
+        // STR: cond=AL, I=0, P=1, U=1, B=0, W=0, L=0, Rn=R2, Rd=R1, offset=0
+        // Encoding: 0xE580_0000 | (Rn<<16) | (Rd<<12) | offset
+        let str_instr: u32 = 0xE582_1000; // STR R1, [R2, #0]
+        let ldr_instr: u32 = 0xE592_0000; // LDR R0, [R2, #0]
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let addr = 0x0300_0000u32; // IWRAM
+        cpu.regs[1] = 0xDEAD_BEEF;
+        cpu.regs[2] = addr;
+        execute_arm(&mut cpu, &mut bus, str_instr);
+        execute_arm(&mut cpu, &mut bus, ldr_instr);
+        assert_eq!(cpu.regs[0], 0xDEAD_BEEF);
+    }
+
+    #[test]
+    fn strb_ldrb() {
+        // STRB R1, [R2]  then  LDRB R0, [R2]
+        let strb_instr: u32 = 0xE5C2_1000; // STRB R1, [R2, #0]
+        let ldrb_instr: u32 = 0xE5D2_0000; // LDRB R0, [R2, #0]
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let addr = 0x0300_0004u32;
+        cpu.regs[1] = 0xAB;
+        cpu.regs[2] = addr;
+        execute_arm(&mut cpu, &mut bus, strb_instr);
+        execute_arm(&mut cpu, &mut bus, ldrb_instr);
+        assert_eq!(cpu.regs[0], 0xAB);
+    }
+
+    #[test]
+    fn ldr_pre_index() {
+        // LDR R0, [R1, #4]  (pre-indexed, no writeback)
+        // 0xE591_0004: P=1, U=1, B=0, W=0, L=1, Rn=R1, Rd=R0, offset=4
+        let ldr_instr: u32 = 0xE591_0004; // LDR R0, [R1, #4]
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let base = 0x0300_0000u32;
+        cpu.regs[1] = base;
+        // write sentinel at base+4
+        bus.write32(base + 4, 0x1234_5678);
+        execute_arm(&mut cpu, &mut bus, ldr_instr);
+        assert_eq!(cpu.regs[0], 0x1234_5678);
+        assert_eq!(cpu.regs[1], base); // base not updated (no writeback)
+    }
+
+    #[test]
+    fn ldr_post_index() {
+        // LDR R0, [R1], #4  (post-indexed: load from [R1], then R1 += 4)
+        // P=0, U=1, B=0, W=0 (W ignored for post), L=1, Rn=R1, Rd=R0, offset=4
+        // Encoding: 0xE491_0004
+        let ldr_instr: u32 = 0xE491_0004; // LDR R0, [R1], #4
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let base = 0x0300_0000u32;
+        cpu.regs[1] = base;
+        bus.write32(base, 0xCAFE_BABE);
+        execute_arm(&mut cpu, &mut bus, ldr_instr);
+        assert_eq!(cpu.regs[0], 0xCAFE_BABE);
+        assert_eq!(cpu.regs[1], base + 4); // writeback
+    }
+
+    // ── Block transfer ────────────────────────────────────────────────────────
+
+    #[test]
+    fn stm_ldm_ia() {
+        // STMIA R0!, {R1, R2, R3}  then  LDMIA R4!, {R5, R6, R7}
+        // STMIA: P=0, U=1, S=0, W=1, L=0, Rn=R0, rlist=0b1110 (R1|R2|R3)
+        // Encoding: 0xE8A0_000E
+        let stm_instr: u32 = 0xE8A0_000E; // STMIA R0!, {R1, R2, R3}
+        // LDMIA: 0xE8B4_00E0 (R4!, {R5, R6, R7} = bits 5,6,7 = 0xE0)
+        let ldm_instr: u32 = 0xE8B4_00E0; // LDMIA R4!, {R5, R6, R7}
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let base = 0x0300_0000u32;
+        cpu.regs[0] = base;
+        cpu.regs[1] = 0xAABB;
+        cpu.regs[2] = 0xCCDD;
+        cpu.regs[3] = 0xEEFF;
+        execute_arm(&mut cpu, &mut bus, stm_instr);
+        assert_eq!(cpu.regs[0], base + 12); // writeback: 3 regs * 4
+
+        cpu.regs[4] = base;
+        execute_arm(&mut cpu, &mut bus, ldm_instr);
+        assert_eq!(cpu.regs[5], 0xAABB);
+        assert_eq!(cpu.regs[6], 0xCCDD);
+        assert_eq!(cpu.regs[7], 0xEEFF);
+        assert_eq!(cpu.regs[4], base + 12);
+    }
+
+    // ── Multiply ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn mul_basic() {
+        // MUL R0, R1, R2  (Rd=R0, Rm=R1, Rs=R2)
+        // Encoding: cond=AL, 000000[A][S], Rd[19:16], Rn[15:12]=0, Rs[11:8], 1001, Rm[3:0]
+        // MUL: bits[27:22]=000000, A=0, S=0
+        // 0xE000_0291: Rd=R0(0<<16), Rs=R2(2<<8), 1001, Rm=R1(1)
+        let instr: u32 = 0xE000_0291; // MUL R0, R1, R2
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 6;
+        cpu.regs[2] = 7;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 42);
+    }
+
+    // ── SWP ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn swp_exchanges() {
+        // SWP R0, R1, [R2]  →  R0 = mem[R2], mem[R2] = R1
+        // Encoding: cond=AL, 00010B00, Rn, Rd, 0000_1001, Rm
+        // SWP (word): 0xE102_0091  (Rn=R2<<16, Rd=R0<<12, Rm=R1)
+        let instr: u32 = 0xE102_0091; // SWP R0, R1, [R2]
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let addr = 0x0300_0008u32;
+        bus.write32(addr, 0x1111_1111);
+        cpu.regs[1] = 0x2222_2222;
+        cpu.regs[2] = addr;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x1111_1111); // loaded from memory
+        assert_eq!(bus.read32(addr), 0x2222_2222); // stored to memory
+    }
+
+    // ── MRS ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn mrs_reads_cpsr() {
+        // MRS R0, CPSR
+        // Encoding: 0xE10F_0000
+        let instr: u32 = 0xE10F_0000;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        let expected = cpu.cpsr;
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], expected);
+    }
+
+    // ── Condition skip ────────────────────────────────────────────────────────
+
+    #[test]
+    fn condition_false_skips() {
+        // MOV R0, #99 with NE condition (0x1) when Z=1 → should be skipped
+        // NE = condition 0x1 → 0x1_0000000 | dp_imm body
+        let instr: u32 = 0x13A0_0063; // NE MOV R0, #99
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0;
+        cpu.set_flag(Z_FLAG, true); // Z set → NE fails
+        execute_arm(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0, "Instruction should have been skipped");
+    }
+}
