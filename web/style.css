@@ -16,8 +16,6 @@ body {
 
 .menu-toggle {
     position: fixed;
-    top: 12px;
-    left: 12px;
     z-index: 200;
     width: 40px;
     height: 40px;
@@ -31,6 +29,9 @@ body {
     align-items: center;
     justify-content: center;
     transition: background 0.15s;
+    /* Default position — overridden by dock.js */
+    top: 12px;
+    left: 12px;
 }
 
 .menu-toggle:hover {
@@ -38,24 +39,200 @@ body {
     border-color: #8be9fd;
 }
 
-.side-menu {
-    position: fixed;
-    top: 0;
-    left: -320px;
-    width: 300px;
-    height: 100%;
-    background: #0f1528;
-    border-right: 1px solid #333;
-    z-index: 150;
-    transition: left 0.25s ease;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 60px 16px 24px;
+/* --- Dock handle (drag grip) --- */
+.dock-handle {
+    position: absolute;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    background: #0a0e1a;
+    transition: background 0.15s;
+}
+.dock-handle:hover { background: #1a3a5c; }
+.dock-handle:active { cursor: grabbing; }
+
+.dock-grip {
+    display: block;
+    background: repeating-linear-gradient(
+        to bottom,
+        #555 0px, #555 2px,
+        transparent 2px, transparent 5px
+    );
+    border-radius: 2px;
+    opacity: 0.6;
 }
 
-.side-menu.open {
-    left: 0;
+/* Handle position per dock side */
+.side-menu[data-dock="left"] .dock-handle,
+.side-menu[data-dock="right"] .dock-handle {
+    top: 0; right: 0; bottom: 0; width: 12px;
 }
+.side-menu[data-dock="left"] .dock-handle { right: 0; left: auto; }
+.side-menu[data-dock="right"] .dock-handle { left: 0; right: auto; }
+.side-menu[data-dock="left"] .dock-grip,
+.side-menu[data-dock="right"] .dock-grip { width: 4px; height: 40px; }
+
+.side-menu[data-dock="top"] .dock-handle,
+.side-menu[data-dock="bottom"] .dock-handle {
+    left: 0; right: 0; height: 12px;
+}
+.side-menu[data-dock="top"] .dock-handle { bottom: 0; top: auto; }
+.side-menu[data-dock="bottom"] .dock-handle { top: 0; bottom: auto; }
+.side-menu[data-dock="top"] .dock-grip,
+.side-menu[data-dock="bottom"] .dock-grip {
+    height: 4px; width: 40px;
+    background: repeating-linear-gradient(
+        to right,
+        #555 0px, #555 2px,
+        transparent 2px, transparent 5px
+    );
+}
+
+/* --- Base side-menu --- */
+.side-menu {
+    position: fixed;
+    background: #0f1528;
+    z-index: 150;
+    transition: left 0.25s ease, right 0.25s ease, top 0.25s ease, bottom 0.25s ease;
+}
+
+/* --- Vertical docks (left / right) --- */
+.side-menu[data-dock="left"],
+.side-menu[data-dock="right"] {
+    top: 0;
+    width: 300px;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 52px 16px 24px;
+}
+.side-menu[data-dock="left"] .side-menu-content,
+.side-menu[data-dock="right"] .side-menu-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Left dock */
+.side-menu[data-dock="left"] { left: -320px; border-right: 1px solid #333; }
+.side-menu[data-dock="left"].open { left: 0; }
+
+/* Right dock */
+.side-menu[data-dock="right"] { right: -320px; left: auto; border-left: 1px solid #333; }
+.side-menu[data-dock="right"].open { right: 0; }
+
+/* --- Horizontal docks (top / bottom) --- */
+.side-menu[data-dock="top"],
+.side-menu[data-dock="bottom"] {
+    left: 0;
+    width: 100%;
+    height: auto;
+    max-height: 45vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 16px;
+}
+.side-menu[data-dock="top"] .side-menu-content,
+.side-menu[data-dock="bottom"] .side-menu-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: flex-start;
+}
+
+/* Top dock */
+.side-menu[data-dock="top"] { top: -100vh; border-bottom: 1px solid #333; }
+.side-menu[data-dock="top"].open { top: 0; }
+
+/* Bottom dock */
+.side-menu[data-dock="bottom"] { bottom: -100vh; top: auto; border-top: 1px solid #333; }
+.side-menu[data-dock="bottom"].open { bottom: 0; }
+
+/* Horizontal layout adjustments */
+.side-menu[data-dock="top"] h2,
+.side-menu[data-dock="bottom"] h2 {
+    font-size: 1rem;
+    margin-bottom: 0;
+    margin-right: 12px;
+    white-space: nowrap;
+    align-self: center;
+}
+
+.side-menu[data-dock="top"] .side-menu-content > *,
+.side-menu[data-dock="bottom"] .side-menu-content > * {
+    flex-shrink: 0;
+}
+
+.side-menu[data-dock="top"] hr,
+.side-menu[data-dock="bottom"] hr {
+    display: none;
+}
+
+.side-menu[data-dock="top"] .menu-item,
+.side-menu[data-dock="bottom"] .menu-item {
+    width: auto;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.78rem;
+}
+
+.side-menu[data-dock="top"] .menu-group,
+.side-menu[data-dock="bottom"] .menu-group {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.side-menu[data-dock="top"] .menu-group > span,
+.side-menu[data-dock="bottom"] .menu-group > span {
+    display: inline;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.side-menu[data-dock="top"] .volume-slider,
+.side-menu[data-dock="bottom"] .volume-slider {
+    width: 80px;
+}
+
+.side-menu[data-dock="top"] .audio-viz,
+.side-menu[data-dock="bottom"] .audio-viz {
+    width: 120px;
+    height: 32px;
+}
+
+.side-menu[data-dock="top"] .custom-palette,
+.side-menu[data-dock="bottom"] .custom-palette {
+    margin-top: 0;
+}
+
+.side-menu[data-dock="top"] .recent-roms,
+.side-menu[data-dock="bottom"] .recent-roms {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.side-menu[data-dock="top"] .cheats-list,
+.side-menu[data-dock="bottom"] .cheats-list {
+    max-height: 120px;
+}
+
+/* --- Dock preview zones (shown while dragging) --- */
+.dock-preview {
+    display: none;
+    position: fixed;
+    background: rgba(139, 233, 253, 0.1);
+    border: 2px dashed rgba(139, 233, 253, 0.5);
+    z-index: 9999;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+.dock-preview.visible { display: block; }
+.dock-preview[data-zone="left"]   { top: 0; left: 0; width: 80px; height: 100%; }
+.dock-preview[data-zone="right"]  { top: 0; right: 0; width: 80px; height: 100%; }
+.dock-preview[data-zone="top"]    { top: 0; left: 0; right: 0; height: 60px; }
+.dock-preview[data-zone="bottom"] { bottom: 0; left: 0; right: 0; height: 60px; }
 
 .side-menu h2 {
     color: #8be9fd;

@@ -13,7 +13,10 @@
     <button id="menu-toggle" class="menu-toggle" aria-label="Menu">&#9776;</button>
 
     <!-- Side menu -->
-    <div id="side-menu" class="side-menu">
+    <div id="side-menu" class="side-menu" data-dock="left">
+        <div class="dock-handle" id="dock-handle" title="Drag to dock left/right/top/bottom">
+            <span class="dock-grip"></span>
+        </div>
         <div class="side-menu-content">
             <h2>RUGB</h2>
             <label class="file-btn menu-item">
@@ -406,6 +409,13 @@
     <!-- Quick save/load toast -->
     <div id="toast" class="toast"></div>
 
+    <!-- Dock preview zones -->
+    <div class="dock-preview" data-zone="left"></div>
+    <div class="dock-preview" data-zone="right"></div>
+    <div class="dock-preview" data-zone="top"></div>
+    <div class="dock-preview" data-zone="bottom"></div>
+
     <script type="module" src="js/index.js"></script>
+    <script src="js/dock.js"></script>
 </body>
 </html>
