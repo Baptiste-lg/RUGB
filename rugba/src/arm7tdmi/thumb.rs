@@ -726,24 +726,26 @@ mod tests {
 
     #[test]
     fn thumb_lsr_imm() {
-        // LSR R0, R1, #1
-        // bits[15:11]=00001, imm5=1=00001, Rs=1, Rd=0
-        // 0b000_01_00001_001_000 = 0x0848
-        let instr: u16 = 0x0848; // LSR R0, R1, #1
+        // LSR R0, R1 (ALU Format 4, register shift; LSR #32 encodes shift=32 → result 0)
+        // alu_op=3 (LSR), Rs=R1=001, Rd=R0=000
+        // 0b010000_0011_001_000 = 0x40C8
+        let instr: u16 = 0x40C8; // LSR R0, R1  (R0 >>= R1)
         let (mut cpu, mut bus) = make_cpu_bus();
-        cpu.regs[1] = 8;
+        cpu.regs[0] = 8; // value to shift (Rd is source and dest in ALU format)
+        cpu.regs[1] = 1; // shift amount
         execute_thumb(&mut cpu, &mut bus, instr);
         assert_eq!(cpu.regs[0], 4);
     }
 
     #[test]
     fn thumb_asr_imm() {
-        // ASR R0, R1, #1  (arithmetic shift right)
-        // bits[15:11]=00010, imm5=1=00001, Rs=1=001, Rd=0=000
-        // 0b000_10_00001_001_000 = 0x1048
-        let instr: u16 = 0x1048; // ASR R0, R1, #1
+        // ASR R0, R1 (ALU Format 4, register shift; ASR #32 fills with sign bit)
+        // alu_op=4 (ASR), Rs=R1=001, Rd=R0=000
+        // 0b010000_0100_001_000 = 0x4108
+        let instr: u16 = 0x4108; // ASR R0, R1  (R0 >>= R1, arithmetic)
         let (mut cpu, mut bus) = make_cpu_bus();
-        cpu.regs[1] = 0x8000_0000u32; // negative
+        cpu.regs[0] = 0x8000_0000u32; // negative value to shift (Rd is source and dest)
+        cpu.regs[1] = 1; // shift amount
         execute_thumb(&mut cpu, &mut bus, instr);
         assert_eq!(cpu.regs[0], 0xC000_0000); // sign bit preserved
         assert!(cpu.get_flag(N_FLAG));
