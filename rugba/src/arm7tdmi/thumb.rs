@@ -1112,4 +1112,497 @@ mod tests {
         // LR = old_pc | 1 = (pc_start - 2) | 1
         assert_eq!(cpu.regs[14], expected_old_pc_inside | 1);
     }
+
+    // ── Format 1 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_lsl_imm_by_0() {
+        // LSL R0, R1, #0  — shift by 0 is a no-op, value unchanged
+        // bits[15:11]=00000, imm5=0, Rs=R1=001, Rd=R0=000
+        // 0b000_00_00000_001_000 = 0x0008
+        let instr: u16 = 0x0008;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0xDEAD_BEEF;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xDEAD_BEEF);
+    }
+
+    #[test]
+    fn thumb_lsl_carry_out() {
+        // LSL R0, R1, #1 where R1 has bit 31 set — carry out should be set
+        // bits[15:11]=00000, imm5=1, Rs=R1=001, Rd=R0=000
+        // 0b000_00_00001_001_000 = 0x0048
+        let instr: u16 = 0x0048;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x8000_0001; // bit 31 set, will shift out
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x0000_0002); // 0x8000_0001 << 1
+        assert!(cpu.get_flag(C_FLAG)); // bit 31 shifted out sets carry
+    }
+
+    // ── Format 2 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_add_imm3() {
+        // ADD R0, R1, #3
+        // bits[15:11]=00011, I=1, sub=0, imm3=011, Rs=R1=001, Rd=R0=000
+        // 0b00011_1_0_011_001_000 = 0x1CC8
+        let instr: u16 = 0x1CC8;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 7;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 10);
+    }
+
+    #[test]
+    fn thumb_sub_reg() {
+        // SUB R0, R1, R2
+        // bits[15:11]=00011, I=0, sub=1, Rn=R2=010, Rs=R1=001, Rd=R0=000
+        // 0b00011_0_1_010_001_000 = 0x1A88
+        let instr: u16 = 0x1A88;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 10;
+        cpu.regs[2] = 3;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 7);
+        assert!(cpu.get_flag(C_FLAG)); // no borrow
+    }
+
+    // ── Format 3 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_sub_imm8() {
+        // SUB R0, #5
+        // bits[15:13]=001, op=11, Rd=000, imm8=5
+        // 0b001_11_000_00000101 = 0x3805
+        let instr: u16 = 0x3805;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 20;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 15);
+        assert!(cpu.get_flag(C_FLAG)); // no borrow
+    }
+
+    #[test]
+    fn thumb_cmp_imm8_equal() {
+        // CMP R2, #42  with R2=42 → Z set
+        // bits[15:13]=001, op=01, Rd=010, imm8=42=0x2A
+        // 0b001_01_010_00101010 = 0x2A2A
+        let instr: u16 = 0x2A2A;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[2] = 42;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert!(cpu.get_flag(C_FLAG)); // no borrow when equal
+        assert!(!cpu.get_flag(N_FLAG));
+    }
+
+    // ── Format 4 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_adc() {
+        // ADC R0, R1  (R0 = R0 + R1 + C)
+        // alu_op=0101=0x5, Rs=R1=001, Rd=R0=000
+        // 0b010000_0101_001_000 = 0x4148
+        let instr: u16 = 0x4148;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 5;
+        cpu.regs[1] = 3;
+        cpu.set_flag(C_FLAG, true); // carry in = 1
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 9); // 5 + 3 + 1
+    }
+
+    #[test]
+    fn thumb_sbc() {
+        // SBC R0, R1  (R0 = R0 - R1 - (1 - C))
+        // alu_op=0110=0x6, Rs=R1=001, Rd=R0=000
+        // 0b010000_0110_001_000 = 0x4188
+        let instr: u16 = 0x4188;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 10;
+        cpu.regs[1] = 3;
+        cpu.set_flag(C_FLAG, true); // C=1 means no borrow-in: result = 10 - 3 - 0 = 7
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 7);
+    }
+
+    #[test]
+    fn thumb_ror() {
+        // ROR R0, R1  (R0 rotated right by R1)
+        // alu_op=0111=0x7, Rs=R1=001, Rd=R0=000
+        // 0b010000_0111_001_000 = 0x41C8
+        let instr: u16 = 0x41C8;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x0000_0001;
+        cpu.regs[1] = 1; // rotate right by 1
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x8000_0000); // bit 0 wraps to bit 31
+        assert!(cpu.get_flag(C_FLAG)); // last bit rotated out
+        assert!(cpu.get_flag(N_FLAG));
+    }
+
+    #[test]
+    fn thumb_tst() {
+        // TST R0, R1  — sets flags on R0 & R1 but does not store
+        // alu_op=1000=0x8, Rs=R1=001, Rd=R0=000
+        // 0b010000_1000_001_000 = 0x4208
+        let instr: u16 = 0x4208;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0xF0;
+        cpu.regs[1] = 0x0F; // no common bits → result = 0 → Z set
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert_eq!(cpu.regs[0], 0xF0); // Rd unchanged
+    }
+
+    #[test]
+    fn thumb_cmp_reg() {
+        // CMP R0, R1  — sets flags on R0 - R1 but does not store
+        // alu_op=1010=0xA, Rs=R1=001, Rd=R0=000
+        // 0b010000_1010_001_000 = 0x4288
+        let instr: u16 = 0x4288;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 8;
+        cpu.regs[1] = 8; // equal → Z set
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert!(cpu.get_flag(C_FLAG)); // no borrow
+        assert_eq!(cpu.regs[0], 8); // Rd unchanged
+    }
+
+    #[test]
+    fn thumb_cmn() {
+        // CMN R0, R1  — sets flags on R0 + R1 but does not store
+        // alu_op=1011=0xB, Rs=R1=001, Rd=R0=000
+        // 0b010000_1011_001_000 = 0x42C8
+        let instr: u16 = 0x42C8;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 5;
+        cpu.regs[1] = 10;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(!cpu.get_flag(Z_FLAG)); // 15 != 0
+        assert!(!cpu.get_flag(N_FLAG));
+        assert_eq!(cpu.regs[0], 5); // Rd unchanged
+    }
+
+    #[test]
+    fn thumb_bic() {
+        // BIC R0, R1  (R0 = R0 & ~R1)
+        // alu_op=1110=0xE, Rs=R1=001, Rd=R0=000
+        // 0b010000_1110_001_000 = 0x4388
+        let instr: u16 = 0x4388;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0xFF;
+        cpu.regs[1] = 0x0F; // clear lower nibble
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xF0);
+    }
+
+    #[test]
+    fn thumb_lsl_reg() {
+        // LSL R0, R1  (R0 <<= R1, Format 4 ALU)
+        // alu_op=0010=0x2, Rs=R1=001, Rd=R0=000
+        // 0b010000_0010_001_000 = 0x4088
+        let instr: u16 = 0x4088;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 1;
+        cpu.regs[1] = 4; // shift left by 4
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 16);
+    }
+
+    // ── Format 5 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_add_hi_r8() {
+        // ADD R8, R0  (hi_op=ADD=00, H1=1, H2=0, Rs=R0=000, Rd_low=000 → Rd=8)
+        // bits[15:8]=0100_0100, H1=1, H2=0, Rs=000, Rd=000
+        // 0b010001_00_1_0_000_000 = 0x4480
+        let instr: u16 = 0x4480;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[8] = 100;
+        cpu.regs[0] = 50;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[8], 150);
+    }
+
+    #[test]
+    fn thumb_cmp_hi() {
+        // CMP R8, R0  (hi_op=CMP=01, H1=1, H2=0, Rs=R0=000, Rd_low=000 → Rd=8)
+        // 0b010001_01_1_0_000_000 = 0x4580
+        let instr: u16 = 0x4580;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[8] = 42;
+        cpu.regs[0] = 42; // equal → Z set
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(cpu.get_flag(Z_FLAG));
+        assert!(cpu.get_flag(C_FLAG));
+    }
+
+    #[test]
+    fn thumb_bx_stay_thumb() {
+        // BX R0 with bit 0=1 → stays in THUMB mode
+        // hi_op=BX=11, H1=0, H2=0, Rs=R0=000, Rd=ignored
+        // 0b010001_11_0_0_000_000 = 0x4700
+        let instr: u16 = 0x4700;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x0300_0001; // bit 0=1 → THUMB
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert!(cpu.in_thumb_mode());
+        assert_eq!(cpu.regs[15], 0x0300_0000); // bit 0 cleared for PC
+    }
+
+    // ── Format 7/8 additions ─────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_strb_reg() {
+        // STRB R0, [R1, R2]  (Format 7: L=0, B=1, bit9=0)
+        // bits[15:12]=0101, L=0, B=1, 0, Ro=R2=010, Rb=R1=001, Rd=R0=000
+        // 0b0101_0_1_0_010_001_000 = 0x5488
+        let instr: u16 = 0x5488;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0xAB;
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 4;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(bus.read8(0x0300_0004), 0xAB);
+    }
+
+    #[test]
+    fn thumb_ldrb_reg() {
+        // LDRB R0, [R1, R2]  (Format 7: L=1, B=1, bit9=0)
+        // 0b0101_1_1_0_010_001_000 = 0x5C88
+        let instr: u16 = 0x5C88;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 4;
+        bus.write8(0x0300_0004, 0xCD);
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xCD);
+    }
+
+    #[test]
+    fn thumb_strh_reg() {
+        // STRH R0, [R1, R2]  (Format 8: H=0, S=0, bit9=1, op=00)
+        // bits[15:12]=0101, H=0, S=0, 1, Ro=R2=010, Rb=R1=001, Rd=R0=000
+        // 0b0101_0_0_1_010_001_000 = 0x5288
+        let instr: u16 = 0x5288;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x1234;
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 0;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(bus.read16(0x0300_0000), 0x1234);
+    }
+
+    #[test]
+    fn thumb_ldrh_reg() {
+        // LDRH R0, [R1, R2]  (Format 8: H=1, S=0, bit9=1, op=10)
+        // bits[15:12]=0101, H=1, S=0, 1, Ro=R2=010, Rb=R1=001, Rd=R0=000
+        // 0b0101_1_0_1_010_001_000 = 0x5A88
+        let instr: u16 = 0x5A88;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 0;
+        bus.write16(0x0300_0000, 0x5678);
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x5678);
+    }
+
+    #[test]
+    fn thumb_ldrsb_reg() {
+        // LDRSB R0, [R1, R2]  (Format 8: H=0, S=1, bit9=1, op=01)
+        // bits[15:12]=0101, H=0, S=1, 1, Ro=R2=010, Rb=R1=001, Rd=R0=000
+        // 0b0101_0_1_1_010_001_000 = 0x5688
+        let instr: u16 = 0x5688;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 0;
+        bus.write8(0x0300_0000, 0xFF); // -1 as i8
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xFFFF_FFFF); // sign-extended
+    }
+
+    #[test]
+    fn thumb_ldrsh_reg() {
+        // LDRSH R0, [R1, R2]  (Format 8: H=1, S=1, bit9=1, op=11)
+        // bits[15:12]=0101, H=1, S=1, 1, Ro=R2=010, Rb=R1=001, Rd=R0=000
+        // 0b0101_1_1_1_010_001_000 = 0x5E88
+        let instr: u16 = 0x5E88;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        cpu.regs[2] = 0;
+        bus.write16(0x0300_0000, 0x8000); // -32768 as i16
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xFFFF_8000); // sign-extended
+    }
+
+    // ── Format 9 additions ────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_strb_imm() {
+        // STRB R0, [R1, #5]  (Format 9: B=1, L=0, offset5=5, Rb=R1=001, Rd=R0=000)
+        // bits[15:13]=011, B=1, L=0, offset5=00101, Rb=001, Rd=000
+        // 0b011_1_0_00101_001_000 = 0x7148
+        let instr: u16 = 0x7148;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0xAB;
+        cpu.regs[1] = 0x0300_0000;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(bus.read8(0x0300_0005), 0xAB);
+    }
+
+    #[test]
+    fn thumb_ldrb_imm() {
+        // LDRB R0, [R1, #5]  (Format 9: B=1, L=1, offset5=5, Rb=R1=001, Rd=R0=000)
+        // bits[15:13]=011, B=1, L=1, offset5=00101, Rb=001, Rd=000
+        // 0b011_1_1_00101_001_000 = 0x7948
+        let instr: u16 = 0x7948;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        bus.write8(0x0300_0005, 0xCD);
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xCD);
+    }
+
+    // ── Format 10 ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_strh_imm() {
+        // STRH R0, [R1, #4]  (Format 10: L=0, offset5=2 <<1=4, Rb=R1=001, Rd=R0=000)
+        // bits[15:12]=1000, L=0, offset5=00010, Rb=001, Rd=000
+        // 0b1000_0_00010_001_000 = 0x8088
+        let instr: u16 = 0x8088;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0xBEEF;
+        cpu.regs[1] = 0x0300_0000;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(bus.read16(0x0300_0004), 0xBEEF);
+    }
+
+    #[test]
+    fn thumb_ldrh_imm() {
+        // LDRH R0, [R1, #4]  (Format 10: L=1, offset5=2 <<1=4, Rb=R1=001, Rd=R0=000)
+        // bits[15:12]=1000, L=1, offset5=00010, Rb=001, Rd=000
+        // 0b1000_1_00010_001_000 = 0x8888
+        let instr: u16 = 0x8888;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[1] = 0x0300_0000;
+        bus.write16(0x0300_0004, 0xDEAD);
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xDEAD);
+    }
+
+    // ── Format 12 ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_add_pc_imm() {
+        // ADD R0, PC, #8  (Format 12: SP=0, Rd=000, imm8=2 → offset=2<<2=8)
+        // bits[15:12]=1010, SP=0, Rd=000, imm8=2
+        // 0b1010_0_000_00000010 = 0xA002
+        let instr: u16 = 0xA002;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[15] = 0x0300_0010;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        // addr = (PC & ~2) + imm8*4 = 0x0300_0010 + 8 = 0x0300_0018
+        assert_eq!(cpu.regs[0], 0x0300_0018);
+    }
+
+    #[test]
+    fn thumb_add_sp_imm() {
+        // ADD R0, SP, #8  (Format 12: SP=1, Rd=000, imm8=2 → offset=2<<2=8)
+        // bits[15:12]=1010, SP=1, Rd=000, imm8=2
+        // 0b1010_1_000_00000010 = 0xA802
+        let instr: u16 = 0xA802;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[13] = 0x0300_0100;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0x0300_0108);
+    }
+
+    // ── Format 14 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_push_lr() {
+        // PUSH {R0, LR}  (Format 14: L=0, R=1, rlist=0b00000001 → R0 + LR)
+        // bits[15:9]=1011010, R=1, rlist=0x01
+        // 0b10110_1_0_1_00000001 = 0xB501
+        let instr: u16 = 0xB501;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[13] = 0x0300_0100;
+        cpu.regs[0] = 0x1111;
+        cpu.regs[14] = 0x2222;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        // SP decremented by 2 words (R0 + LR)
+        assert_eq!(cpu.regs[13], 0x0300_00F8);
+        // R0 stored first (lower address), LR stored after
+        assert_eq!(bus.read32(0x0300_00F8), 0x1111);
+        assert_eq!(bus.read32(0x0300_00FC), 0x2222);
+    }
+
+    #[test]
+    fn thumb_pop_pc() {
+        // POP {R0, PC}  (Format 14: L=1, R=1, rlist=0b00000001 → R0 + PC)
+        // bits[15:9]=1011110, R=1, rlist=0x01
+        // 0b10111_1_0_1_00000001 = 0xBD01
+        let instr: u16 = 0xBD01;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[13] = 0x0300_00F8;
+        bus.write32(0x0300_00F8, 0xAAAA); // value to pop into R0
+        bus.write32(0x0300_00FC, 0x0300_0040); // value to pop into PC
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[0], 0xAAAA);
+        assert_eq!(cpu.regs[15], 0x0300_0040); // PC loaded, bit 0 cleared
+        assert_eq!(cpu.regs[13], 0x0300_0100); // SP advanced past both
+    }
+
+    // ── Format 15 ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_stmia() {
+        // STMIA R0!, {R1, R2}  (Format 15: L=0, Rb=R0=000, rlist=0b00000110)
+        // bits[15:12]=1100, L=0, Rb=000, rlist=0x06
+        // 0b1100_0_000_00000110 = 0xC006
+        let instr: u16 = 0xC006;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x0300_0000; // base address
+        cpu.regs[1] = 0x1111_1111;
+        cpu.regs[2] = 0x2222_2222;
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(bus.read32(0x0300_0000), 0x1111_1111);
+        assert_eq!(bus.read32(0x0300_0004), 0x2222_2222);
+        assert_eq!(cpu.regs[0], 0x0300_0008); // write-back
+    }
+
+    #[test]
+    fn thumb_ldmia() {
+        // LDMIA R0!, {R1, R2}  (Format 15: L=1, Rb=R0=000, rlist=0b00000110)
+        // bits[15:12]=1100, L=1, Rb=000, rlist=0x06
+        // 0b1100_1_000_00000110 = 0xC806
+        let instr: u16 = 0xC806;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[0] = 0x0300_0000;
+        bus.write32(0x0300_0000, 0xAAAA_AAAA);
+        bus.write32(0x0300_0004, 0xBBBB_BBBB);
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[1], 0xAAAA_AAAA);
+        assert_eq!(cpu.regs[2], 0xBBBB_BBBB);
+        assert_eq!(cpu.regs[0], 0x0300_0008); // write-back (R0 not in rlist)
+    }
+
+    // ── Format 16 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn thumb_bne_taken() {
+        // BNE +4  (cond=0001=NE, Z=0 → taken)
+        // Format 16: bits[15:12]=1101, cond=0001, offset8=2 (<<1=4)
+        // 0b1101_0001_00000010 = 0xD102
+        let instr: u16 = 0xD102;
+        let (mut cpu, mut bus) = make_cpu_bus();
+        cpu.regs[15] = 0x0300_0010;
+        cpu.set_flag(Z_FLAG, false); // Z=0 → NE condition true
+        execute_thumb(&mut cpu, &mut bus, instr);
+        assert_eq!(cpu.regs[15], 0x0300_0014); // branch taken: PC += 4
+    }
 }
