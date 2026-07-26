@@ -71,3 +71,47 @@ impl BankedRegisters {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cpu_mode_from_bits_all_modes() {
+        assert_eq!(CpuMode::from_bits(0x10), CpuMode::User);
+        assert_eq!(CpuMode::from_bits(0x11), CpuMode::Fiq);
+        assert_eq!(CpuMode::from_bits(0x12), CpuMode::Irq);
+        assert_eq!(CpuMode::from_bits(0x13), CpuMode::Supervisor);
+        assert_eq!(CpuMode::from_bits(0x17), CpuMode::Abort);
+        assert_eq!(CpuMode::from_bits(0x1B), CpuMode::Undefined);
+        assert_eq!(CpuMode::from_bits(0x1F), CpuMode::System);
+    }
+
+    #[test]
+    fn cpu_mode_from_bits_unknown() {
+        // Unknown mode bits should fall through to System
+        assert_eq!(CpuMode::from_bits(0x00), CpuMode::System);
+        assert_eq!(CpuMode::from_bits(0x14), CpuMode::System);
+        assert_eq!(CpuMode::from_bits(0x1E), CpuMode::System);
+    }
+
+    #[test]
+    fn bank_index_all_modes() {
+        assert_eq!(CpuMode::System.bank_index(), 0);
+        assert_eq!(CpuMode::User.bank_index(), 0);
+        assert_eq!(CpuMode::Fiq.bank_index(), 1);
+        assert_eq!(CpuMode::Irq.bank_index(), 2);
+        assert_eq!(CpuMode::Supervisor.bank_index(), 3);
+        assert_eq!(CpuMode::Abort.bank_index(), 4);
+        assert_eq!(CpuMode::Undefined.bank_index(), 5);
+    }
+
+    #[test]
+    fn banked_registers_initial_sp() {
+        let banked = BankedRegisters::new();
+        // IRQ bank is index 2
+        assert_eq!(banked.r13[2], 0x03007FA0, "IRQ SP should be 0x03007FA0");
+        // Supervisor bank is index 3
+        assert_eq!(banked.r13[3], 0x03007FE0, "SVC SP should be 0x03007FE0");
+    }
+}
