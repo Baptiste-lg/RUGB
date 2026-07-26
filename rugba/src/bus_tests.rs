@@ -4,7 +4,7 @@ mod tests {
 
     fn make_bus() -> Bus {
         let mut rom = vec![0x00; 0x200]; // Small test ROM
-        // Include "SRAM_V" so backup detection enables SRAM
+                                         // Include "SRAM_V" so backup detection enables SRAM
         let tag = b"SRAM_V";
         rom[0x100..0x100 + tag.len()].copy_from_slice(tag);
         Bus::new(rom)
