@@ -132,4 +132,52 @@ mod tests {
         assert_eq!(bus.read32(0x0200_0002), 0xDEAD_BEEF);
         assert_eq!(bus.read32(0x0200_0003), 0xDEAD_BEEF);
     }
+
+    // ---- vram_8bit_write_duplicates ----
+
+    #[test]
+    fn vram_8bit_write_duplicates() {
+        let mut bus = make_bus();
+        bus.write8(0x0600_0000, 0xAB);
+        // 8-bit VRAM writes duplicate to both bytes of the aligned halfword
+        assert_eq!(bus.read16(0x0600_0000), 0xABAB);
+    }
+
+    // ---- bios_returns_zero ----
+
+    #[test]
+    fn bios_returns_zero() {
+        let bus = make_bus();
+        assert_eq!(bus.read8(0x0000_0000), 0);
+        assert_eq!(bus.read16(0x0000_0000), 0);
+    }
+
+    // ---- cart_backup_read ----
+
+    #[test]
+    fn cart_backup_read() {
+        let bus = make_bus();
+        // SRAM is initialised to 0xFF by Cartridge::new
+        assert_eq!(bus.read8(0x0E00_0000), 0xFF);
+    }
+
+    // ---- cart_backup_write ----
+
+    #[test]
+    fn cart_backup_write() {
+        let mut bus = make_bus();
+        bus.write8(0x0E00_0000, 0x42);
+        assert_eq!(bus.read8(0x0E00_0000), 0x42);
+    }
+
+    // ---- open_bus_returns_zero ----
+
+    #[test]
+    fn open_bus_returns_zero() {
+        let bus = make_bus();
+        // Region 0x01000000 is unmapped — open bus returns 0
+        assert_eq!(bus.read8(0x0100_0000), 0);
+        assert_eq!(bus.read16(0x0100_0000), 0);
+        assert_eq!(bus.read32(0x0100_0000), 0);
+    }
 }
