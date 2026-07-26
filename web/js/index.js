@@ -45,8 +45,7 @@ const viewGbBtn = document.getElementById('view-gb');
 const viewScreenBtn = document.getElementById('view-screen');
 const gameboy = document.querySelector('.gameboy');
 
-// --- Side menu toggle ---
-menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
+// --- Side menu toggle is handled by dock.js ---
 
 // --- View toggle (Game Boy / Screen Only) ---
 const savedView = localStorage.getItem('rugb-view') || 'gb';
