@@ -147,3 +147,140 @@ impl Cartridge for Mbc1 {
         self.ram[..len].copy_from_slice(&data[..len]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cartridge::Cartridge;
+
+    /// Build an N-bank ROM (each bank = 0x4000 bytes).
+    /// Bank `b` is filled with byte value `b as u8` so tests can identify which bank
+    /// is mapped.
+    fn make_rom(num_banks: usize) -> Vec<u8> {
+        let mut rom = vec![0u8; num_banks * 0x4000];
+        for bank in 0..num_banks {
+            let start = bank * 0x4000;
+            for byte in &mut rom[start..start + 0x4000] {
+                *byte = bank as u8;
+            }
+        }
+        rom
+    }
+
+    fn cart(num_banks: usize) -> Mbc1 {
+        let rom = make_rom(num_banks);
+        Mbc1::new(&rom, 0x2000, String::from("TEST"), false)
+    }
+
+    fn cart_with_battery(num_banks: usize) -> Mbc1 {
+        let rom = make_rom(num_banks);
+        Mbc1::new(&rom, 0x2000, String::from("TEST"), true)
+    }
+
+    // ---------- RAM enable / disable ----------
+
+    #[test]
+    fn ram_disabled_by_default() {
+        let c = cart(2);
+        // RAM is disabled on construction; reading 0xA000 must return 0xFF.
+        assert_eq!(c.read(0xA000), 0xFF);
+    }
+
+    #[test]
+    fn ram_enable_0x0a() {
+        let mut c = cart(2);
+        c.write(0x1FFF, 0x0A); // write to 0x0000-0x1FFF range
+        // After enabling, RAM is zeroed so reading should return 0x00 (not 0xFF).
+        assert_eq!(c.read(0xA000), 0x00);
+    }
+
+    #[test]
+    fn ram_disable() {
+        let mut c = cart(2);
+        c.write(0x0000, 0x0A); // enable
+        c.write(0x0000, 0x00); // disable
+        assert_eq!(c.read(0xA000), 0xFF);
+    }
+
+    // ---------- ROM bank switching ----------
+
+    #[test]
+    fn rom_bank_0_maps_to_1() {
+        let mut c = cart(4);
+        // Writing 0 to the bank register must map to bank 1.
+        c.write(0x2000, 0x00);
+        // Bank 1 bytes are filled with 0x01.
+        assert_eq!(c.read(0x4000), 0x01);
+    }
+
+    #[test]
+    fn rom_bank_select() {
+        let mut c = cart(4);
+        c.write(0x2000, 0x02);
+        // Bank 2 bytes are filled with 0x02.
+        assert_eq!(c.read(0x4000), 0x02);
+    }
+
+    // ---------- Banking mode ----------
+
+    #[test]
+    fn banking_mode_1_ram() {
+        // In mode 1 the RAM bank register selects the RAM bank.
+        // We need enough RAM: use a 4-bank ROM and 32 KB RAM.
+        let rom = make_rom(4);
+        let mut c = Mbc1::new(&rom, 0x8000, String::from("T"), false);
+        c.write(0x0000, 0x0A); // enable RAM
+        c.write(0x6000, 0x01); // switch to mode 1
+        c.write(0x4000, 0x01); // select RAM bank 1
+        c.write(0xA000, 0xBB); // write to RAM bank 1 offset 0
+        // Switch to RAM bank 0 and verify bank 1 write did not corrupt it.
+        c.write(0x4000, 0x00);
+        assert_eq!(c.read(0xA000), 0x00); // bank 0 is clean
+        // Switch back to bank 1.
+        c.write(0x4000, 0x01);
+        assert_eq!(c.read(0xA000), 0xBB);
+    }
+
+    #[test]
+    fn banking_mode_0_bank0_fixed() {
+        // In mode 0 (default) the ROM bank 0 region is always physical bank 0.
+        let mut c = cart(4);
+        // Bank 0 is filled with 0x00.
+        assert_eq!(c.read(0x0000), 0x00);
+        // Changing the ram_bank register (upper bits) in mode 0 should not affect bank 0.
+        c.write(0x4000, 0x01); // set upper bits to 1
+        assert_eq!(c.read(0x0000), 0x00); // still bank 0
+    }
+
+    // ---------- Battery flag ----------
+
+    #[test]
+    fn has_battery_flag() {
+        let no_bat = cart(2);
+        assert!(!no_bat.has_battery());
+        let with_bat = cart_with_battery(2);
+        assert!(with_bat.has_battery());
+    }
+
+    // ---------- Save / load roundtrip ----------
+
+    #[test]
+    fn save_load_roundtrip() {
+        let mut c = cart(4);
+        c.write(0x0000, 0x0A); // enable RAM
+        c.write(0x2000, 0x03); // rom_bank = 3
+        c.write(0x4000, 0x01); // ram_bank = 1
+        c.write(0x6000, 0x01); // banking_mode = 1
+        c.write(0xA000, 0xCC); // write to RAM
+
+        let mut state: Vec<u8> = Vec::new();
+        c.save_state(&mut state);
+
+        let mut c2 = cart(4);
+        let mut slice: &[u8] = &state;
+        c2.load_state(&mut slice);
+
+        assert_eq!(c2.read(0x4000), c.read(0x4000));
+        assert_eq!(c2.read(0xA000), 0xCC);
+    }
+}
