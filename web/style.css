@@ -563,6 +563,7 @@ canvas:fullscreen {
 .gameboy.screen-only .gb-screen-subtitle { display: none; }
 .gameboy.screen-only .gb-battery { display: none; }
 .gameboy.screen-only .gb-screen-frame { border: none; padding: 0; background: none; }
+.gameboy.screen-only .gb-screen-frame::after { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
 .gameboy.screen-only .gb-name-label { display: none; }
 .gameboy.screen-only .gb-controls { display: none; }
 .gameboy.screen-only .gb-meta-area { display: none; }
