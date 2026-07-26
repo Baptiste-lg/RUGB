@@ -184,6 +184,244 @@ impl Cartridge {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- detect_none ----
+
+    #[test]
+    fn detect_none() {
+        let rom = vec![0u8; 0x200];
+        let cart = Cartridge::new(&rom);
+        assert_eq!(cart.backup_type, BackupType::None);
+        assert!(cart.sram.is_empty());
+    }
+
+    // ---- detect_sram ----
+
+    #[test]
+    fn detect_sram() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x106].copy_from_slice(b"SRAM_V");
+        let cart = Cartridge::new(&rom);
+        assert_eq!(cart.backup_type, BackupType::Sram);
+        assert_eq!(cart.sram.len(), 0x8000);
+    }
+
+    // ---- detect_flash64 ----
+
+    #[test]
+    fn detect_flash64() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let cart = Cartridge::new(&rom);
+        assert_eq!(cart.backup_type, BackupType::Flash64);
+        assert_eq!(cart.sram.len(), 0x10000);
+    }
+
+    // ---- detect_flash128 ----
+
+    #[test]
+    fn detect_flash128() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x109].copy_from_slice(b"FLASH1M_V");
+        let cart = Cartridge::new(&rom);
+        assert_eq!(cart.backup_type, BackupType::Flash128);
+        assert_eq!(cart.sram.len(), 0x20000);
+    }
+
+    // ---- detect_eeprom_small ----
+
+    #[test]
+    fn detect_eeprom_small() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x108].copy_from_slice(b"EEPROM_V");
+        let cart = Cartridge::new(&rom);
+        // ROM is small (<= 16 MB), so Eeprom512
+        assert_eq!(cart.backup_type, BackupType::Eeprom512);
+        assert_eq!(cart.sram.len(), 0x200);
+    }
+
+    // ---- sram_read_write ----
+
+    #[test]
+    fn sram_read_write() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x106].copy_from_slice(b"SRAM_V");
+        let mut cart = Cartridge::new(&rom);
+
+        cart.write(0x0E00_0042, 0xAB);
+        assert_eq!(cart.read(0x0E00_0042), 0xAB);
+    }
+
+    // ---- sram_dirty_flag ----
+
+    #[test]
+    fn sram_dirty_flag() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x106].copy_from_slice(b"SRAM_V");
+        let mut cart = Cartridge::new(&rom);
+
+        assert!(!cart.dirty);
+        cart.write(0x0E00_0000, 0x55);
+        assert!(cart.dirty);
+    }
+
+    // Helper: create a Flash64 cart in IdMode by issuing the unlock sequence + 0x90
+    fn flash64_enter_id_mode() -> Cartridge {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let mut cart = Cartridge::new(&rom);
+        // Unlock sequence
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0x90);
+        cart
+    }
+
+    // ---- flash_id_mode ----
+
+    #[test]
+    fn flash_id_mode() {
+        let cart = flash64_enter_id_mode();
+        // Manufacturer ID at offset 0 → 0xBF (SST)
+        assert_eq!(cart.read(0x0E00_0000), 0xBF);
+        // Device ID at offset 1 → 0xD4 (64 KB)
+        assert_eq!(cart.read(0x0E00_0001), 0xD4);
+    }
+
+    // ---- flash_write_byte ----
+
+    #[test]
+    fn flash_write_byte() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let mut cart = Cartridge::new(&rom);
+
+        // Unlock + Write mode
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xA0);
+        // Write one byte to offset 0x0010
+        cart.write(0x0E00_0010, 0x42);
+        assert_eq!(cart.read(0x0E00_0010), 0x42);
+        assert!(cart.dirty);
+    }
+
+    // ---- flash_sector_erase ----
+
+    #[test]
+    fn flash_sector_erase() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let mut cart = Cartridge::new(&rom);
+
+        // Write a byte first (using write mode)
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xA0);
+        cart.write(0x0E00_0000, 0x55);
+        assert_eq!(cart.read(0x0E00_0000), 0x55);
+
+        // Sector erase: unlock, 0x80, unlock again, 0x30 at sector address
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0x80);
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_0000, 0x30); // erase sector containing offset 0
+
+        // After erase the sector should read 0xFF
+        assert_eq!(cart.read(0x0E00_0000), 0xFF);
+    }
+
+    // ---- flash_chip_erase ----
+
+    #[test]
+    fn flash_chip_erase() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let mut cart = Cartridge::new(&rom);
+
+        // Write a byte
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xA0);
+        cart.write(0x0E00_1234, 0x77);
+
+        // Chip erase: unlock, 0x80, unlock again, 0x10 at 0x5555
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0x80);
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0x10);
+
+        // All bytes should be 0xFF
+        assert_eq!(cart.read(0x0E00_1234), 0xFF);
+        assert!(cart.sram.iter().all(|&b| b == 0xFF));
+    }
+
+    // ---- flash128_bank_select ----
+
+    #[test]
+    fn flash128_bank_select() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x109].copy_from_slice(b"FLASH1M_V");
+        let mut cart = Cartridge::new(&rom);
+
+        // Write a byte to bank 0 offset 0
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xA0);
+        cart.write(0x0E00_0000, 0x11);
+
+        // Write a byte to bank 1 offset 0: first select bank 1
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xB0); // bank select command
+        cart.write(0x0E00_0000, 0x01); // select bank 1
+        // Now write to offset 0 (goes to bank 1 → real offset 0x10000)
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xA0);
+        cart.write(0x0E00_0000, 0x22);
+
+        // Reading offset 0 while on bank 1 should return bank 1 data
+        assert_eq!(cart.read(0x0E00_0000), 0x22);
+
+        // Switch back to bank 0 and read
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0xB0);
+        cart.write(0x0E00_0000, 0x00);
+        assert_eq!(cart.read(0x0E00_0000), 0x11);
+    }
+
+    // ---- flash_wrong_sequence_resets ----
+
+    #[test]
+    fn flash_wrong_sequence_resets() {
+        let mut rom = vec![0u8; 0x200];
+        rom[0x100..0x107].copy_from_slice(b"FLASH_V");
+        let mut cart = Cartridge::new(&rom);
+
+        // Start unlock: write 0xAA at 0x5555 (Cmd1)
+        cart.write(0x0E00_5555, 0xAA);
+        // Wrong second step: wrong address → resets to Ready
+        cart.write(0x0E00_1234, 0x55);
+
+        // The state is back to Ready: a subsequent ID-mode entry from scratch
+        // should still work, proving the previous state was cleaned up.
+        cart.write(0x0E00_5555, 0xAA);
+        cart.write(0x0E00_2AAA, 0x55);
+        cart.write(0x0E00_5555, 0x90);
+        // Now in IdMode — manufacturer reads correctly
+        assert_eq!(cart.read(0x0E00_0000), 0xBF);
+    }
+}
+
 /// Detect backup type by scanning ROM for identification strings.
 fn detect_backup_type(rom: &[u8]) -> BackupType {
     let rom_str = rom
