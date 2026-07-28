@@ -115,27 +115,41 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
 
     let fb_offset = line * SCREEN_WIDTH * 4;
 
+    // Cache screen entry per tile column — only recomputed every 8 pixels.
+    let mut cached_tile_col = usize::MAX;
+    let mut cached_hflip = false;
+    let mut cached_pal_num = 0usize;
+    let mut cached_palette_256_row_base = 0usize; // 8bpp: char_base + tile_idx*64 + fy*8
+    let mut cached_4bpp_row_base = 0usize;        // 4bpp: char_base + tile_idx*32 + fy*4
+
     for x in 0..SCREEN_WIDTH {
         let eff_x = (x + bg.scroll_x as usize) % screen_w;
         let tile_col = eff_x / 8;
         let px = eff_x % 8; // pixel column within tile
 
-        // Read screen entry
-        let se_off = bg.screen_base as usize + screen_entry_offset(tile_col, tile_row, bg.size);
-        let entry = read_u16(vram, se_off);
+        // Recompute cached values only when the tile column changes.
+        if tile_col != cached_tile_col {
+            cached_tile_col = tile_col;
 
-        let tile_idx = (entry & 0x03FF) as usize;
-        let hflip = entry & 0x0400 != 0;
-        let vflip = entry & 0x0800 != 0;
-        let pal_num = ((entry >> 12) & 0x0F) as usize;
+            let se_off = bg.screen_base as usize + screen_entry_offset(tile_col, tile_row, bg.size);
+            let entry = read_u16(vram, se_off);
 
-        // Apply flip to pixel coordinates within tile
-        let fx = if hflip { 7 - px } else { px };
-        let fy = if vflip { 7 - py } else { py };
+            let tile_idx = (entry & 0x03FF) as usize;
+            cached_hflip = entry & 0x0400 != 0;
+            let vflip = entry & 0x0800 != 0;
+            cached_pal_num = ((entry >> 12) & 0x0F) as usize;
+
+            let fy = if vflip { 7 - py } else { py };
+            cached_palette_256_row_base = bg.char_base as usize + tile_idx * 64 + fy * 8;
+            cached_4bpp_row_base = bg.char_base as usize + tile_idx * 32 + fy * 4;
+        }
+
+        // Apply horizontal flip to pixel column within tile.
+        let fx = if cached_hflip { 7 - px } else { px };
 
         let color_idx = if bg.palette_256 {
             // 8bpp: 64 bytes per tile, 8 bytes per row
-            let tile_addr = bg.char_base as usize + tile_idx * 64 + fy * 8 + fx;
+            let tile_addr = cached_palette_256_row_base + fx;
             if tile_addr < vram.len() {
                 vram[tile_addr] as usize
             } else {
@@ -143,7 +157,7 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
             }
         } else {
             // 4bpp: 32 bytes per tile, 4 bytes per row (2 pixels per byte)
-            let tile_addr = bg.char_base as usize + tile_idx * 32 + fy * 4 + fx / 2;
+            let tile_addr = cached_4bpp_row_base + fx / 2;
             if tile_addr < vram.len() {
                 let byte = vram[tile_addr];
                 if fx & 1 == 0 {
@@ -164,7 +178,7 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
         let pal_index = if bg.palette_256 {
             color_idx
         } else {
-            pal_num * 16 + color_idx
+            cached_pal_num * 16 + color_idx
         };
 
         let rgba = palette_color(palette, pal_index);
