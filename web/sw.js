@@ -37,6 +37,7 @@ self.addEventListener('fetch', (e) => {
         }).catch(() => cached);
       }
       return cached || fetch(e.request).then((response) => {
+        if (!response || response.status !== 200 || response.type !== 'basic') return response;
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
         return response;
