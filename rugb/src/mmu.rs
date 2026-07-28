@@ -162,6 +162,9 @@ impl Mmu {
             // ROM banks — routed through cartridge mapper (with Game Genie interception)
             0x0000..=0x7FFF => {
                 let val = self.cartridge.read(addr);
+                if self.gg_cheats.is_empty() {
+                    return val;
+                }
                 for cheat in &self.gg_cheats {
                     if cheat.addr == addr {
                         if let Some(cmp) = cheat.compare {
