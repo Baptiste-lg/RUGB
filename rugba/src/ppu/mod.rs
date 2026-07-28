@@ -201,13 +201,7 @@ impl Ppu {
                             &affine,
                         );
                     } else {
-                        bg::render_text_bg(
-                            &mut *self.framebuffer,
-                            line,
-                            &bgctrl,
-                            vram,
-                            palette,
-                        );
+                        bg::render_text_bg(&mut *self.framebuffer, line, &bgctrl, vram, palette);
                     }
                 }
             }

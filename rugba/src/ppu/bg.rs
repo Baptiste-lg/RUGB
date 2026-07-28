@@ -120,7 +120,7 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
     let mut cached_hflip = false;
     let mut cached_pal_num = 0usize;
     let mut cached_palette_256_row_base = 0usize; // 8bpp: char_base + tile_idx*64 + fy*8
-    let mut cached_4bpp_row_base = 0usize;        // 4bpp: char_base + tile_idx*32 + fy*4
+    let mut cached_4bpp_row_base = 0usize; // 4bpp: char_base + tile_idx*32 + fy*4
 
     for x in 0..SCREEN_WIDTH {
         let eff_x = (x + bg.scroll_x as usize) % screen_w;
