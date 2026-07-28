@@ -149,62 +149,65 @@ impl Ppu {
                     self.framebuffer[dst + 3] = backdrop[3];
                 }
 
-                // Render BG layers by priority (3=lowest first, 0=highest last)
-                for priority in (0..4).rev() {
-                    for bg_idx in (0..4).rev() {
-                        // Check if this BG is enabled in DISPCNT
-                        if io.dispcnt & (1 << (8 + bg_idx)) == 0 {
-                            continue;
-                        }
-                        let bgcnt = io.bgcnt[bg_idx];
-                        if (bgcnt & 3) as usize != priority {
-                            continue;
-                        }
-                        // Mode constraints: Mode 0 has BG0-3 text, Mode 1 has BG0-1 text + BG2 affine, Mode 2 has BG2-3 affine
-                        let is_affine = match mode {
-                            1 => bg_idx == 2,
-                            2 => bg_idx >= 2,
-                            _ => false,
-                        };
-                        let bgctrl =
-                            bg::BgControl::from_raw(bgcnt, io.bghofs[bg_idx], io.bgvofs[bg_idx]);
-                        if is_affine {
-                            let affine = if bg_idx == 2 {
-                                bg::AffineParams {
-                                    pa: io.bg2pa,
-                                    pb: io.bg2pb,
-                                    pc: io.bg2pc,
-                                    pd: io.bg2pd,
-                                    ref_x: io.bg2x,
-                                    ref_y: io.bg2y,
-                                }
-                            } else {
-                                bg::AffineParams {
-                                    pa: io.bg3pa,
-                                    pb: io.bg3pb,
-                                    pc: io.bg3pc,
-                                    pd: io.bg3pd,
-                                    ref_x: io.bg3x,
-                                    ref_y: io.bg3y,
-                                }
-                            };
-                            bg::render_affine_bg(
-                                &mut *self.framebuffer,
-                                line,
-                                &bgctrl,
-                                vram,
-                                palette,
-                                &affine,
-                            );
+                // Pre-sort enabled BG layers by priority (highest priority number = drawn first)
+                let mut bg_order: [(usize, usize); 4] = [(0, 0); 4]; // (priority, bg_idx)
+                let mut bg_count = 0;
+                for bg_idx in 0..4 {
+                    if io.dispcnt & (1 << (8 + bg_idx)) == 0 {
+                        continue;
+                    }
+                    let priority = (io.bgcnt[bg_idx] & 3) as usize;
+                    bg_order[bg_count] = (priority, bg_idx);
+                    bg_count += 1;
+                }
+                bg_order[..bg_count].sort_unstable_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+
+                for &(_, bg_idx) in &bg_order[..bg_count] {
+                    let bgcnt = io.bgcnt[bg_idx];
+                    // Mode constraints: Mode 0 has BG0-3 text, Mode 1 has BG0-1 text + BG2 affine, Mode 2 has BG2-3 affine
+                    let is_affine = match mode {
+                        1 => bg_idx == 2,
+                        2 => bg_idx >= 2,
+                        _ => false,
+                    };
+                    let bgctrl =
+                        bg::BgControl::from_raw(bgcnt, io.bghofs[bg_idx], io.bgvofs[bg_idx]);
+                    if is_affine {
+                        let affine = if bg_idx == 2 {
+                            bg::AffineParams {
+                                pa: io.bg2pa,
+                                pb: io.bg2pb,
+                                pc: io.bg2pc,
+                                pd: io.bg2pd,
+                                ref_x: io.bg2x,
+                                ref_y: io.bg2y,
+                            }
                         } else {
-                            bg::render_text_bg(
-                                &mut *self.framebuffer,
-                                line,
-                                &bgctrl,
-                                vram,
-                                palette,
-                            );
-                        }
+                            bg::AffineParams {
+                                pa: io.bg3pa,
+                                pb: io.bg3pb,
+                                pc: io.bg3pc,
+                                pd: io.bg3pd,
+                                ref_x: io.bg3x,
+                                ref_y: io.bg3y,
+                            }
+                        };
+                        bg::render_affine_bg(
+                            &mut *self.framebuffer,
+                            line,
+                            &bgctrl,
+                            vram,
+                            palette,
+                            &affine,
+                        );
+                    } else {
+                        bg::render_text_bg(
+                            &mut *self.framebuffer,
+                            line,
+                            &bgctrl,
+                            vram,
+                            palette,
+                        );
                     }
                 }
             }
@@ -223,11 +226,6 @@ impl Ppu {
             }
         }
 
-        // Save BG-only buffer for alpha blending (2nd target)
-        let start = line * SCREEN_WIDTH * 4;
-        let end = start + SCREEN_WIDTH * 4;
-        self.bg_buffer[start..end].copy_from_slice(&(*self.framebuffer)[start..end]);
-
         // Render sprites on top (if OBJ enabled in DISPCNT bit 12)
         if io.dispcnt & (1 << 12) != 0 {
             obj::render_sprites(&mut *self.framebuffer, line, io.dispcnt, oam, vram, palette);
@@ -237,6 +235,10 @@ impl Ppu {
         let blend_mode = (io.bldcnt >> 6) & 3;
         match blend_mode {
             1 => {
+                // Save BG-only buffer for alpha blending (2nd target) — only needed here
+                let start = line * SCREEN_WIDTH * 4;
+                let end = start + SCREEN_WIDTH * 4;
+                self.bg_buffer[start..end].copy_from_slice(&(*self.framebuffer)[start..end]);
                 let eva = (io.bldalpha & 0x1F) as u8;
                 let evb = ((io.bldalpha >> 8) & 0x1F) as u8;
                 blend::apply_alpha_blend(
