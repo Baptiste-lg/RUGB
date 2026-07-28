@@ -50,34 +50,52 @@ const gameboy = document.querySelector('.gameboy');
 // --- View toggle (Game Boy / Screen Only) ---
 const savedView = localStorage.getItem('rugb-view') || 'gb';
 if (savedView === 'screen') {
-    gameboy.classList.add('screen-only');
+    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.add('screen-only'));
     viewGbBtn.classList.remove('active');
     viewScreenBtn.classList.add('active');
 }
 
 viewGbBtn.addEventListener('click', () => {
-    gameboy.classList.remove('screen-only');
+    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.remove('screen-only'));
     viewGbBtn.classList.add('active');
     viewScreenBtn.classList.remove('active');
     localStorage.setItem('rugb-view', 'gb');
 });
 
 viewScreenBtn.addEventListener('click', () => {
-    gameboy.classList.add('screen-only');
+    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.add('screen-only'));
     viewScreenBtn.classList.add('active');
     viewGbBtn.classList.remove('active');
     localStorage.setItem('rugb-view', 'screen');
 });
 
+// --- Shell switch buttons ---
+// Restore saved shell override active state
+document.querySelectorAll('.shell-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.shell === shellOverride);
+});
+document.querySelectorAll('.shell-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        shellOverride = btn.dataset.shell;
+        localStorage.setItem('rugb-shell-override', shellOverride);
+        if (currentSystem) {
+            const detectedSystem = currentSystem;
+            switchShell(detectedSystem);
+        }
+    });
+});
+
 // --- Resize observer: keep --gb-w in sync with actual width ---
+const gbcShell = document.querySelector('.gbc');
 const resizeObs = new ResizeObserver(entries => {
     for (const entry of entries) {
         const box = entry.borderBoxSize?.[0];
         const w = box ? box.inlineSize : entry.target.offsetWidth;
-        gameboy.style.setProperty('--gb-w', w + 'px');
+        entry.target.style.setProperty('--gb-w', w + 'px');
     }
 });
 resizeObs.observe(gameboy);
+resizeObs.observe(gbcShell);
 
 // --- Edge/corner resize ---
 const EDGE = 8; // px from edge to trigger resize cursor
@@ -528,21 +546,46 @@ function detectSystem(bytes) {
     const u8 = new Uint8Array(bytes);
     // GBA ROMs have fixed value 0x96 at offset 0xB2
     if (u8.length >= 0xB3 && u8[0xB2] === 0x96) return 'gba';
+    // CGB flag at 0x0143: 0x80 = CGB-compatible, 0xC0 = CGB-only
+    if (u8.length >= 0x144 && (u8[0x143] === 0x80 || u8[0x143] === 0xC0)) return 'gbc';
     return 'gb';
 }
 
+let shellOverride = localStorage.getItem('rugb-shell-override') || 'auto';
+
 function switchShell(system) {
     const gb = document.querySelector('.gameboy');
+    const gbc = document.querySelector('.gbc');
     const gba = document.querySelector('.gba');
     const shoulders = document.getElementById('touch-shoulders');
-    if (system === 'gba') {
-        gb.style.display = 'none';
+
+    // Determine which shell to show
+    let shell = system;
+    if (shellOverride !== 'auto') {
+        // GBA emulation needs 240x160 canvas — only allow GBA shell
+        // GB/GBC emulation needs 160x144 — allow DMG or GBC shell
+        if (currentSystem === 'gba') {
+            shell = 'gba';
+        } else {
+            shell = (shellOverride === 'gba') ? system : shellOverride;
+        }
+    }
+
+    gb.style.display = 'none';
+    gbc.style.display = 'none';
+    gba.style.display = 'none';
+
+    if (shell === 'gba') {
         gba.style.display = '';
         canvas = document.getElementById('gba-screen');
         screenW = 240; screenH = 160;
         if (shoulders) shoulders.style.display = '';
+    } else if (shell === 'gbc') {
+        gbc.style.display = '';
+        canvas = document.getElementById('gbc-screen');
+        screenW = 160; screenH = 144;
+        if (shoulders) shoulders.style.display = 'none';
     } else {
-        gba.style.display = 'none';
         gb.style.display = '';
         canvas = document.getElementById('screen');
         screenW = 160; screenH = 144;
@@ -550,6 +593,23 @@ function switchShell(system) {
     }
     screenBytes = screenW * screenH * 4;
     ctx = canvas.getContext('2d');
+
+    // Carry screen-only mode to the new shell
+    const savedView = localStorage.getItem('rugb-view') || 'gb';
+    if (savedView === 'screen') {
+        [gb, gbc, gba].forEach(el => el.classList.add('screen-only'));
+    }
+
+    // Update shell button active state
+    document.querySelectorAll('.shell-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.shell === shellOverride);
+        // Disable DMG/GBC when running GBA
+        if (currentSystem === 'gba' && (btn.dataset.shell === 'dmg' || btn.dataset.shell === 'gbc')) {
+            btn.disabled = true;
+        } else {
+            btn.disabled = false;
+        }
+    });
 }
 
 async function startEmulator(bytes) {
