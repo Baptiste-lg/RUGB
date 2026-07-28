@@ -75,6 +75,15 @@
                 </div>
             </div>
             <div class="menu-group">
+                <span>Shell</span>
+                <div class="menu-row">
+                    <button class="shell-btn active" data-shell="auto">Auto</button>
+                    <button class="shell-btn" data-shell="dmg">DMG</button>
+                    <button class="shell-btn" data-shell="gbc">GBC</button>
+                    <button class="shell-btn" data-shell="gba">GBA</button>
+                </div>
+            </div>
+            <div class="menu-group">
                 <span>Filter</span>
                 <div class="menu-row">
                     <button class="filter-btn active" data-filter="none">None</button>
@@ -172,6 +181,89 @@
         </div>
 
         <!-- Speaker grille -->
+        <div class="gb-speaker-grille">
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+            <div class="gb-grille-line"></div>
+        </div>
+    </div>
+
+    <!-- Game Boy Color shell -->
+    <div class="gbc" style="display:none">
+        <!-- IR port -->
+        <div class="gbc-ir-port"></div>
+
+        <!-- Power switch -->
+        <div class="gbc-power-switch">
+            <div class="gb-power-slider"></div>
+        </div>
+
+        <!-- Screen bezel -->
+        <div class="gbc-bezel">
+            <div class="gb-battery">
+                <div class="gb-battery-led"></div>
+                <span class="gb-battery-label">BATTERY</span>
+            </div>
+            <div class="gbc-screen-subtitle">COLOR</div>
+            <div class="gb-screen-frame">
+                <canvas id="gbc-screen" width="160" height="144" role="img" aria-label="Game Boy Color screen"></canvas>
+                <div id="gbc-fps-overlay" class="fps-overlay" style="display:none">--</div>
+            </div>
+        </div>
+
+        <div class="gbc-name-label">
+            <span class="gbc-model-text">GAME BOY</span>
+            <span class="gbc-color-text">COLOR</span>
+        </div>
+
+        <!-- Controls area -->
+        <div class="gb-controls">
+            <!-- D-pad -->
+            <div class="gb-dpad-area">
+                <div class="gb-dpad">
+                    <div class="dpad-v">
+                        <div class="dpad-arm dpad-up gb-input" data-btn="2"></div>
+                        <div class="dpad-arm dpad-down gb-input" data-btn="3"></div>
+                    </div>
+                    <div class="dpad-h">
+                        <div class="dpad-arm dpad-left gb-input" data-btn="1"></div>
+                        <div class="dpad-arm dpad-right gb-input" data-btn="0"></div>
+                    </div>
+                    <div class="dpad-center"></div>
+                </div>
+            </div>
+
+            <!-- A / B buttons -->
+            <div class="gb-ab-area">
+                <div class="gb-ab">
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gb-input btn-b" data-btn="5"></div>
+                        <span class="gb-btn-label">B</span>
+                    </div>
+                    <div class="gb-ab-col">
+                        <div class="gb-round-btn gb-input btn-a" data-btn="4"></div>
+                        <span class="gb-btn-label">A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start / Select -->
+        <div class="gb-meta-area">
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gb-input btn-select" data-btn="7"></div>
+                <span class="gb-meta-label">SELECT</span>
+            </div>
+            <div class="gb-meta-col">
+                <div class="gb-pill-btn gb-input btn-start" data-btn="6"></div>
+                <span class="gb-meta-label">START</span>
+            </div>
+        </div>
+
+        <!-- Speaker grille (bottom-right) -->
         <div class="gb-speaker-grille">
             <div class="gb-grille-line"></div>
             <div class="gb-grille-line"></div>
