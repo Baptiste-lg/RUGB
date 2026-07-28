@@ -1,6 +1,10 @@
 import initGb, { WasmEmulator } from '../pkg/rugb/rugb.js';
 import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
 
+function sanitizeTitle(raw) {
+    return raw.replace(/[^\x20-\x7E]/g, '').slice(0, 32);
+}
+
 let emu = null;
 let currentSystem = null; // 'gb' or 'gba'
 let gbWasm = null;
@@ -383,8 +387,8 @@ function saveBatteryRAM() {
         const len = emu.battery_ram_len();
         if (len === 0) return;
         const ptr = emu.battery_ram_ptr();
-        const ram = new Uint8Array(wasm.memory.buffer, ptr, len);
-        const b64 = uint8ToBase64(new Uint8Array(ram));
+        const ram = new Uint8Array(new Uint8Array(wasm.memory.buffer, ptr, len));
+        const b64 = uint8ToBase64(ram);
         localStorage.setItem(`rugb-sram-${title}`, b64);
     } catch {
         showToast('Storage full — cannot save game progress');
@@ -397,6 +401,7 @@ function loadBatteryRAM() {
     if (!title) return;
     const b64 = localStorage.getItem(`rugb-sram-${title}`);
     if (!b64) return;
+    if (b64.length > 2 * 1024 * 1024) return;
     const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     emu.load_battery_ram(data);
 }
@@ -453,6 +458,7 @@ function applyBpsPatch(rom, patch) {
     pos = 4;
     const srcSize = readVlq();
     const targetSize = readVlq();
+    if (targetSize > 64 * 1024 * 1024) return null;
     readVlq(); // metadata size (skip)
     const target = new Uint8Array(targetSize);
     let outPos = 0, srcRelOff = 0, tgtRelOff = 0;
@@ -534,6 +540,7 @@ function autoLoadState() {
     if (!title) return false;
     const b64 = localStorage.getItem(`rugb-autosave-${title}`);
     if (!b64) return false;
+    if (b64.length > 2 * 1024 * 1024) return false;
     try {
         const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
         emu.load_state(data);
@@ -551,7 +558,9 @@ function detectSystem(bytes) {
     return 'gb';
 }
 
-let shellOverride = localStorage.getItem('rugb-shell-override') || 'auto';
+const VALID_SHELLS = new Set(['auto', 'dmg', 'gbc', 'gba']);
+const _rawShell = localStorage.getItem('rugb-shell-override');
+let shellOverride = VALID_SHELLS.has(_rawShell) ? _rawShell : 'auto';
 
 function switchShell(system) {
     const gb = document.querySelector('.gameboy');
@@ -593,6 +602,8 @@ function switchShell(system) {
     }
     screenBytes = screenW * screenH * 4;
     ctx = canvas.getContext('2d');
+    cachedImageData = new ImageData(screenW, screenH);
+    frameMs = currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS;
 
     // Carry screen-only mode to the new shell
     const savedView = localStorage.getItem('rugb-view') || 'gb';
@@ -637,7 +648,7 @@ async function startEmulator(bytes) {
 
     switchShell(system);
 
-    const title = emu.title();
+    const title = sanitizeTitle(emu.title() || '');
     if (title) {
         document.title = `RUGB — ${title}`;
         addRecentRom(title);
@@ -805,7 +816,7 @@ function updateGpStatus() {
         }
     }
     if (found) {
-        gpStatus.textContent = found.id;
+        gpStatus.textContent = found.id.slice(0, 200);
         gpStatus.classList.add('connected');
     } else {
         gpStatus.textContent = 'No controller detected — press a button on your controller';
@@ -878,6 +889,8 @@ function getFrameMs() { return currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME
 function getScreenSize() { return currentSystem === 'gba' ? { w: 240, h: 160 } : { w: 160, h: 144 }; }
 // Cached screen dimensions (updated on system switch)
 let screenW = 160, screenH = 144, screenBytes = 160 * 144 * 4;
+let cachedImageData = null;
+let frameMs = 16.74;
 let lastFrameTs = 0;
 let frameDebt = 0;
 
@@ -895,7 +908,7 @@ function frame(timestamp) {
     lastFrameTs = timestamp;
 
     // Cap delta to avoid spiral of death after tab was backgrounded
-    const FRAME_MS = getFrameMs();
+    const FRAME_MS = frameMs;
     if (delta > 100) delta = FRAME_MS;
 
     let framesRun = 0;
@@ -953,8 +966,9 @@ function frame(timestamp) {
 
     if (framesRun > 0) {
         const ptr = emu.framebuffer_ptr();
-        const pixels = new Uint8ClampedArray(wasm.memory.buffer, ptr, screenBytes);
-        let imageData = new ImageData(new Uint8ClampedArray(pixels), screenW, screenH);
+        const srcView = new Uint8ClampedArray(wasm.memory.buffer, ptr, screenBytes);
+        cachedImageData.data.set(srcView);
+        let imageData = cachedImageData;
         // Palette only applies to GB (GBA uses direct color)
         if (currentSystem !== 'gba') imageData = applyPalette(imageData);
         // Frame blending: mix 50% current + 50% previous frame (no allocation)
@@ -1067,6 +1081,7 @@ async function extractRomFromZip(buffer) {
     // Walk central directory entries looking for a ROM file
     let off = cdOffset;
     for (let i = 0; i < entryCount; i++) {
+        if (off + 46 > bytes.length) break;
         if (view.getUint32(off, true) !== 0x02014b50) break;
 
         const method = view.getUint16(off + 10, true);
@@ -1091,6 +1106,7 @@ async function extractRomFromZip(buffer) {
         }
 
         off += 46 + nameLen + extraLen + commentLen;
+        if (off > bytes.length) break;
     }
 
     showToast('No .gb ROM found in zip');
@@ -1104,10 +1120,14 @@ async function deflateRaw(compressed) {
     writer.close();
     const reader = ds.readable.getReader();
     const chunks = [];
+    const MAX_ROM_BYTES = 64 * 1024 * 1024;
+    let totalBytes = 0;
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
+        totalBytes += value.length;
+        if (totalBytes > MAX_ROM_BYTES) { reader.cancel(); return null; }
     }
     const total = chunks.reduce((s, c) => s + c.length, 0);
     const result = new Uint8Array(total);
@@ -1199,8 +1219,9 @@ filterBtns.forEach(btn => {
     });
 });
 // Restore saved filter
+const VALID_FILTERS = new Set(['none', 'scanlines', 'lcd', 'smooth', 'ghosting']);
 const savedFilter = localStorage.getItem('rugb-filter');
-if (savedFilter && savedFilter !== 'none') {
+if (savedFilter && VALID_FILTERS.has(savedFilter) && savedFilter !== 'none') {
     document.querySelector(`.filter-btn[data-filter="${savedFilter}"]`)?.click();
 }
 
@@ -1271,7 +1292,17 @@ const DEFAULT_KEYS = {
 function loadKeyMap() {
     const saved = localStorage.getItem('rugb-keymap');
     if (saved) {
-        try { return { ...DEFAULT_KEYS, ...JSON.parse(saved) }; } catch {}
+        try {
+            const VALID_ACTIONS = new Set(Object.keys(DEFAULT_KEYS));
+            const parsed = JSON.parse(saved);
+            const merged = { ...DEFAULT_KEYS };
+            for (const [k, v] of Object.entries(parsed)) {
+                if (VALID_ACTIONS.has(k) && typeof v === 'string' && v.length > 0 && v.length < 32) {
+                    merged[k] = v;
+                }
+            }
+            return merged;
+        } catch {}
     }
     return { ...DEFAULT_KEYS };
 }
@@ -1379,6 +1410,7 @@ remapBtns.forEach(btn => {
 document.addEventListener('keydown', (e) => {
     // Remap mode: capture the key for the selected action
     if (remapListening) {
+        if (!e.key || e.key === 'Unidentified' || e.key === 'Dead' || e.key === 'Process') return;
         e.preventDefault();
         if (e.key === 'Escape') {
             remapBtns.forEach(b => b.classList.remove('listening'));
@@ -1683,6 +1715,7 @@ savestateFileInput.addEventListener('change', (e) => {
                 showToast(`Wrong ROM: expected "${imported.title}", loaded "${currentTitle || 'none'}"`);
                 return;
             }
+            if (imported.data.length > 2 * 1024 * 1024) { showToast('Invalid save state file'); return; }
             const data = Uint8Array.from(atob(imported.data), c => c.charCodeAt(0));
             const timestamp = imported.timestamp || new Date().toLocaleString();
             saveSlots[slot] = { data, timestamp, title: imported.title };
@@ -1998,6 +2031,7 @@ async function loadShareLink() {
     const hash = location.hash;
     if (!hash.startsWith('#state=')) return false;
     const b64 = hash.slice(7).replace(/-/g, '+').replace(/_/g, '/');
+    if (b64.length > 2 * 1024 * 1024) return false;
     const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
     try {
         const binary = atob(padded);
