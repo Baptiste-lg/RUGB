@@ -67,9 +67,14 @@ server {
     }
 
     # --- Security headers ---
+    # NOTE: any location block that calls add_header silently inherits NO
+    # parent add_header directives (nginx design). Headers are therefore
+    # repeated in full inside every location block that sets its own headers.
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none';" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=(), payment=()" always;
 
     # --- Compression ---
     gzip on;
@@ -81,18 +86,33 @@ server {
     location ~* \.(wasm|js)$ {
         expires 30d;
         add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none';" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=(), payment=()" always;
     }
 
     # CSS and images: moderate cache
     location ~* \.(css|png|jpg|jpeg|gif|ico|svg)$ {
         expires 7d;
         add_header Cache-Control "public";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none';" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=(), payment=()" always;
     }
 
     # HTML: no cache to always serve the latest version
     location ~* \.html$ {
         expires -1;
         add_header Cache-Control "no-store, no-cache, must-revalidate";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none';" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=(), payment=()" always;
     }
 
     # SPA fallback
