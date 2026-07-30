@@ -420,19 +420,17 @@ mod tests {
 
 /// Detect backup type by scanning ROM for identification strings.
 fn detect_backup_type(rom: &[u8]) -> BackupType {
-    let rom_str = rom
-        .iter()
-        .map(|&b| if b.is_ascii() { b as char } else { ' ' })
-        .collect::<String>();
+    fn contains(rom: &[u8], needle: &[u8]) -> bool {
+        rom.windows(needle.len()).any(|w| w == needle)
+    }
 
-    if rom_str.contains("FLASH1M_V") {
+    if contains(rom, b"FLASH1M_V") {
         BackupType::Flash128
-    } else if rom_str.contains("FLASH_V") || rom_str.contains("FLASH512_V") {
+    } else if contains(rom, b"FLASH_V") || contains(rom, b"FLASH512_V") {
         BackupType::Flash64
-    } else if rom_str.contains("SRAM_V") || rom_str.contains("SRAM_F_V") {
+    } else if contains(rom, b"SRAM_V") || contains(rom, b"SRAM_F_V") {
         BackupType::Sram
-    } else if rom_str.contains("EEPROM_V") {
-        // Guess size from ROM size (>16MB usually means 8KB EEPROM)
+    } else if contains(rom, b"EEPROM_V") {
         if rom.len() > 0x100_0000 {
             BackupType::Eeprom8K
         } else {
