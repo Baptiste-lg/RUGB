@@ -32,6 +32,13 @@ pub struct Ppu {
     line: u32,
     /// IRQ flags to raise (accumulated during tick, flushed to IO)
     pending_irqs: u16,
+    /// Internal BG2 reference point (auto-incremented by PB/PD each scanline).
+    /// Reloaded from IO latch at VBlank end (line 0).
+    bg2_internal_x: i32,
+    bg2_internal_y: i32,
+    /// Internal BG3 reference point (auto-incremented by PB/PD each scanline).
+    bg3_internal_x: i32,
+    bg3_internal_y: i32,
 }
 
 impl Ppu {
@@ -42,6 +49,10 @@ impl Ppu {
             dot_cycles: 0,
             line: 0,
             pending_irqs: 0,
+            bg2_internal_x: 0,
+            bg2_internal_y: 0,
+            bg3_internal_x: 0,
+            bg3_internal_y: 0,
         }
     }
 
@@ -109,6 +120,14 @@ impl Ppu {
                 // V-blank end?
                 if self.line == 0 {
                     io.dispstat &= !0x01;
+                    // Reload internal affine reference points from IO latch registers.
+                    // Games write BG2X/BG2Y/BG3X/BG3Y during VBlank; hardware latches
+                    // these into internal registers that are then auto-incremented each
+                    // scanline by PB/PD. We reload here (at the start of the new frame).
+                    self.bg2_internal_x = io.bg2x;
+                    self.bg2_internal_y = io.bg2y;
+                    self.bg3_internal_x = io.bg3x;
+                    self.bg3_internal_y = io.bg3y;
                 }
 
                 // V-count match?
@@ -179,8 +198,10 @@ impl Ppu {
                                 pb: io.bg2pb,
                                 pc: io.bg2pc,
                                 pd: io.bg2pd,
-                                ref_x: io.bg2x,
-                                ref_y: io.bg2y,
+                                // Use internal reference points (not IO latch) so that
+                                // the per-scanline PB/PD increment accumulates correctly.
+                                ref_x: self.bg2_internal_x,
+                                ref_y: self.bg2_internal_y,
                             }
                         } else {
                             bg::AffineParams {
@@ -188,8 +209,8 @@ impl Ppu {
                                 pb: io.bg3pb,
                                 pc: io.bg3pc,
                                 pd: io.bg3pd,
-                                ref_x: io.bg3x,
-                                ref_y: io.bg3y,
+                                ref_x: self.bg3_internal_x,
+                                ref_y: self.bg3_internal_y,
                             }
                         };
                         bg::render_affine_bg(
@@ -200,6 +221,16 @@ impl Ppu {
                             palette,
                             &affine,
                         );
+                        // Advance internal reference points by PB/PD for the next scanline.
+                        // On real hardware the internal registers are updated after each
+                        // rendered line: ref_x += PB, ref_y += PD.
+                        if bg_idx == 2 {
+                            self.bg2_internal_x += io.bg2pb as i32;
+                            self.bg2_internal_y += io.bg2pd as i32;
+                        } else {
+                            self.bg3_internal_x += io.bg3pb as i32;
+                            self.bg3_internal_y += io.bg3pd as i32;
+                        }
                     } else {
                         bg::render_text_bg(&mut *self.framebuffer, line, &bgctrl, vram, palette);
                     }
