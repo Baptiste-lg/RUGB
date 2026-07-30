@@ -185,21 +185,24 @@ impl Arm7Tdmi {
     }
 
     /// Handle a software interrupt (SWI) with HLE BIOS emulation.
-    #[allow(dead_code)]
-    pub fn handle_swi(&mut self, bus: &mut Bus, comment: u32) {
+    /// Returns true if the SWI was handled (no need to enter supervisor mode).
+    pub fn handle_swi(&mut self, comment: u8, bus: &mut Bus) -> bool {
         match comment {
             0x00 => {
                 // SoftReset — jump to ROM entry
                 self.regs[15] = 0x08000000;
                 self.cpsr = CpuMode::System as u32;
+                true
             }
             0x02 => {
                 // Halt
                 bus.io.halted = true;
+                true
             }
             0x05 => {
                 // VBlankIntrWait — set wait flags and halt
                 bus.io.halted = true;
+                true
             }
             0x06 => {
                 // Div: R0 = R0 / R1, R1 = R0 % R1, R3 = |R0/R1|
@@ -210,11 +213,13 @@ impl Arm7Tdmi {
                     self.regs[1] = (num % den) as u32;
                     self.regs[3] = (num / den).unsigned_abs();
                 }
+                true
             }
             0x08 => {
                 // Sqrt: R0 = sqrt(R0)
                 let val = self.regs[0] as f64;
                 self.regs[0] = val.sqrt() as u32;
+                true
             }
             0x0B | 0x0C => {
                 // CpuSet / CpuFastSet — memory fill/copy
@@ -238,8 +243,9 @@ impl Arm7Tdmi {
                         bus.write16(dst + i * 2, val);
                     }
                 }
+                true
             }
-            _ => {} // Unimplemented SWI — do nothing
+            _ => false, // Unimplemented SWI — fall through to supervisor mode
         }
     }
 }
