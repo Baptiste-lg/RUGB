@@ -54,6 +54,8 @@ pub struct IoRegisters {
     pub fifo_b_pending: Option<u32>,
     /// Pending SOUNDCNT_H write (needs APU forwarding for FIFO reset)
     pub soundcnt_h_dirty: bool,
+    /// Pending PSG register write (offset relative to 0x04000000, value)
+    pub psg_pending: Option<(u16, u16)>,
     /// DMA controller
     pub dma: DmaController,
     /// Timer controller
@@ -108,6 +110,7 @@ impl IoRegisters {
             fifo_a_pending: None,
             fifo_b_pending: None,
             soundcnt_h_dirty: false,
+            psg_pending: None,
             dma: DmaController::new(),
             timers: TimerController::new(),
             ie: 0,
@@ -136,11 +139,15 @@ impl IoRegisters {
             0x040..=0x04A => 0,
             0x050 => self.bldcnt,
             0x052 => self.bldalpha,
-            // Sound registers
+            // PSG channel registers (write-only; reads return 0)
+            0x060..=0x07E => 0,
+            // Sound control registers
             0x080 => self.soundcnt_l,
             0x082 => self.soundcnt_h,
             0x084 => self.soundcnt_x,
             0x088 => self.soundbias,
+            // Wave RAM (readable when CH3 DAC is off — simplified: always 0)
+            0x090..=0x09E => 0,
             // DMA registers (0x0B0-0x0DE) — most are write-only
             0x0BA => self.dma.channels[0].ctrl,
             0x0C6 => self.dma.channels[1].ctrl,
@@ -231,13 +238,24 @@ impl IoRegisters {
             0x050 => self.bldcnt = val,
             0x052 => self.bldalpha = val,
             0x054 => self.bldy = val,
-            // Sound registers
-            0x080 => self.soundcnt_l = val,
+            // PSG channel registers (0x060-0x07E) and Wave RAM (0x090-0x09E)
+            // Forward directly to APU via psg_pending queue (last-write-wins per step).
+            0x060..=0x07E | 0x090..=0x09E => {
+                self.psg_pending = Some((addr as u16 & 0x3FF, val));
+            }
+            // Sound control registers
+            0x080 => {
+                self.soundcnt_l = val;
+                self.psg_pending = Some((0x080, val));
+            }
             0x082 => {
                 self.soundcnt_h = val;
                 self.soundcnt_h_dirty = true;
             }
-            0x084 => self.soundcnt_x = (self.soundcnt_x & 0x0F) | (val & 0x80),
+            0x084 => {
+                self.soundcnt_x = (self.soundcnt_x & 0x0F) | (val & 0x80);
+                self.psg_pending = Some((0x084, val));
+            }
             0x088 => self.soundbias = val,
             // FIFO writes (32-bit, handled as two 16-bit writes)
             0x0A0 => {
