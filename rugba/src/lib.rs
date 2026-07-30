@@ -65,6 +65,9 @@ impl GbaEmulator {
                 self.apu.soundbias = self.bus.io.soundbias;
                 self.bus.io.soundcnt_h_dirty = false;
             }
+            if let Some((offset, val)) = self.bus.io.psg_pending.take() {
+                self.apu.write_psg_register(offset, val);
+            }
             if let Some(data) = self.bus.io.fifo_a_pending.take() {
                 self.apu.write_fifo_a(data);
             }
