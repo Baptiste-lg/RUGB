@@ -1303,6 +1303,7 @@ impl Cpu {
             // --- STOP ---
             0x10 => {
                 let _ = self.fetch_byte(mmu);
+                mmu.try_speed_switch();
                 4
             }
 
