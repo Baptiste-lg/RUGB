@@ -976,8 +976,8 @@ function frame(timestamp) {
         const srcView = new Uint8ClampedArray(wasm.memory.buffer, ptr, screenBytes);
         cachedImageData.data.set(srcView);
         let imageData = cachedImageData;
-        // Palette only applies to GB (GBA uses direct color)
-        if (currentSystem !== 'gba') imageData = applyPalette(imageData);
+        // Palette LUT only applies to DMG (GBC/GBA use their own color palettes)
+        if (currentSystem === 'gb') imageData = applyPalette(imageData);
         // Frame blending: mix 50% current + 50% previous frame (no allocation)
         if (frameBlending) {
             const cur = imageData.data;
