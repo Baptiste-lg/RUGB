@@ -1,5 +1,6 @@
 import initGb, { WasmEmulator } from '../pkg/rugb/rugb.js';
 import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
+import { LinkCable } from './link-cable.js';
 
 function sanitizeTitle(raw) {
     return raw.replace(/[^\x20-\x7E]/g, '').slice(0, 32);
@@ -24,6 +25,9 @@ let fpsFrameCount = 0;
 let fpsLastTime = 0;
 let turboB = false;
 let turboFrame = 0;
+
+// --- Link cable ---
+let linkCable = null;
 
 // --- Rewind state ---
 const REWIND_MAX_FRAMES = 300; // ~5 seconds at 60fps
@@ -664,6 +668,7 @@ async function startEmulator(bytes) {
     resetBtn.disabled = false;
     muteBtn.disabled = false;
     screenshotBtn.disabled = false;
+    if (linkBtn) linkBtn.disabled = (system === 'gba');
     paused = false;
     pauseBtn.textContent = 'Pause';
 
@@ -946,6 +951,8 @@ function frame(timestamp) {
 
         if (framesRun > 0) {
             feedAudioWorklet();
+            // Link cable tick
+            if (linkCable) linkCable.tick();
             // Rumble feedback via Gamepad haptics (GB only)
             if (currentSystem === 'gb' && emu.rumble()) {
                 try {
@@ -2136,6 +2143,88 @@ let pendingSharedState = null;
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// --- Link cable UI ---
+const linkBtn = document.getElementById('link-btn');
+const linkOverlay = document.getElementById('link-overlay');
+const linkStatus = document.getElementById('link-status');
+const linkCodeDisplay = document.getElementById('link-code-display');
+const linkRoomCode = document.getElementById('link-room-code');
+const linkHostBtn = document.getElementById('link-host');
+const linkJoinBtn = document.getElementById('link-join');
+const linkJoinInput = document.getElementById('link-join-input');
+const linkDisconnectBtn = document.getElementById('link-disconnect');
+const linkCloseBtn = document.getElementById('link-close');
+
+if (linkBtn) {
+    linkBtn.addEventListener('click', () => {
+        linkOverlay.classList.add('visible');
+    });
+}
+
+function updateLinkUI(status, code) {
+    linkStatus.className = 'link-status';
+    linkDisconnectBtn.style.display = 'none';
+    linkCodeDisplay.style.display = 'none';
+    switch (status) {
+        case 'waiting':
+            linkStatus.textContent = 'Waiting for player...';
+            linkStatus.classList.add('waiting');
+            linkCodeDisplay.style.display = '';
+            linkRoomCode.textContent = code;
+            linkDisconnectBtn.style.display = '';
+            break;
+        case 'connecting':
+            linkStatus.textContent = 'Connecting...';
+            linkStatus.classList.add('waiting');
+            break;
+        case 'connected':
+            linkStatus.textContent = 'Connected!';
+            linkStatus.classList.add('connected');
+            linkDisconnectBtn.style.display = '';
+            break;
+        case 'peer-disconnected':
+            linkStatus.textContent = 'Peer disconnected';
+            break;
+        case 'disconnected':
+        default:
+            linkStatus.textContent = 'Disconnected';
+            break;
+    }
+}
+
+if (linkHostBtn) {
+    linkHostBtn.addEventListener('click', () => {
+        if (!emu || currentSystem === 'gba') return;
+        if (linkCable) linkCable.disconnect();
+        linkCable = new LinkCable(emu, updateLinkUI);
+        linkCable.hostRoom();
+    });
+}
+
+if (linkJoinBtn) {
+    linkJoinBtn.addEventListener('click', () => {
+        if (!emu || currentSystem === 'gba') return;
+        const code = linkJoinInput.value.trim();
+        if (code.length < 4) return;
+        if (linkCable) linkCable.disconnect();
+        linkCable = new LinkCable(emu, updateLinkUI);
+        linkCable.joinRoom(code);
+    });
+}
+
+if (linkDisconnectBtn) {
+    linkDisconnectBtn.addEventListener('click', () => {
+        if (linkCable) linkCable.disconnect();
+        linkCable = null;
+    });
+}
+
+if (linkCloseBtn) {
+    linkCloseBtn.addEventListener('click', () => {
+        linkOverlay.classList.remove('visible');
+    });
 }
 
 console.log('RUGB ready — load a ROM to start');
