@@ -772,16 +772,20 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
         if load {
             let val = bus.read32(current_addr & !3);
             if s_bit && (reg_list & (1 << 15)) != 0 {
-                // S bit with R15 in list: restore CPSR from SPSR
+                // S bit with R15 in list: restore CPSR from SPSR after loading.
                 cpu.regs[i as usize] = val;
                 if i == 15 {
                     cpu.cpsr = cpu.spsr();
                     cpu.regs[15] = val & !3;
                 }
             } else if s_bit {
-                // S bit without R15: access user-mode registers
-                // Simplified: just write normally (full impl would bank switch)
+                // S bit without R15: load into user-mode registers.
+                // Switch to System mode (same register bank as User) to access
+                // R13/R14 user copies instead of the current mode's banked copies.
+                let saved_mode = cpu.mode();
+                cpu.switch_mode(CpuMode::System);
                 cpu.regs[i as usize] = val;
+                cpu.switch_mode(saved_mode);
             } else {
                 cpu.regs[i as usize] = val;
             }
@@ -791,7 +795,15 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
             }
         } else {
             // Store
-            let val = if i == 15 {
+            let val = if s_bit && i != 15 {
+                // S bit without R15: store from user-mode registers.
+                // Switch to System mode to read R13/R14 user copies.
+                let saved_mode = cpu.mode();
+                cpu.switch_mode(CpuMode::System);
+                let v = cpu.regs[i as usize];
+                cpu.switch_mode(saved_mode);
+                v
+            } else if i == 15 {
                 cpu.regs[15].wrapping_add(12)
             } else {
                 cpu.regs[i as usize]
