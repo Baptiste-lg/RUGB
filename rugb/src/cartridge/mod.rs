@@ -1,7 +1,11 @@
+pub mod huc1;
+pub mod huc3;
 pub mod mbc1;
 pub mod mbc2;
 pub mod mbc3;
 pub mod mbc5;
+pub mod mbc7;
+pub mod mmm01;
 pub mod no_mbc;
 
 pub trait Cartridge {
@@ -28,6 +32,8 @@ pub trait Cartridge {
     fn tick_rtc(&mut self, _cycles: u32) {}
     /// Set RTC time offset in seconds (MBC3 only, for user override).
     fn set_rtc_offset(&mut self, _seconds: i32) {}
+    /// Feed accelerometer data from host (MBC7 only). Center = 0x81D0.
+    fn set_tilt(&mut self, _x: i16, _y: i16) {}
 }
 
 /// Detect if ROM is a Game Boy Color title (header byte 0x0143).
@@ -49,7 +55,7 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
     let ram_size = parse_ram_size(data[0x0149]);
     let has_battery = matches!(
         cart_type,
-        0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFF
+        0x03 | 0x06 | 0x09 | 0x0D | 0x0F | 0x10 | 0x13 | 0x1B | 0x1E | 0x22 | 0xFE | 0xFF
     );
 
     let has_rumble = matches!(cart_type, 0x1C..=0x1E);
@@ -58,6 +64,7 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
         0x00 => Box::new(no_mbc::NoMbc::new(data)),
         0x01..=0x03 => Box::new(mbc1::Mbc1::new(data, ram_size, rom_title, has_battery)),
         0x05..=0x06 => Box::new(mbc2::Mbc2::new(data, rom_title, has_battery)),
+        0x0B..=0x0D => Box::new(mmm01::Mmm01::new(data, ram_size, rom_title, has_battery)),
         0x0F..=0x13 => Box::new(mbc3::Mbc3::new(data, ram_size, rom_title, has_battery)),
         0x19..=0x1E => Box::new(mbc5::Mbc5::new(
             data,
@@ -66,6 +73,9 @@ pub fn from_rom(data: &[u8]) -> Box<dyn Cartridge> {
             has_battery,
             has_rumble,
         )),
+        0x22 => Box::new(mbc7::Mbc7::new(data, rom_title, has_battery)),
+        0xFE => Box::new(huc3::Huc3::new(data, ram_size, rom_title, has_battery)),
+        0xFF => Box::new(huc1::Huc1::new(data, ram_size, rom_title, has_battery)),
         _ => {
             // Fall back to NoMBC for unsupported mappers
             #[cfg(debug_assertions)]
