@@ -221,6 +221,7 @@ impl Mmu {
             // CGB registers
             0xFF4D => self.key1 | if self.double_speed { 0x80 } else { 0 },
             0xFF4F => self.ppu.vram_bank | 0xFE,
+            0xFF55 => self.ppu.read_register(addr),
             0xFF68..=0xFF6B => self.ppu.read_register(addr),
             0xFF70 => self.wram_bank,
             // Remaining I/O returns 0xFF
@@ -306,6 +307,22 @@ impl Mmu {
             // CGB registers
             0xFF4D => self.key1 = (self.key1 & 0x80) | (val & 0x01),
             0xFF4F => self.ppu.vram_bank = val & 1,
+            0xFF51..=0xFF54 => self.ppu.write_register(addr, val),
+            0xFF55 => {
+                // Let PPU update its HDMA fields first
+                self.ppu.write_register(addr, val);
+                // If General DMA was just armed, execute all blocks immediately
+                if self.ppu.hdma_active && self.ppu.hdma_mode == 0 {
+                    while self.ppu.hdma_active {
+                        let src = self.ppu.hdma_src;
+                        let mut block = [0u8; 16];
+                        for (i, b) in block.iter_mut().enumerate() {
+                            *b = self.read(src.wrapping_add(i as u16));
+                        }
+                        self.ppu.run_hdma_block(&block);
+                    }
+                }
+            }
             0xFF68..=0xFF6B => self.ppu.write_register(addr, val),
             0xFF70 => {
                 self.wram_bank = val & 0x07;
@@ -320,6 +337,30 @@ impl Mmu {
 
             // Interrupt Enable
             0xFFFF => self.ie = val,
+        }
+    }
+
+    /// Called each HBlank transition. If an HBlank HDMA is active, copies one 16-byte block.
+    pub fn tick_hdma(&mut self) {
+        if self.ppu.hdma_active && self.ppu.hdma_mode == 1 {
+            let src = self.ppu.hdma_src;
+            let mut block = [0u8; 16];
+            for (i, b) in block.iter_mut().enumerate() {
+                *b = self.read(src.wrapping_add(i as u16));
+            }
+            self.ppu.run_hdma_block(&block);
+        }
+    }
+
+    /// Checks KEY1 bit 0 and toggles double-speed mode if set.
+    /// Returns true if a speed switch was performed.
+    pub fn try_speed_switch(&mut self) -> bool {
+        if self.key1 & 0x01 != 0 {
+            self.double_speed = !self.double_speed;
+            self.key1 &= !0x01;
+            true
+        } else {
+            false
         }
     }
 }
