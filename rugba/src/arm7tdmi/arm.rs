@@ -894,9 +894,7 @@ fn exec_msr(cpu: &mut Arm7Tdmi, instruction: u32) -> u32 {
     if use_spsr {
         let spsr = cpu.spsr();
         let new_val = (spsr & !mask) | (value & mask);
-        // Would need cpu.set_spsr(new_val) - simplified
-        // For now just set it via the cpsr path as placeholder
-        let _ = new_val;
+        cpu.set_spsr(new_val);
     } else {
         cpu.cpsr = (cpu.cpsr & !mask) | (value & mask);
     }
