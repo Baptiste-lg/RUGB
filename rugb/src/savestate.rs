@@ -22,6 +22,10 @@ pub fn push_i8(data: &mut Vec<u8>, v: i8) {
     data.push(v as u8);
 }
 
+pub fn push_i16(data: &mut Vec<u8>, v: i16) {
+    data.extend_from_slice(&v.to_le_bytes());
+}
+
 pub fn push_slice(data: &mut Vec<u8>, s: &[u8]) {
     push_u32(data, s.len() as u32);
     data.extend_from_slice(s);
@@ -51,6 +55,12 @@ pub fn pop_bool(data: &mut &[u8]) -> bool {
 
 pub fn pop_i8(data: &mut &[u8]) -> i8 {
     pop_u8(data) as i8
+}
+
+pub fn pop_i16(data: &mut &[u8]) -> i16 {
+    let v = i16::from_le_bytes([data[0], data[1]]);
+    *data = &data[2..];
+    v
 }
 
 pub fn pop_vec(data: &mut &[u8]) -> Vec<u8> {
