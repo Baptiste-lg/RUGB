@@ -57,15 +57,14 @@ pub struct Ppu {
     // --- CGB VRAM bank 1 (bank 0 is the existing vram) ---
     pub vram_bank1: [u8; 0x2000],
     pub vram_bank: u8, // VBK register (0 or 1)
-    // --- HDMA (CGB high-speed DMA, TODO: implement transfer logic) ---
-    #[allow(dead_code)]
+    // --- HDMA (CGB high-speed DMA) ---
     pub hdma_src: u16,
-    #[allow(dead_code)]
     pub hdma_dst: u16,
-    #[allow(dead_code)]
+    /// Number of 16-byte blocks remaining (1 = one block left)
     pub hdma_len: u8,
-    #[allow(dead_code)]
     pub hdma_active: bool,
+    /// 0 = General DMA, 1 = HBlank DMA
+    pub hdma_mode: u8,
 }
 
 impl Ppu {
@@ -101,6 +100,7 @@ impl Ppu {
             hdma_dst: 0,
             hdma_len: 0,
             hdma_active: false,
+            hdma_mode: 0,
         }
     }
 
@@ -571,6 +571,10 @@ impl Ppu {
             0xFF4A => self.wy,
             0xFF4B => self.wx,
             0xFF4F => self.vram_bank | 0xFE,
+            0xFF55 => {
+                (if self.hdma_active { 0 } else { 0x80 })
+                    | (self.hdma_len.saturating_sub(1) & 0x7F)
+            }
             0xFF68 => self.bg_palette_index,
             0xFF69 => self.bg_palette_data[(self.bg_palette_index & 0x3F) as usize],
             0xFF6A => self.obj_palette_index,
@@ -602,6 +606,12 @@ impl Ppu {
         push_u8(d, self.wx);
         d.extend_from_slice(&self.vram);
         d.extend_from_slice(&self.oam);
+        push_slice(d, &self.bg_palette_data);
+        push_slice(d, &self.obj_palette_data);
+        push_u8(d, self.bg_palette_index);
+        push_u8(d, self.obj_palette_index);
+        push_slice(d, &self.vram_bank1);
+        push_u8(d, self.vram_bank);
     }
 
     pub fn load_state(&mut self, d: &mut &[u8]) {
@@ -628,6 +638,38 @@ impl Ppu {
         *d = &d[0x2000..];
         self.oam.copy_from_slice(&d[..0xA0]);
         *d = &d[0xA0..];
+        let bg = pop_vec(d);
+        self.bg_palette_data.copy_from_slice(&bg);
+        let obj = pop_vec(d);
+        self.obj_palette_data.copy_from_slice(&obj);
+        self.bg_palette_index = pop_u8(d);
+        self.obj_palette_index = pop_u8(d);
+        let vb1 = pop_vec(d);
+        self.vram_bank1.copy_from_slice(&vb1);
+        self.vram_bank = pop_u8(d);
+    }
+
+    /// Copy 16 bytes from `block` into VRAM at `self.hdma_dst`, then advance pointers.
+    /// Returns `true` if HDMA is still active after this block.
+    pub fn run_hdma_block(&mut self, block: &[u8; 16]) -> bool {
+        let dst = self.hdma_dst;
+        for (i, &byte) in block.iter().enumerate() {
+            let addr = dst.wrapping_add(i as u16);
+            // Destination is always in VRAM range 0x8000-0x9FFF
+            let offset = (addr & 0x1FFF) as usize;
+            if self.vram_bank == 1 {
+                self.vram_bank1[offset] = byte;
+            } else {
+                self.vram[offset] = byte;
+            }
+        }
+        self.hdma_src = self.hdma_src.wrapping_add(16);
+        self.hdma_dst = self.hdma_dst.wrapping_add(16);
+        self.hdma_len = self.hdma_len.saturating_sub(1);
+        if self.hdma_len == 0 {
+            self.hdma_active = false;
+        }
+        self.hdma_active
     }
 
     pub fn write_register(&mut self, addr: u16, val: u8) {
@@ -658,6 +700,30 @@ impl Ppu {
             0xFF4A => self.wy = val,
             0xFF4B => self.wx = val,
             0xFF4F => self.vram_bank = val & 1,
+            0xFF51 => self.hdma_src = (self.hdma_src & 0x00FF) | ((val as u16) << 8),
+            0xFF52 => self.hdma_src = (self.hdma_src & 0xFF00) | ((val & 0xF0) as u16),
+            0xFF53 => {
+                self.hdma_dst = (self.hdma_dst & 0x00F0) | (((val & 0x1F) as u16) << 8) | 0x8000
+            }
+            0xFF54 => self.hdma_dst = (self.hdma_dst & 0xFF00) | ((val & 0xF0) as u16),
+            0xFF55 => {
+                if val & 0x80 == 0 {
+                    // Bit 7 = 0: if HBlank DMA is active, cancel it
+                    if self.hdma_active && self.hdma_mode == 1 {
+                        self.hdma_active = false;
+                    } else {
+                        // General DMA — set active; mmu.rs will do the transfer
+                        self.hdma_mode = 0;
+                        self.hdma_len = (val & 0x7F) + 1;
+                        self.hdma_active = true;
+                    }
+                } else {
+                    // HBlank DMA
+                    self.hdma_mode = 1;
+                    self.hdma_len = (val & 0x7F) + 1;
+                    self.hdma_active = true;
+                }
+            }
             0xFF68 => self.bg_palette_index = val,
             0xFF69 => {
                 let idx = (self.bg_palette_index & 0x3F) as usize;
