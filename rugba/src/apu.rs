@@ -20,11 +20,11 @@ const DUTY_TABLE: [[u8; 8]; 4] = [
 
 struct PsgSquare {
     enabled: bool,
-    frequency: u16,  // 11-bit frequency timer value
-    volume: u8,      // 4-bit volume (0-15)
-    duty: u8,        // duty cycle pattern index (0-3)
-    timer: u32,      // countdown timer (CPU cycles)
-    duty_pos: u8,    // position in 8-step duty cycle
+    frequency: u16, // 11-bit frequency timer value
+    volume: u8,     // 4-bit volume (0-15)
+    duty: u8,       // duty cycle pattern index (0-3)
+    timer: u32,     // countdown timer (CPU cycles)
+    duty_pos: u8,   // position in 8-step duty cycle
     length_enabled: bool,
     length_counter: u16,
 }
@@ -137,10 +137,10 @@ impl PsgWave {
             byte & 0xF
         };
         let shifted = match self.volume_shift {
-            1 => nibble,          // 100%
-            2 => nibble >> 1,     // 50%
-            3 => nibble >> 2,     // 25%
-            _ => 0,               // mute
+            1 => nibble,      // 100%
+            2 => nibble >> 1, // 50%
+            3 => nibble >> 2, // 25%
+            _ => 0,           // mute
         };
         shifted as i16
     }
@@ -406,7 +406,7 @@ impl Apu {
             }
             // SOUND1CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x064 => {
-                self.psg_ch1.frequency = (val & 0x7FF) as u16;
+                self.psg_ch1.frequency = (val & 0x7FF);
                 self.psg_ch1.length_enabled = val & (1 << 14) != 0;
                 if val & (1 << 15) != 0 {
                     // Trigger: restart channel
@@ -426,7 +426,7 @@ impl Apu {
             }
             // SOUND2CNT_H: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x06C => {
-                self.psg_ch2.frequency = (val & 0x7FF) as u16;
+                self.psg_ch2.frequency = (val & 0x7FF);
                 self.psg_ch2.length_enabled = val & (1 << 14) != 0;
                 if val & (1 << 15) != 0 {
                     self.psg_ch2.enabled = true;
@@ -454,7 +454,7 @@ impl Apu {
             }
             // SOUND3CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x074 => {
-                self.psg_ch3.frequency = (val & 0x7FF) as u16;
+                self.psg_ch3.frequency = (val & 0x7FF);
                 if val & (1 << 15) != 0 {
                     self.psg_ch3.enabled = true;
                     self.psg_ch3.timer = self.psg_ch3.period();
@@ -651,7 +651,7 @@ impl Apu {
         };
 
         let vol_right = self.psg_vol_right() as f32 / 7.0;
-        let vol_left  = self.psg_vol_left()  as f32 / 7.0;
+        let vol_left = self.psg_vol_left() as f32 / 7.0;
 
         let ch1 = self.psg_ch1.sample() as f32 / 15.0;
         let ch2 = self.psg_ch2.sample() as f32 / 15.0;
@@ -661,23 +661,39 @@ impl Apu {
         // psg_panning: bits 0-3=right enable (CH1-4), bits 4-7=left enable (CH1-4)
         let psg_right = {
             let mut s = 0.0_f32;
-            if self.psg_panning & (1 << 0) != 0 { s += ch1; }
-            if self.psg_panning & (1 << 1) != 0 { s += ch2; }
-            if self.psg_panning & (1 << 2) != 0 { s += ch3; }
-            if self.psg_panning & (1 << 3) != 0 { s += ch4; }
+            if self.psg_panning & (1 << 0) != 0 {
+                s += ch1;
+            }
+            if self.psg_panning & (1 << 1) != 0 {
+                s += ch2;
+            }
+            if self.psg_panning & (1 << 2) != 0 {
+                s += ch3;
+            }
+            if self.psg_panning & (1 << 3) != 0 {
+                s += ch4;
+            }
             s * psg_scale * vol_right * 0.25 // divide by 4 channels max
         };
 
         let psg_left = {
             let mut s = 0.0_f32;
-            if self.psg_panning & (1 << 4) != 0 { s += ch1; }
-            if self.psg_panning & (1 << 5) != 0 { s += ch2; }
-            if self.psg_panning & (1 << 6) != 0 { s += ch3; }
-            if self.psg_panning & (1 << 7) != 0 { s += ch4; }
+            if self.psg_panning & (1 << 4) != 0 {
+                s += ch1;
+            }
+            if self.psg_panning & (1 << 5) != 0 {
+                s += ch2;
+            }
+            if self.psg_panning & (1 << 6) != 0 {
+                s += ch3;
+            }
+            if self.psg_panning & (1 << 7) != 0 {
+                s += ch4;
+            }
             s * psg_scale * vol_left * 0.25
         };
 
-        left  += psg_left;
+        left += psg_left;
         right += psg_right;
 
         // Clamp to [-1.0, 1.0]
