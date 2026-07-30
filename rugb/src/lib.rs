@@ -51,7 +51,11 @@ impl Emulator {
         mmu.set_boot_rom(boot_rom.to_vec());
         let mut cpu = Cpu::new();
         cpu.regs.reset_for_boot();
-        Emulator { cpu, mmu, serial_outgoing: None }
+        Emulator {
+            cpu,
+            mmu,
+            serial_outgoing: None,
+        }
     }
 
     pub fn step(&mut self) -> u32 {
@@ -64,7 +68,11 @@ impl Emulator {
                 .timer
                 .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
             self.mmu.apu.tick(interrupt_cycles);
-            if let Some(byte) = self.mmu.serial.tick(interrupt_cycles, &mut self.mmu.interrupt_flag) {
+            if let Some(byte) = self
+                .mmu
+                .serial
+                .tick(interrupt_cycles, &mut self.mmu.interrupt_flag)
+            {
                 self.serial_outgoing = Some(byte);
             }
             self.mmu.tick_cartridge_rtc(interrupt_cycles);

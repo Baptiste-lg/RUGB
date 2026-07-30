@@ -6,17 +6,22 @@
 use crate::savestate::*;
 
 pub struct Serial {
-    pub sb: u8,                        // 0xFF01 — shift register
-    pub sc: u8,                        // 0xFF02 — control register
-    cycles_remaining: u32,             // countdown to transfer completion (0 = idle)
-    pending_remote_byte: Option<u8>,   // byte from remote peer
+    pub sb: u8,                      // 0xFF01 — shift register
+    pub sc: u8,                      // 0xFF02 — control register
+    cycles_remaining: u32,           // countdown to transfer completion (0 = idle)
+    pending_remote_byte: Option<u8>, // byte from remote peer
 }
 
 impl Serial {
     const TRANSFER_CYCLES: u32 = 512;
 
     pub fn new() -> Self {
-        Serial { sb: 0, sc: 0x7E, cycles_remaining: 0, pending_remote_byte: None }
+        Serial {
+            sb: 0,
+            sc: 0x7E,
+            cycles_remaining: 0,
+            pending_remote_byte: None,
+        }
     }
 
     pub fn read(&self, addr: u16) -> u8 {
@@ -45,7 +50,9 @@ impl Serial {
 
     /// Advance by `cycles`. Returns Some(sent_byte) when a transfer completes.
     pub fn tick(&mut self, cycles: u32, interrupt_flag: &mut u8) -> Option<u8> {
-        if self.cycles_remaining == 0 { return None; }
+        if self.cycles_remaining == 0 {
+            return None;
+        }
 
         if cycles >= self.cycles_remaining {
             self.cycles_remaining = 0;
@@ -96,7 +103,10 @@ mod tests {
     fn master_transfer_starts() {
         let mut s = Serial::new();
         s.write(0xFF02, 0x81);
-        assert_eq!(s.cycles_remaining, 512, "master transfer should arm 512 cycles");
+        assert_eq!(
+            s.cycles_remaining, 512,
+            "master transfer should arm 512 cycles"
+        );
     }
 
     #[test]
@@ -123,9 +133,9 @@ mod tests {
     #[test]
     fn completed_transfer_swaps_bytes() {
         let mut s = Serial::new();
-        s.write(0xFF01, 0xAB);  // SB = outgoing byte
+        s.write(0xFF01, 0xAB); // SB = outgoing byte
         s.receive_remote_byte(0x42);
-        s.write(0xFF02, 0x81);  // start master transfer
+        s.write(0xFF02, 0x81); // start master transfer
         let mut iflag = 0u8;
         let sent = s.tick(512, &mut iflag);
         assert_eq!(sent, Some(0xAB), "returned byte should be the sent SB");
@@ -139,7 +149,10 @@ mod tests {
         s.write(0xFF02, 0x81);
         let mut iflag = 0u8;
         s.tick(512, &mut iflag);
-        assert_eq!(s.sb, 0xFF, "no remote byte → SB should be 0xFF after transfer");
+        assert_eq!(
+            s.sb, 0xFF,
+            "no remote byte → SB should be 0xFF after transfer"
+        );
     }
 
     #[test]
@@ -147,10 +160,16 @@ mod tests {
         let mut s = Serial::new();
         s.write(0xFF02, 0x80); // slave mode: start bit set, external clock
         s.receive_remote_byte(0x37);
-        assert!(s.cycles_remaining > 0, "slave should arm countdown on receive");
+        assert!(
+            s.cycles_remaining > 0,
+            "slave should arm countdown on receive"
+        );
         let mut iflag = 0u8;
         let result = s.tick(4, &mut iflag);
-        assert!(result.is_some(), "slave transfer should complete after 4 cycles");
+        assert!(
+            result.is_some(),
+            "slave transfer should complete after 4 cycles"
+        );
         assert_eq!(s.sb, 0x37, "SB should contain received byte");
         assert_eq!(iflag & 0x08, 0x08, "serial interrupt must fire");
     }
@@ -173,7 +192,13 @@ mod tests {
 
         assert_eq!(s.sb, s2.sb, "SB mismatch");
         assert_eq!(s.sc, s2.sc, "SC mismatch");
-        assert_eq!(s.cycles_remaining, s2.cycles_remaining, "cycles_remaining mismatch");
-        assert_eq!(s.pending_remote_byte, s2.pending_remote_byte, "pending_remote_byte mismatch");
+        assert_eq!(
+            s.cycles_remaining, s2.cycles_remaining,
+            "cycles_remaining mismatch"
+        );
+        assert_eq!(
+            s.pending_remote_byte, s2.pending_remote_byte,
+            "pending_remote_byte mismatch"
+        );
     }
 }

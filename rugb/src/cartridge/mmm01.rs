@@ -92,8 +92,7 @@ impl Cartridge for Mmm01 {
                     let offset = self.outer_bank1_offset() + (addr as usize - 0x4000);
                     *self.rom.get(offset).unwrap_or(&0xFF)
                 } else {
-                    let offset =
-                        self.inner_effective_bank() * 0x4000 + (addr as usize - 0x4000);
+                    let offset = self.inner_effective_bank() * 0x4000 + (addr as usize - 0x4000);
                     *self.rom.get(offset).unwrap_or(&0xFF)
                 }
             }

@@ -66,8 +66,7 @@ impl Cartridge for Huc3 {
                         if !self.ram_enabled || self.ram.is_empty() {
                             return 0xFF;
                         }
-                        let offset =
-                            self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
+                        let offset = self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
                         *self.ram.get(offset).unwrap_or(&0xFF)
                     }
                 }
@@ -131,8 +130,7 @@ impl Cartridge for Huc3 {
                     if !self.ram_enabled || self.ram.is_empty() {
                         return;
                     }
-                    let offset =
-                        self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
+                    let offset = self.ram_bank as usize * 0x2000 + (addr as usize - 0xA000);
                     if offset < self.ram.len() {
                         self.ram[offset] = val;
                     }

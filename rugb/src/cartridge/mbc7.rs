@@ -144,9 +144,9 @@ impl Eeprom93c56 {
                     return; // wait for all 16 data bits
                 }
                 if self.write_enabled {
-                    let word = (self.bits_in >> 0) & 0xFFFF; // last 16 bits
-                    // Actually the data comes after the 10-bit command
-                    // bits_in has 26 bits: [start(1)][op(2)][addr(7)][data(16)]
+                    let word = self.bits_in & 0xFFFF; // last 16 bits
+                                                             // Actually the data comes after the 10-bit command
+                                                             // bits_in has 26 bits: [start(1)][op(2)][addr(7)][data(16)]
                     let data_word = self.bits_in & 0xFFFF;
                     let byte_addr = (addr as usize) * 2;
                     if byte_addr + 1 < self.data.len() {
@@ -422,8 +422,10 @@ mod tests {
         let eeprom_addr = 0xA080;
         // Assert CS
         c.write(eeprom_addr, 0x80); // CS=1, SK=0
-        // Clock in: 1 0 0 1 1 0 0 0 0 0 (start=1, op=00, addr=1100000)
-        let bits: [bool; 10] = [true, false, false, true, true, false, false, false, false, false];
+                                    // Clock in: 1 0 0 1 1 0 0 0 0 0 (start=1, op=00, addr=1100000)
+        let bits: [bool; 10] = [
+            true, false, false, true, true, false, false, false, false, false,
+        ];
         for &bit in &bits {
             let di = if bit { 0x02 } else { 0x00 };
             c.write(eeprom_addr, 0x80 | di); // SK=0
@@ -443,7 +445,9 @@ mod tests {
         let eeprom_addr = 0xA080;
         // READ command: start(1) + opcode(10) + addr(0000000) = 1_10_0000000
         c.write(eeprom_addr, 0x80); // CS=1
-        let bits: [bool; 10] = [true, true, false, false, false, false, false, false, false, false];
+        let bits: [bool; 10] = [
+            true, true, false, false, false, false, false, false, false, false,
+        ];
         for &bit in &bits {
             let di = if bit { 0x02 } else { 0x00 };
             c.write(eeprom_addr, 0x80 | di);
