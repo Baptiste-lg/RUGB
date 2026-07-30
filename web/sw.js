@@ -31,6 +31,7 @@ self.addEventListener('fetch', (e) => {
       // Network-first for WASM/pkg files (may update on deploy), cache-first for static assets
       if (e.request.url.includes('/pkg/')) {
         return fetch(e.request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') return response;
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
           return response;
