@@ -144,16 +144,12 @@ impl Eeprom93c56 {
                     return; // wait for all 16 data bits
                 }
                 if self.write_enabled {
-                    let word = self.bits_in & 0xFFFF; // last 16 bits
-                                                             // Actually the data comes after the 10-bit command
-                                                             // bits_in has 26 bits: [start(1)][op(2)][addr(7)][data(16)]
                     let data_word = self.bits_in & 0xFFFF;
                     let byte_addr = (addr as usize) * 2;
                     if byte_addr + 1 < self.data.len() {
                         self.data[byte_addr] = (data_word >> 8) as u8;
                         self.data[byte_addr + 1] = (data_word & 0xFF) as u8;
                     }
-                    let _ = word;
                 }
                 self.bit_count = 0;
                 self.bits_in = 0;
