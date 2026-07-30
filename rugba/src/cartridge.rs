@@ -17,6 +17,14 @@ pub enum BackupType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+enum EepromState {
+    Idle,
+    ReadingCommand,
+    ReadReady,
+    WritingData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum FlashState {
     Ready,
     Cmd1,    // Received 0xAA at 0x5555
@@ -31,8 +39,14 @@ pub struct Cartridge {
     pub backup_type: BackupType,
     pub sram: Vec<u8>,
     flash_state: FlashState,
-    flash_bank: usize, // 0 or 1 (for 128 KB)
-    pub dirty: bool,   // Set when save data is modified
+    flash_bank: usize,          // 0 or 1 (for 128 KB)
+    pub dirty: bool,            // Set when save data is modified
+    // EEPROM serial state
+    eeprom_bits_in: u64,        // Shift register for incoming bits
+    eeprom_bit_count: u8,       // How many bits received so far
+    eeprom_state: EepromState,
+    eeprom_read_data: u64,      // Data being clocked out on reads
+    eeprom_read_pos: u8,        // Current read bit position (counts down from 67)
 }
 
 impl Cartridge {
@@ -53,6 +67,11 @@ impl Cartridge {
             flash_state: FlashState::Ready,
             flash_bank: 0,
             dirty: false,
+            eeprom_bits_in: 0,
+            eeprom_bit_count: 0,
+            eeprom_state: EepromState::Idle,
+            eeprom_read_data: 0,
+            eeprom_read_pos: 0,
         }
     }
 
@@ -82,7 +101,132 @@ impl Cartridge {
                 let real_offset = self.flash_bank * 0x10000 + offset;
                 *self.sram.get(real_offset).unwrap_or(&0xFF)
             }
+            BackupType::Eeprom512 | BackupType::Eeprom8K => {
+                // EEPROM is accessed at 0x0D000000 via eeprom_read_bit() / eeprom_write_bit().
+                // This path (0x0E) is not used for EEPROM serial access.
+                1
+            }
             _ => 0xFF,
+        }
+    }
+
+    /// Read a bit from the EEPROM data shift register (called when clocking out data bits).
+    /// Returns the next bit of eeprom_read_data (MSB first, 64 bits).
+    ///
+    /// Protocol: 4 dummy zero bits, then 64 data bits (MSB first).
+    /// eeprom_read_pos starts at 68, counts down to 0.
+    /// Positions 68..5 (exclusive) = dummy zeros (4 bits: 68,67,66,65)
+    /// Positions 64..1 = data bits 63..0 (bit = data >> (pos-1) & 1)
+    /// Position 0 = sequence complete, return to idle.
+    pub fn eeprom_read_bit(&mut self) -> u8 {
+        if self.eeprom_state != EepromState::ReadReady {
+            return 1;
+        }
+        if self.eeprom_read_pos > 64 {
+            // Dummy bits (positions 68, 67, 66, 65)
+            self.eeprom_read_pos -= 1;
+            0
+        } else if self.eeprom_read_pos > 0 {
+            // Data bits: pos 64 → bit63, pos 63 → bit62, ..., pos 1 → bit0
+            let bit = ((self.eeprom_read_data >> (self.eeprom_read_pos - 1)) & 1) as u8;
+            self.eeprom_read_pos -= 1;
+            bit
+        } else {
+            // All bits clocked out — go back to idle
+            self.eeprom_state = EepromState::Idle;
+            self.eeprom_bit_count = 0;
+            self.eeprom_bits_in = 0;
+            1
+        }
+    }
+
+    /// Write a bit to the EEPROM (called when the bus writes to address 0x0D000000).
+    pub fn eeprom_write_bit(&mut self, bit: u8) {
+        let bit = (bit & 1) as u64;
+        let addr_bits: u8 = if self.backup_type == BackupType::Eeprom8K { 14 } else { 6 };
+
+        match self.eeprom_state {
+            EepromState::Idle => {
+                // Wait for start bit (1)
+                if bit == 1 {
+                    self.eeprom_bits_in = 1;
+                    self.eeprom_bit_count = 1;
+                    self.eeprom_state = EepromState::ReadingCommand;
+                }
+            }
+            EepromState::ReadingCommand => {
+                self.eeprom_bits_in = (self.eeprom_bits_in << 1) | bit;
+                self.eeprom_bit_count += 1;
+
+                // After start(1) + opcode(2) + address(addr_bits) bits
+                let cmd_bits = 1u8 + 2 + addr_bits;
+                if self.eeprom_bit_count == cmd_bits {
+                    let opcode = (self.eeprom_bits_in >> addr_bits) & 0x3;
+                    let addr_mask = (1u64 << addr_bits) - 1;
+                    let word_addr = (self.eeprom_bits_in & addr_mask) as usize;
+                    let byte_addr = word_addr * 8; // Each word is 8 bytes (64 bits)
+
+                    match opcode {
+                        0b10 => {
+                            // Read command — load data and prepare to clock out
+                            let mut data = 0u64;
+                            for i in 0..8 {
+                                let b = *self.sram.get(byte_addr + i).unwrap_or(&0xFF) as u64;
+                                data = (data << 8) | b;
+                            }
+                            self.eeprom_read_data = data;
+                            // 4 dummy bits + 64 data bits = 68 total; read_pos starts at 68
+                            self.eeprom_read_pos = 68;
+                            self.eeprom_state = EepromState::ReadReady;
+                            self.eeprom_bit_count = 0;
+                            self.eeprom_bits_in = 0;
+                        }
+                        0b01 => {
+                            // Write command — store address and prepare to receive 64 data bits
+                            // Re-use bits_in to store the target byte address
+                            self.eeprom_bits_in = byte_addr as u64;
+                            self.eeprom_bit_count = 0;
+                            self.eeprom_state = EepromState::WritingData;
+                        }
+                        _ => {
+                            // Special (EWEN/EWDS) or unknown — ignore, go idle
+                            self.eeprom_state = EepromState::Idle;
+                            self.eeprom_bit_count = 0;
+                            self.eeprom_bits_in = 0;
+                        }
+                    }
+                }
+            }
+            EepromState::WritingData => {
+                // Collect 64 data bits (MSB first)
+                // We use eeprom_read_data as a temporary write buffer here
+                self.eeprom_read_data = (self.eeprom_read_data << 1) | bit;
+                self.eeprom_bit_count += 1;
+
+                if self.eeprom_bit_count == 64 {
+                    // Write the 64-bit word to SRAM
+                    let byte_addr = self.eeprom_bits_in as usize;
+                    let data = self.eeprom_read_data;
+                    for i in 0..8 {
+                        let b = ((data >> (56 - i * 8)) & 0xFF) as u8;
+                        let idx = byte_addr + i;
+                        if idx < self.sram.len() {
+                            self.sram[idx] = b;
+                        }
+                    }
+                    self.dirty = true;
+                    self.eeprom_state = EepromState::Idle;
+                    self.eeprom_bit_count = 0;
+                    self.eeprom_bits_in = 0;
+                    self.eeprom_read_data = 0;
+                }
+            }
+            EepromState::ReadReady => {
+                // Unexpected write while in read state; reset
+                self.eeprom_state = EepromState::Idle;
+                self.eeprom_bit_count = 0;
+                self.eeprom_bits_in = 0;
+            }
         }
     }
 
