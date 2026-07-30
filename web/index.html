@@ -378,21 +378,59 @@
 
     <!-- Link cable overlay -->
     <div id="link-overlay" class="overlay">
-        <div class="overlay-content">
+        <div class="overlay-content link-content">
             <h2>Link Cable</h2>
             <p id="link-status" class="link-status">Disconnected</p>
-            <div id="link-code-display" class="link-code" style="display:none">
-                <span>Room Code:</span>
-                <strong id="link-room-code"></strong>
+
+            <!-- Mode selection -->
+            <div id="link-mode-select" class="link-actions">
+                <button id="link-mode-local">Same Device (two tabs)</button>
+                <button id="link-mode-webrtc">Online (peer-to-peer)</button>
+                <button id="link-close-top" class="link-close-btn">Close</button>
             </div>
-            <div class="link-actions">
-                <button id="link-host">Host</button>
-                <div class="link-join-row">
-                    <input type="text" id="link-join-input" placeholder="Enter code" maxlength="6" spellcheck="false">
-                    <button id="link-join">Join</button>
+
+            <!-- Local mode -->
+            <div id="link-local-panel" style="display:none">
+                <div id="link-code-display" class="link-code" style="display:none">
+                    <span>Room Code:</span>
+                    <strong id="link-room-code"></strong>
                 </div>
+                <div class="link-actions">
+                    <button id="link-local-host">Host</button>
+                    <div class="link-join-row">
+                        <input type="text" id="link-local-input" placeholder="Enter code" maxlength="6" spellcheck="false">
+                        <button id="link-local-join">Join</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WebRTC mode -->
+            <div id="link-webrtc-panel" style="display:none">
+                <div class="link-actions">
+                    <!-- Step 1: Host creates offer -->
+                    <button id="link-create-offer">1. Create Offer</button>
+
+                    <!-- Offer/Answer display -->
+                    <div id="link-sdp-display" style="display:none">
+                        <span id="link-sdp-label">Share this with your friend:</span>
+                        <textarea id="link-sdp-output" class="link-sdp" readonly rows="3"></textarea>
+                        <button id="link-copy-sdp">Copy</button>
+                    </div>
+
+                    <!-- Step 2: Guest pastes offer -->
+                    <div id="link-paste-offer" class="link-sdp-input">
+                        <span>Paste offer or answer from friend:</span>
+                        <textarea id="link-sdp-input" class="link-sdp" rows="3" placeholder="Paste connection string here..."></textarea>
+                        <button id="link-accept-sdp">Accept</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common controls -->
+            <div class="link-actions" style="margin-top:0.5rem">
                 <button id="link-disconnect" style="display:none">Disconnect</button>
-                <button id="link-close">Close</button>
+                <button id="link-back" style="display:none">Back</button>
+                <button id="link-close" class="link-close-btn">Close</button>
             </div>
         </div>
     </div>
