@@ -1190,6 +1190,38 @@ canvas.filter-smooth {
 .link-join-row button { flex: 0 0 auto; width: auto; padding: 0.5rem 1rem;
 }
 
+.link-content { max-width: 440px; }
+
+.link-sdp {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.7rem;
+    font-family: monospace;
+    background: #0f1528;
+    color: #8be9fd;
+    border: 1px solid #444;
+    border-radius: 4px;
+    outline: none;
+    resize: none;
+    word-break: break-all;
+}
+.link-sdp:focus { border-color: #8be9fd; }
+
+.link-sdp-input {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.link-sdp-input span {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.link-close-btn {
+    opacity: 0.6;
+}
+
 /* --- Save states --- */
 
 .savestates-content {
