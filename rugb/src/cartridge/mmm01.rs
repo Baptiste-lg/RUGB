@@ -70,7 +70,7 @@ impl Mmm01 {
         if self.inner_banking_mode == 1 {
             self.inner_base() % self.total_banks
         } else {
-            self.inner_base() % self.total_banks
+            0
         }
     }
 }
