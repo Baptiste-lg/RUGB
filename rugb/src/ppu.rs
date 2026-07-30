@@ -572,8 +572,7 @@ impl Ppu {
             0xFF4B => self.wx,
             0xFF4F => self.vram_bank | 0xFE,
             0xFF55 => {
-                (if self.hdma_active { 0 } else { 0x80 })
-                    | (self.hdma_len.saturating_sub(1) & 0x7F)
+                (if self.hdma_active { 0 } else { 0x80 }) | (self.hdma_len.saturating_sub(1) & 0x7F)
             }
             0xFF68 => self.bg_palette_index,
             0xFF69 => self.bg_palette_data[(self.bg_palette_index & 0x3F) as usize],

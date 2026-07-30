@@ -39,14 +39,14 @@ pub struct Cartridge {
     pub backup_type: BackupType,
     pub sram: Vec<u8>,
     flash_state: FlashState,
-    flash_bank: usize,          // 0 or 1 (for 128 KB)
-    pub dirty: bool,            // Set when save data is modified
+    flash_bank: usize, // 0 or 1 (for 128 KB)
+    pub dirty: bool,   // Set when save data is modified
     // EEPROM serial state
-    eeprom_bits_in: u64,        // Shift register for incoming bits
-    eeprom_bit_count: u8,       // How many bits received so far
+    eeprom_bits_in: u64,  // Shift register for incoming bits
+    eeprom_bit_count: u8, // How many bits received so far
     eeprom_state: EepromState,
-    eeprom_read_data: u64,      // Data being clocked out on reads
-    eeprom_read_pos: u8,        // Current read bit position (counts down from 67)
+    eeprom_read_data: u64, // Data being clocked out on reads
+    eeprom_read_pos: u8,   // Current read bit position (counts down from 67)
 }
 
 impl Cartridge {
@@ -143,7 +143,11 @@ impl Cartridge {
     /// Write a bit to the EEPROM (called when the bus writes to address 0x0D000000).
     pub fn eeprom_write_bit(&mut self, bit: u8) {
         let bit = (bit & 1) as u64;
-        let addr_bits: u8 = if self.backup_type == BackupType::Eeprom8K { 14 } else { 6 };
+        let addr_bits: u8 = if self.backup_type == BackupType::Eeprom8K {
+            14
+        } else {
+            6
+        };
 
         match self.eeprom_state {
             EepromState::Idle => {
