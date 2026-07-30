@@ -193,10 +193,8 @@ pub fn render_text_bg(fb: &mut [u8], line: usize, bg: &BgControl, vram: &[u8], p
 /// Affine parameters for rotation/scaling BGs.
 pub struct AffineParams {
     pub pa: i16,
-    #[allow(dead_code)]
     pub pb: i16,
     pub pc: i16,
-    #[allow(dead_code)]
     pub pd: i16,
     pub ref_x: i32, // 20.8 fixed point
     pub ref_y: i32, // 20.8 fixed point
