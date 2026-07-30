@@ -13,7 +13,9 @@ pub struct Mmm01 {
     // Outer (menu) state
     mapping_active: bool,
     outer_rom_bank: u8,
+    #[allow(dead_code)]
     outer_ram_bank: u8,
+    #[allow(dead_code)]
     outer_mode: u8,
     // Inner (MBC1-like) state
     inner_rom_bank: u8,
