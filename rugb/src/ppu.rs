@@ -247,8 +247,7 @@ impl Ppu {
                 };
 
                 let actual_pixel_col = if cgb_x_flip { 7 - pixel_col } else { pixel_col };
-                let color_id =
-                    self.get_tile_pixel_banked(tile_addr, actual_pixel_col, tile_bank);
+                let color_id = self.get_tile_pixel_banked(tile_addr, actual_pixel_col, tile_bank);
                 self.bg_color_ids[x as usize] = color_id;
                 let rgba =
                     Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
