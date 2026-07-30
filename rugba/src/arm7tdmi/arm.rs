@@ -748,18 +748,6 @@ fn exec_block_transfer(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u
         return 3;
     }
 
-    // Calculate start address
-    let start_addr = if up {
-        base
-    } else {
-        base.wrapping_sub(reg_count * 4)
-    };
-
-    let _addr = start_addr;
-    if !up && pre {
-        // Decrement before is same as going up from (base - n*4)
-    }
-
     // Adjust for addressing mode
     let mut current_addr = if up {
         if pre {
