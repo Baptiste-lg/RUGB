@@ -10,6 +10,7 @@ mod mmu;
 mod mmu_tests;
 mod ppu;
 pub mod savestate;
+mod serial;
 mod timer;
 
 use cpu::Cpu;
@@ -21,6 +22,7 @@ use wasm_bindgen::prelude::*;
 pub struct Emulator {
     cpu: Cpu,
     mmu: Mmu,
+    serial_outgoing: Option<u8>,
 }
 
 impl Emulator {
@@ -36,6 +38,7 @@ impl Emulator {
         Emulator {
             cpu: Cpu::new(),
             mmu,
+            serial_outgoing: None,
         }
     }
 
@@ -48,7 +51,7 @@ impl Emulator {
         mmu.set_boot_rom(boot_rom.to_vec());
         let mut cpu = Cpu::new();
         cpu.regs.reset_for_boot();
-        Emulator { cpu, mmu }
+        Emulator { cpu, mmu, serial_outgoing: None }
     }
 
     pub fn step(&mut self) -> u32 {
@@ -61,6 +64,9 @@ impl Emulator {
                 .timer
                 .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
             self.mmu.apu.tick(interrupt_cycles);
+            if let Some(byte) = self.mmu.serial.tick(interrupt_cycles, &mut self.mmu.interrupt_flag) {
+                self.serial_outgoing = Some(byte);
+            }
             self.mmu.tick_cartridge_rtc(interrupt_cycles);
             return interrupt_cycles;
         }
@@ -69,6 +75,9 @@ impl Emulator {
         self.mmu.ppu.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.timer.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.apu.tick(cycles);
+        if let Some(byte) = self.mmu.serial.tick(cycles, &mut self.mmu.interrupt_flag) {
+            self.serial_outgoing = Some(byte);
+        }
         self.mmu.tick_cartridge_rtc(cycles);
         cycles
     }
@@ -218,5 +227,25 @@ impl WasmEmulator {
     /// Set RTC offset in seconds (positive = advance, negative = rewind clock).
     pub fn set_rtc_offset(&mut self, seconds: i32) {
         self.emu.mmu.set_rtc_offset(seconds);
+    }
+
+    /// Returns the last byte sent over serial, or 0x100 if no byte was sent since last call.
+    pub fn serial_take_outgoing(&mut self) -> u32 {
+        self.emu.serial_outgoing.take().map_or(0x100, |b| b as u32)
+    }
+
+    /// Inject a byte received from the remote peer into the serial subsystem.
+    pub fn serial_receive(&mut self, byte: u8) {
+        self.emu.mmu.serial.receive_remote_byte(byte);
+    }
+
+    /// Returns true if the emulator's serial port is configured as master (internal clock).
+    pub fn serial_is_master(&self) -> bool {
+        self.emu.mmu.serial.sc & 0x01 != 0
+    }
+
+    /// Feed accelerometer tilt data (MBC7 carts only).
+    pub fn set_tilt(&mut self, x: i16, y: i16) {
+        self.emu.mmu.set_tilt(x, y);
     }
 }
