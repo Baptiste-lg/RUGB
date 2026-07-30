@@ -75,7 +75,6 @@ impl Arm7Tdmi {
     }
 
     /// Set the SPSR for the current mode.
-    #[allow(dead_code)]
     pub fn set_spsr(&mut self, val: u32) {
         let idx = self.mode().bank_index();
         if idx != 0 {
