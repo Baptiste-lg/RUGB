@@ -2022,8 +2022,12 @@ async function generateShareLink() {
     if (!emu) { showToast('No emulator running'); return; }
     const state = emu.save_state();
     const compressed = await compressState(state);
-    // Base64url encode
-    let b64 = btoa(String.fromCharCode(...compressed));
+    // Base64url encode (chunked to avoid call stack overflow on large states)
+    let raw = '';
+    for (let i = 0; i < compressed.length; i += 8192) {
+        raw += String.fromCharCode(...compressed.subarray(i, i + 8192));
+    }
+    let b64 = btoa(raw);
     b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const url = `${location.origin}${location.pathname}#state=${b64}`;
     if (navigator.clipboard) {
