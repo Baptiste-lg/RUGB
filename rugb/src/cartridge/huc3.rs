@@ -16,6 +16,7 @@ pub struct Huc3 {
     rtc_minutes: u32,
     rtc_cycles: u32,
     // Command interface
+    #[allow(dead_code)]
     cmd_reg: u8,
     read_nibble: u8,
 }
