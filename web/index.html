@@ -99,6 +99,7 @@
             <button id="savestates-btn" class="menu-item">Save States</button>
             <button id="remap-btn" class="menu-item">Remap Keys</button>
             <button id="remap-gp-btn" class="menu-item">Remap Controller</button>
+            <button id="link-btn" class="menu-item" disabled>Link Cable</button>
             <div id="cheats-section" class="menu-group" style="display:none">
                 <hr>
                 <span>Cheats</span>
@@ -371,6 +372,27 @@
                 <button id="remap-reset">Reset</button>
                 <button id="remap-close">Done</button>
                 <input type="file" id="remap-file" accept=".json" hidden>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link cable overlay -->
+    <div id="link-overlay" class="overlay">
+        <div class="overlay-content">
+            <h2>Link Cable</h2>
+            <p id="link-status" class="link-status">Disconnected</p>
+            <div id="link-code-display" class="link-code" style="display:none">
+                <span>Room Code:</span>
+                <strong id="link-room-code"></strong>
+            </div>
+            <div class="link-actions">
+                <button id="link-host">Host</button>
+                <div class="link-join-row">
+                    <input type="text" id="link-join-input" placeholder="Enter code" maxlength="6" spellcheck="false">
+                    <button id="link-join">Join</button>
+                </div>
+                <button id="link-disconnect" style="display:none">Disconnect</button>
+                <button id="link-close">Close</button>
             </div>
         </div>
     </div>
