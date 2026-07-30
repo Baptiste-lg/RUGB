@@ -2149,82 +2149,197 @@ if ('serviceWorker' in navigator) {
 const linkBtn = document.getElementById('link-btn');
 const linkOverlay = document.getElementById('link-overlay');
 const linkStatus = document.getElementById('link-status');
+const linkModeSelect = document.getElementById('link-mode-select');
+const linkLocalPanel = document.getElementById('link-local-panel');
+const linkWebrtcPanel = document.getElementById('link-webrtc-panel');
+const linkDisconnectBtn = document.getElementById('link-disconnect');
+const linkBackBtn = document.getElementById('link-back');
 const linkCodeDisplay = document.getElementById('link-code-display');
 const linkRoomCode = document.getElementById('link-room-code');
-const linkHostBtn = document.getElementById('link-host');
-const linkJoinBtn = document.getElementById('link-join');
-const linkJoinInput = document.getElementById('link-join-input');
-const linkDisconnectBtn = document.getElementById('link-disconnect');
-const linkCloseBtn = document.getElementById('link-close');
 
-if (linkBtn) {
-    linkBtn.addEventListener('click', () => {
-        linkOverlay.classList.add('visible');
-    });
+// State tracking for WebRTC SDP flow
+let linkWebrtcStep = null; // 'offer-created' | 'answer-created' | null
+
+function showLinkPanel(panel) {
+    linkModeSelect.style.display = 'none';
+    linkLocalPanel.style.display = 'none';
+    linkWebrtcPanel.style.display = 'none';
+    linkBackBtn.style.display = 'none';
+    if (panel === 'mode') {
+        linkModeSelect.style.display = '';
+    } else if (panel === 'local') {
+        linkLocalPanel.style.display = '';
+        linkBackBtn.style.display = '';
+    } else if (panel === 'webrtc') {
+        linkWebrtcPanel.style.display = '';
+        linkBackBtn.style.display = '';
+    }
 }
 
-function updateLinkUI(status, code) {
+function updateLinkUI(status, data) {
     linkStatus.className = 'link-status';
     linkDisconnectBtn.style.display = 'none';
     linkCodeDisplay.style.display = 'none';
+
+    const sdpDisplay = document.getElementById('link-sdp-display');
+    const sdpOutput = document.getElementById('link-sdp-output');
+    const sdpLabel = document.getElementById('link-sdp-label');
+
     switch (status) {
-        case 'waiting':
+        case 'waiting-local':
             linkStatus.textContent = 'Waiting for player...';
             linkStatus.classList.add('waiting');
             linkCodeDisplay.style.display = '';
-            linkRoomCode.textContent = code;
+            linkRoomCode.textContent = data;
+            linkDisconnectBtn.style.display = '';
+            break;
+        case 'offer-ready':
+            linkStatus.textContent = 'Offer created — share the string below';
+            linkStatus.classList.add('waiting');
+            if (sdpDisplay) sdpDisplay.style.display = '';
+            if (sdpOutput) sdpOutput.value = data;
+            if (sdpLabel) sdpLabel.textContent = 'Send this to your friend:';
+            linkWebrtcStep = 'offer-created';
+            linkDisconnectBtn.style.display = '';
+            break;
+        case 'answer-ready':
+            linkStatus.textContent = 'Answer created — send this back to the host';
+            linkStatus.classList.add('waiting');
+            if (sdpDisplay) sdpDisplay.style.display = '';
+            if (sdpOutput) sdpOutput.value = data;
+            if (sdpLabel) sdpLabel.textContent = 'Send this back to the host:';
+            linkWebrtcStep = 'answer-created';
             linkDisconnectBtn.style.display = '';
             break;
         case 'connecting':
             linkStatus.textContent = 'Connecting...';
             linkStatus.classList.add('waiting');
+            linkDisconnectBtn.style.display = '';
             break;
         case 'connected':
             linkStatus.textContent = 'Connected!';
             linkStatus.classList.add('connected');
             linkDisconnectBtn.style.display = '';
+            if (sdpDisplay) sdpDisplay.style.display = 'none';
             break;
         case 'peer-disconnected':
             linkStatus.textContent = 'Peer disconnected';
+            linkWebrtcStep = null;
             break;
         case 'disconnected':
         default:
             linkStatus.textContent = 'Disconnected';
+            linkWebrtcStep = null;
+            if (sdpDisplay) sdpDisplay.style.display = 'none';
+            showLinkPanel('mode');
             break;
     }
 }
 
-if (linkHostBtn) {
-    linkHostBtn.addEventListener('click', () => {
-        if (!emu || currentSystem === 'gba') return;
-        if (linkCable) linkCable.disconnect();
-        linkCable = new LinkCable(emu, updateLinkUI);
-        linkCable.hostRoom();
+if (linkBtn) {
+    linkBtn.addEventListener('click', () => {
+        if (!linkCable || !linkCable.connected) showLinkPanel('mode');
+        linkOverlay.classList.add('visible');
     });
 }
 
-if (linkJoinBtn) {
-    linkJoinBtn.addEventListener('click', () => {
-        if (!emu || currentSystem === 'gba') return;
-        const code = linkJoinInput.value.trim();
-        if (code.length < 4) return;
-        if (linkCable) linkCable.disconnect();
-        linkCable = new LinkCable(emu, updateLinkUI);
-        linkCable.joinRoom(code);
-    });
-}
+// Mode selection
+document.getElementById('link-mode-local')?.addEventListener('click', () => {
+    showLinkPanel('local');
+});
+document.getElementById('link-mode-webrtc')?.addEventListener('click', () => {
+    showLinkPanel('webrtc');
+    linkWebrtcStep = null;
+    const sdpDisplay = document.getElementById('link-sdp-display');
+    if (sdpDisplay) sdpDisplay.style.display = 'none';
+    const sdpInput = document.getElementById('link-sdp-input');
+    if (sdpInput) sdpInput.value = '';
+});
 
+// Local mode
+document.getElementById('link-local-host')?.addEventListener('click', () => {
+    if (!emu || currentSystem === 'gba') return;
+    if (linkCable) linkCable.disconnect();
+    linkCable = new LinkCable(emu, updateLinkUI);
+    linkCable.hostLocal();
+});
+document.getElementById('link-local-join')?.addEventListener('click', () => {
+    if (!emu || currentSystem === 'gba') return;
+    const code = document.getElementById('link-local-input')?.value?.trim();
+    if (!code || code.length < 4) return;
+    if (linkCable) linkCable.disconnect();
+    linkCable = new LinkCable(emu, updateLinkUI);
+    linkCable.joinLocal(code);
+});
+
+// WebRTC mode
+document.getElementById('link-create-offer')?.addEventListener('click', async () => {
+    if (!emu || currentSystem === 'gba') return;
+    if (linkCable) linkCable.disconnect();
+    linkCable = new LinkCable(emu, updateLinkUI);
+    linkStatus.textContent = 'Generating offer...';
+    await linkCable.createOffer();
+});
+
+document.getElementById('link-copy-sdp')?.addEventListener('click', () => {
+    const sdpOutput = document.getElementById('link-sdp-output');
+    if (sdpOutput) {
+        navigator.clipboard.writeText(sdpOutput.value).then(
+            () => { sdpOutput.select(); },
+            () => { sdpOutput.select(); sdpOutput.focus(); }
+        );
+    }
+});
+
+document.getElementById('link-accept-sdp')?.addEventListener('click', async () => {
+    if (!emu || currentSystem === 'gba') return;
+    const sdpInput = document.getElementById('link-sdp-input');
+    const value = sdpInput?.value?.trim();
+    if (!value) return;
+
+    try {
+        if (!linkCable || !linkWebrtcStep) {
+            // Guest: accepting an offer
+            if (linkCable) linkCable.disconnect();
+            linkCable = new LinkCable(emu, updateLinkUI);
+            await linkCable.acceptOffer(value);
+        } else if (linkWebrtcStep === 'offer-created') {
+            // Host: accepting the answer
+            await linkCable.completeConnection(value);
+        }
+        if (sdpInput) sdpInput.value = '';
+    } catch (e) {
+        linkStatus.textContent = 'Invalid connection string';
+        linkStatus.className = 'link-status';
+    }
+});
+
+// Common controls
 if (linkDisconnectBtn) {
     linkDisconnectBtn.addEventListener('click', () => {
         if (linkCable) linkCable.disconnect();
         linkCable = null;
+        linkWebrtcStep = null;
     });
 }
 
-if (linkCloseBtn) {
-    linkCloseBtn.addEventListener('click', () => {
-        linkOverlay.classList.remove('visible');
+if (linkBackBtn) {
+    linkBackBtn.addEventListener('click', () => {
+        if (linkCable && !linkCable.connected) {
+            linkCable.disconnect();
+            linkCable = null;
+        }
+        linkWebrtcStep = null;
+        showLinkPanel('mode');
+        linkStatus.textContent = 'Disconnected';
+        linkStatus.className = 'link-status';
     });
 }
+
+document.querySelectorAll('.link-close-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        linkOverlay.classList.remove('visible');
+    });
+});
 
 console.log('RUGB ready — load a ROM to start');
