@@ -238,7 +238,7 @@ pub fn execute_arm(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
         0b111 => {
             // SWI (bits 27-24 = 1111)
             if (instruction >> 24) & 0xF == 0xF {
-                exec_swi(cpu);
+                return exec_swi(cpu, bus, instruction);
             }
             1
         }
@@ -890,8 +890,13 @@ fn exec_msr(cpu: &mut Arm7Tdmi, instruction: u32) -> u32 {
     1
 }
 
-fn exec_swi(cpu: &mut Arm7Tdmi) {
+fn exec_swi(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
+    let comment = ((instruction >> 16) & 0xFF) as u8;
+    if cpu.handle_swi(comment, bus) {
+        return 3; // HLE handled it
+    }
     cpu.enter_exception(CpuMode::Supervisor, 0x08);
+    3
 }
 
 #[cfg(test)]
