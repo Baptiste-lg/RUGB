@@ -212,10 +212,10 @@ mod tests {
 
     #[test]
     fn from_rom_unsupported_falls_back() {
-        // Type 0xFE is not handled — must fall back gracefully without panicking.
-        let rom = make_rom(0xFE, 0x00, 0x00);
+        // Type 0x14 is not handled — must fall back gracefully without panicking.
+        let rom = make_rom(0x14, 0x00, 0x00);
         let cart = from_rom(&rom);
-        // If it fell back to NoMbc the first byte of ROM is 0x00.
+        // Falls back to NoMbc; first byte of ROM is 0x00.
         assert_eq!(cart.read(0x0000), 0x00);
     }
 }
