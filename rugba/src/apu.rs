@@ -5,6 +5,222 @@ const CYCLES_PER_SAMPLE: u32 = CPU_CLOCK / SAMPLE_RATE; // 512
 const RING_BUFFER_CAPACITY: usize = 8192;
 const RING_BUFFER_MASK: usize = RING_BUFFER_CAPACITY - 1;
 
+// Duty cycle waveform table: each row is a pattern of 8 steps (high/low).
+// Index 0 = 12.5%, 1 = 25%, 2 = 50%, 3 = 75%.
+const DUTY_TABLE: [[u8; 8]; 4] = [
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1, 0],
+];
+
+// ---------------------------------------------------------------------------
+// PSG channel state structs
+// ---------------------------------------------------------------------------
+
+struct PsgSquare {
+    enabled: bool,
+    frequency: u16,  // 11-bit frequency timer value
+    volume: u8,      // 4-bit volume (0-15)
+    duty: u8,        // duty cycle pattern index (0-3)
+    timer: u32,      // countdown timer (CPU cycles)
+    duty_pos: u8,    // position in 8-step duty cycle
+    length_enabled: bool,
+    length_counter: u16,
+}
+
+impl PsgSquare {
+    fn new() -> Self {
+        PsgSquare {
+            enabled: false,
+            frequency: 0,
+            volume: 0,
+            duty: 0,
+            timer: 0,
+            duty_pos: 0,
+            length_enabled: false,
+            length_counter: 0,
+        }
+    }
+
+    /// Returns the period in CPU cycles for this channel's frequency.
+    /// GBA square wave period = (2048 - frequency) * 16 cycles.
+    fn period(&self) -> u32 {
+        (2048u32.saturating_sub(self.frequency as u32)) * 16
+    }
+
+    /// Advance the channel by `cycles` CPU cycles.
+    fn tick(&mut self, cycles: u32) {
+        if !self.enabled || self.volume == 0 {
+            return;
+        }
+        let period = self.period();
+        if period == 0 {
+            return;
+        }
+        // Add cycles to timer; advance duty position for each full period elapsed.
+        if self.timer < cycles {
+            let remaining = cycles - self.timer;
+            let steps = remaining / period + 1;
+            self.duty_pos = ((self.duty_pos as u32 + steps) % 8) as u8;
+            self.timer = period - (remaining % period);
+        } else {
+            self.timer -= cycles;
+        }
+    }
+
+    /// Current output sample: +volume or 0 based on duty cycle.
+    fn sample(&self) -> i16 {
+        if !self.enabled {
+            return 0;
+        }
+        if DUTY_TABLE[self.duty as usize & 3][self.duty_pos as usize] != 0 {
+            self.volume as i16
+        } else {
+            0
+        }
+    }
+}
+
+struct PsgWave {
+    enabled: bool,
+    frequency: u16,
+    volume_shift: u8, // 0=mute, 1=100%, 2=50%, 3=25%
+    wave_ram: [u8; 16],
+    timer: u32,
+    sample_pos: u8, // 0-31 (32 4-bit samples)
+}
+
+impl PsgWave {
+    fn new() -> Self {
+        PsgWave {
+            enabled: false,
+            frequency: 0,
+            volume_shift: 0,
+            wave_ram: [0; 16],
+            timer: 0,
+            sample_pos: 0,
+        }
+    }
+
+    /// Period in CPU cycles: (2048 - frequency) * 8
+    fn period(&self) -> u32 {
+        (2048u32.saturating_sub(self.frequency as u32)) * 8
+    }
+
+    fn tick(&mut self, cycles: u32) {
+        if !self.enabled || self.volume_shift == 0 {
+            return;
+        }
+        let period = self.period();
+        if period == 0 {
+            return;
+        }
+        if self.timer < cycles {
+            let remaining = cycles - self.timer;
+            let steps = remaining / period + 1;
+            self.sample_pos = ((self.sample_pos as u32 + steps) % 32) as u8;
+            self.timer = period - (remaining % period);
+        } else {
+            self.timer -= cycles;
+        }
+    }
+
+    fn sample(&self) -> i16 {
+        if !self.enabled || self.volume_shift == 0 {
+            return 0;
+        }
+        let byte = self.wave_ram[(self.sample_pos / 2) as usize];
+        let nibble = if self.sample_pos & 1 == 0 {
+            (byte >> 4) & 0xF
+        } else {
+            byte & 0xF
+        };
+        let shifted = match self.volume_shift {
+            1 => nibble,          // 100%
+            2 => nibble >> 1,     // 50%
+            3 => nibble >> 2,     // 25%
+            _ => 0,               // mute
+        };
+        shifted as i16
+    }
+}
+
+struct PsgNoise {
+    enabled: bool,
+    volume: u8,
+    lfsr: u16,
+    width_mode: bool, // false=15-bit, true=7-bit
+    timer: u32,
+    divisor_code: u8,
+    clock_shift: u8,
+}
+
+impl PsgNoise {
+    fn new() -> Self {
+        PsgNoise {
+            enabled: false,
+            volume: 0,
+            lfsr: 0x7FFF,
+            width_mode: false,
+            timer: 0,
+            divisor_code: 0,
+            clock_shift: 0,
+        }
+    }
+
+    /// LFSR clock period in CPU cycles.
+    fn period(&self) -> u32 {
+        // Base divisors: 0→8, 1→16, 2→32, ... 7→128; then shift left by clock_shift.
+        let divisor: u32 = if self.divisor_code == 0 {
+            8
+        } else {
+            (self.divisor_code as u32) * 16
+        };
+        divisor << self.clock_shift
+    }
+
+    fn tick(&mut self, cycles: u32) {
+        if !self.enabled || self.volume == 0 {
+            return;
+        }
+        let period = self.period();
+        if period == 0 {
+            return;
+        }
+        let mut remaining = cycles;
+        loop {
+            if self.timer >= remaining {
+                self.timer -= remaining;
+                break;
+            }
+            remaining -= self.timer;
+            // Clock the LFSR
+            let xor_bit = (self.lfsr ^ (self.lfsr >> 1)) & 1;
+            self.lfsr >>= 1;
+            self.lfsr |= xor_bit << 14;
+            if self.width_mode {
+                // Also feedback into bit 6 for 7-bit mode
+                self.lfsr &= !(1 << 6);
+                self.lfsr |= xor_bit << 6;
+            }
+            self.timer = period;
+        }
+    }
+
+    fn sample(&self) -> i16 {
+        if !self.enabled {
+            return 0;
+        }
+        // Output is high when LFSR bit 0 is 0
+        if self.lfsr & 1 == 0 {
+            self.volume as i16
+        } else {
+            0
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // FIFO — 32-byte circular buffer for DMA Sound A / B
 // ---------------------------------------------------------------------------
@@ -63,17 +279,23 @@ impl Fifo {
 // ---------------------------------------------------------------------------
 
 pub struct Apu {
-    // PSG channels (stubbed silent, reserved for future implementation)
-    #[allow(dead_code)]
+    // PSG master enable (SOUNDCNT_X bit 7)
     pub psg_enabled: bool,
-    #[allow(dead_code)]
+    // PSG channel volumes (derived from SOUNDCNT_L, 3-bit each)
     pub ch1_vol: u8,
-    #[allow(dead_code)]
     pub ch2_vol: u8,
-    #[allow(dead_code)]
     pub ch3_vol: u8,
-    #[allow(dead_code)]
     pub ch4_vol: u8,
+
+    // PSG channel state
+    psg_ch1: PsgSquare,
+    psg_ch2: PsgSquare,
+    psg_ch3: PsgWave,
+    psg_ch4: PsgNoise,
+
+    // PSG panning from SOUNDCNT_L (NR51 equivalent)
+    // Bits 0-3: right enable for CH1-4; bits 4-7: left enable for CH1-4
+    psg_panning: u8,
 
     // DMA Sound FIFOs
     pub fifo_a: Fifo,
@@ -102,6 +324,11 @@ impl Apu {
             ch2_vol: 0,
             ch3_vol: 0,
             ch4_vol: 0,
+            psg_ch1: PsgSquare::new(),
+            psg_ch2: PsgSquare::new(),
+            psg_ch3: PsgWave::new(),
+            psg_ch4: PsgNoise::new(),
+            psg_panning: 0,
             fifo_a: Fifo::new(),
             fifo_b: Fifo::new(),
             soundcnt_l: 0,
@@ -151,6 +378,150 @@ impl Apu {
         self.soundcnt_x & (1 << 7) != 0
     }
 
+    // PSG volume accessors from SOUNDCNT_L
+    // Bits 0-2: right master volume, bits 4-6: left master volume
+    fn psg_vol_right(&self) -> u8 {
+        (self.soundcnt_l & 0x07) as u8
+    }
+
+    fn psg_vol_left(&self) -> u8 {
+        ((self.soundcnt_l >> 4) & 0x07) as u8
+    }
+
+    // -- PSG register write -------------------------------------------------
+
+    /// Handle a write to a PSG I/O register. `offset` is relative to 0x04000000.
+    pub fn write_psg_register(&mut self, offset: u16, val: u16) {
+        match offset {
+            // CH1 — Square with sweep
+            // SOUND1CNT_L (sweep): bits 0-2=shift, bit3=direction, bits 4-6=time
+            0x060 => { /* sweep — not fully modelled; ignore for now */ }
+            // SOUND1CNT_H: bits 0-5=length, bits 6-7=duty, bits 8-10=env period,
+            //              bit 11=env direction, bits 12-15=initial volume
+            0x062 => {
+                self.psg_ch1.duty = ((val >> 6) & 0x3) as u8;
+                self.psg_ch1.volume = ((val >> 12) & 0xF) as u8;
+                // length: 64 - (val & 0x3F)
+                self.psg_ch1.length_counter = 64 - (val & 0x3F);
+            }
+            // SOUND1CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
+            0x064 => {
+                self.psg_ch1.frequency = (val & 0x7FF) as u16;
+                self.psg_ch1.length_enabled = val & (1 << 14) != 0;
+                if val & (1 << 15) != 0 {
+                    // Trigger: restart channel
+                    self.psg_ch1.enabled = true;
+                    self.psg_ch1.timer = self.psg_ch1.period();
+                    self.psg_ch1.duty_pos = 0;
+                }
+            }
+
+            // CH2 — Square (no sweep)
+            // SOUND2CNT_L: bits 0-5=length, bits 6-7=duty, bits 8-10=env period,
+            //              bit 11=env direction, bits 12-15=initial volume
+            0x068 => {
+                self.psg_ch2.duty = ((val >> 6) & 0x3) as u8;
+                self.psg_ch2.volume = ((val >> 12) & 0xF) as u8;
+                self.psg_ch2.length_counter = 64 - (val & 0x3F);
+            }
+            // SOUND2CNT_H: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
+            0x06C => {
+                self.psg_ch2.frequency = (val & 0x7FF) as u16;
+                self.psg_ch2.length_enabled = val & (1 << 14) != 0;
+                if val & (1 << 15) != 0 {
+                    self.psg_ch2.enabled = true;
+                    self.psg_ch2.timer = self.psg_ch2.period();
+                    self.psg_ch2.duty_pos = 0;
+                }
+            }
+
+            // CH3 — Wave
+            // SOUND3CNT_L: bit 7=DAC enable
+            0x070 => {
+                if val & (1 << 7) == 0 {
+                    self.psg_ch3.enabled = false;
+                }
+            }
+            // SOUND3CNT_H: bits 0-7=length (256-n), bits 13-14=volume
+            0x072 => {
+                self.psg_ch3.volume_shift = match (val >> 13) & 0x3 {
+                    0 => 0, // mute
+                    1 => 1, // 100%
+                    2 => 2, // 50%
+                    3 => 3, // 25%
+                    _ => 0,
+                };
+            }
+            // SOUND3CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
+            0x074 => {
+                self.psg_ch3.frequency = (val & 0x7FF) as u16;
+                if val & (1 << 15) != 0 {
+                    self.psg_ch3.enabled = true;
+                    self.psg_ch3.timer = self.psg_ch3.period();
+                    self.psg_ch3.sample_pos = 0;
+                }
+            }
+
+            // CH4 — Noise
+            // SOUND4CNT_L: bits 0-5=length, bits 8-10=env period,
+            //              bit 11=env direction, bits 12-15=initial volume
+            0x078 => {
+                self.psg_ch4.volume = ((val >> 12) & 0xF) as u8;
+            }
+            // SOUND4CNT_H: bits 0-2=divisor code, bit 3=width mode, bits 4-7=clock shift,
+            //              bit 14=length enable, bit 15=trigger
+            0x07C => {
+                self.psg_ch4.divisor_code = (val & 0x7) as u8;
+                self.psg_ch4.width_mode = val & (1 << 3) != 0;
+                self.psg_ch4.clock_shift = ((val >> 4) & 0xF) as u8;
+                if val & (1 << 15) != 0 {
+                    self.psg_ch4.enabled = true;
+                    self.psg_ch4.lfsr = 0x7FFF;
+                    self.psg_ch4.timer = self.psg_ch4.period();
+                }
+            }
+
+            // SOUNDCNT_L: PSG master volume + panning
+            0x080 => {
+                self.soundcnt_l = val;
+                // Bits 8-11: right enable for CH1-4; bits 12-15: left enable for CH1-4
+                self.psg_panning = ((val >> 8) & 0xFF) as u8;
+                self.ch1_vol = self.psg_vol_right().max(self.psg_vol_left());
+                self.ch2_vol = self.ch1_vol;
+                self.ch3_vol = self.ch1_vol;
+                self.ch4_vol = self.ch1_vol;
+            }
+
+            // SOUNDCNT_X: master enable (bit 7); lower bits are read-only channel status
+            0x084 => {
+                let master = val & (1 << 7);
+                self.soundcnt_x = (self.soundcnt_x & 0x0F) | master;
+                self.psg_enabled = master != 0;
+            }
+
+            // Wave RAM: 0x090-0x09F (16 bytes, written as 8 halfwords)
+            0x090..=0x09E => {
+                let idx = ((offset - 0x090) / 2) as usize;
+                if idx + 1 < 16 {
+                    self.psg_ch3.wave_ram[idx * 2] = val as u8;
+                    self.psg_ch3.wave_ram[idx * 2 + 1] = (val >> 8) as u8;
+                }
+            }
+
+            _ => {}
+        }
+    }
+
+    // -- PSG tick -----------------------------------------------------------
+
+    /// Advance PSG channel timers by `cycles` CPU cycles.
+    pub fn tick_psg(&mut self, cycles: u32) {
+        self.psg_ch1.tick(cycles);
+        self.psg_ch2.tick(cycles);
+        self.psg_ch3.tick(cycles);
+        self.psg_ch4.tick(cycles);
+    }
+
     // -- Public API ---------------------------------------------------------
 
     /// Advance the APU by `cycles` CPU cycles, generating samples as needed.
@@ -158,6 +529,8 @@ impl Apu {
         if !self.master_enable() {
             return;
         }
+
+        self.tick_psg(cycles);
 
         self.sample_clock += cycles;
 
@@ -263,6 +636,49 @@ impl Apu {
         if self.fifo_b_enable_right() {
             right += b;
         }
+
+        // PSG mixing
+        // Each PSG channel outputs 0-15 (for square/noise) or 0-15 (for wave after shift).
+        // Normalise to [-1.0, 1.0] range: scale by 1/15 then by master volume (0-7)/7.
+        // SOUNDCNT_L bits 0-2=right master vol, bits 4-6=left master vol.
+        // SOUNDCNT_L bits 8-11=right ch enable, bits 12-15=left ch enable.
+        // The PSG channels occupy SOUNDCNT_H bits 0-1: PSG volume (00=25%, 01=50%, 10=100%).
+        // soundcnt_h bits 0-1 scale PSG relative to full scale.
+        let psg_scale = match self.soundcnt_h & 0x3 {
+            0 => 0.25_f32,
+            1 => 0.5,
+            _ => 1.0,
+        };
+
+        let vol_right = self.psg_vol_right() as f32 / 7.0;
+        let vol_left  = self.psg_vol_left()  as f32 / 7.0;
+
+        let ch1 = self.psg_ch1.sample() as f32 / 15.0;
+        let ch2 = self.psg_ch2.sample() as f32 / 15.0;
+        let ch3 = self.psg_ch3.sample() as f32 / 15.0;
+        let ch4 = self.psg_ch4.sample() as f32 / 15.0;
+
+        // psg_panning: bits 0-3=right enable (CH1-4), bits 4-7=left enable (CH1-4)
+        let psg_right = {
+            let mut s = 0.0_f32;
+            if self.psg_panning & (1 << 0) != 0 { s += ch1; }
+            if self.psg_panning & (1 << 1) != 0 { s += ch2; }
+            if self.psg_panning & (1 << 2) != 0 { s += ch3; }
+            if self.psg_panning & (1 << 3) != 0 { s += ch4; }
+            s * psg_scale * vol_right * 0.25 // divide by 4 channels max
+        };
+
+        let psg_left = {
+            let mut s = 0.0_f32;
+            if self.psg_panning & (1 << 4) != 0 { s += ch1; }
+            if self.psg_panning & (1 << 5) != 0 { s += ch2; }
+            if self.psg_panning & (1 << 6) != 0 { s += ch3; }
+            if self.psg_panning & (1 << 7) != 0 { s += ch4; }
+            s * psg_scale * vol_left * 0.25
+        };
+
+        left  += psg_left;
+        right += psg_right;
 
         // Clamp to [-1.0, 1.0]
         left = left.clamp(-1.0, 1.0);
@@ -453,5 +869,79 @@ mod tests {
 
         apu.ring_consume(2);
         assert_eq!(apu.ring_buffer_available(), avail_before - 2);
+    }
+
+    // ---- psg_ch2_trigger_produces_samples ----
+
+    #[test]
+    fn psg_ch2_trigger_produces_samples() {
+        let mut apu = Apu::new();
+        apu.soundcnt_x = 0x80; // master enable
+
+        // Set CH2: duty=2 (50%), volume=8, 500 Hz-ish frequency
+        // SOUND2CNT_L: vol=8 (bits 12-15), duty=2 (bits 6-7)
+        apu.write_psg_register(0x068, (8 << 12) | (2 << 6));
+        // SOUND2CNT_H: frequency=1024, trigger (bit 15), panning all
+        apu.write_psg_register(0x06C, (1 << 15) | 1024);
+        // SOUNDCNT_L: max vol both sides, enable CH2 on both (bit 9 right, bit 13 left)
+        apu.write_psg_register(0x080, 0xFF77); // enable all channels, max vol
+
+        // Tick enough to generate some samples
+        apu.tick(512 * 4);
+
+        assert!(
+            apu.ring_buffer_available() >= 2,
+            "PSG CH2 trigger should result in samples being generated"
+        );
+    }
+
+    // ---- psg_ch4_trigger_noise ----
+
+    #[test]
+    fn psg_ch4_trigger_noise() {
+        let mut apu = Apu::new();
+        apu.soundcnt_x = 0x80;
+
+        // CH4 noise: volume=15, divisor=0, shift=3
+        apu.write_psg_register(0x078, 15 << 12);
+        apu.write_psg_register(0x07C, (1 << 15) | (3 << 4));
+        // Enable CH4 right+left in panning (bits 3 and 7)
+        apu.write_psg_register(0x080, 0x8877);
+
+        apu.tick(512 * 4);
+
+        assert!(
+            apu.ring_buffer_available() >= 2,
+            "PSG CH4 (noise) trigger should produce samples"
+        );
+    }
+
+    // ---- psg_wave_ram_write ----
+
+    #[test]
+    fn psg_wave_ram_write() {
+        let mut apu = Apu::new();
+        // Write a halfword to wave RAM offset 0x090
+        apu.write_psg_register(0x090, 0xABCD);
+        assert_eq!(apu.psg_ch3.wave_ram[0], 0xCD);
+        assert_eq!(apu.psg_ch3.wave_ram[1], 0xAB);
+    }
+
+    // ---- psg_disabled_when_master_off ----
+
+    #[test]
+    fn psg_disabled_when_master_off() {
+        let mut apu = Apu::new();
+        // Master enable is off (soundcnt_x default = 0)
+        apu.write_psg_register(0x068, (8 << 12) | (2 << 6));
+        apu.write_psg_register(0x06C, (1 << 15) | 1024);
+        apu.write_psg_register(0x080, 0xFF77);
+        // Do NOT set master enable
+        apu.tick(512 * 4);
+        assert_eq!(
+            apu.ring_buffer_available(),
+            0,
+            "no samples when master is disabled"
+        );
     }
 }
