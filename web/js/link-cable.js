@@ -8,6 +8,8 @@
  *
  * Same-device (two tabs) still works via BroadcastChannel fallback.
  */
+const MAX_SDP_LENGTH = 65536; // 64 KB cap on SDP strings
+
 export class LinkCable {
     constructor(emu, onStatusChange) {
         this.emu = emu;
@@ -18,6 +20,7 @@ export class LinkCable {
         this.connected = false;
         this.isHost = false;
         this.mode = null;         // 'webrtc' or 'local'
+        this._sendBuf = new Uint8Array(1); // reusable 1-byte buffer for WebRTC sends
     }
 
     // ---- Local mode (same device, two tabs) ----
@@ -58,8 +61,8 @@ export class LinkCable {
                 }
                 break;
             case 'serial':
-                if (this.emu && this.connected) {
-                    this.emu.serial_receive(msg.byte);
+                if (this.emu && this.connected && typeof msg.byte === 'number') {
+                    this.emu.serial_receive(msg.byte & 0xFF);
                 }
                 break;
             case 'disconnect':
@@ -94,6 +97,7 @@ export class LinkCable {
     }
 
     async acceptOffer(offerB64) {
+        if (offerB64.length > MAX_SDP_LENGTH) throw new Error('SDP too large');
         this.mode = 'webrtc';
         this.isHost = false;
         this._setupPC();
@@ -104,6 +108,7 @@ export class LinkCable {
         };
 
         const offer = JSON.parse(atob(offerB64));
+        if (!offer || !offer.type || !offer.sdp) throw new Error('Invalid offer');
         await this.pc.setRemoteDescription(offer);
 
         const answer = await this.pc.createAnswer();
@@ -117,7 +122,9 @@ export class LinkCable {
     }
 
     async completeConnection(answerB64) {
+        if (answerB64.length > MAX_SDP_LENGTH) throw new Error('SDP too large');
         const answer = JSON.parse(atob(answerB64));
+        if (!answer || !answer.type || !answer.sdp) throw new Error('Invalid answer');
         await this.pc.setRemoteDescription(answer);
         this.onStatusChange('connecting', null);
     }
@@ -150,10 +157,9 @@ export class LinkCable {
             this.onStatusChange('peer-disconnected', null);
         };
         dc.onmessage = (e) => {
-            if (this.emu && this.connected) {
-                const byte = new Uint8Array(e.data)[0];
-                this.emu.serial_receive(byte);
-            }
+            if (!this.emu || !this.connected) return;
+            if (!(e.data instanceof ArrayBuffer) || e.data.byteLength !== 1) return;
+            this.emu.serial_receive(new Uint8Array(e.data)[0]);
         };
     }
 
@@ -185,7 +191,8 @@ export class LinkCable {
         if (this.mode === 'local' && this.bcChannel) {
             this.bcChannel.postMessage({ type: 'serial', byte: outgoing });
         } else if (this.mode === 'webrtc' && this.dc && this.dc.readyState === 'open') {
-            this.dc.send(new Uint8Array([outgoing]));
+            this._sendBuf[0] = outgoing;
+            this.dc.send(this._sendBuf);
         }
     }
 
