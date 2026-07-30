@@ -3,6 +3,7 @@ use crate::cartridge::{self, Cartridge};
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::savestate::*;
+use crate::serial::Serial;
 use crate::timer::Timer;
 
 /// Game Genie cheat: intercepts ROM reads at a specific address.
@@ -28,8 +29,7 @@ pub struct Mmu {
     pub ie: u8,
     /// Interrupt Flag register at 0xFF0F
     pub interrupt_flag: u8,
-    /// Serial transfer data (0xFF01) — used by Blargg test ROMs to print output
-    serial_data: u8,
+    pub serial: Serial,
     /// Optional boot ROM (256 bytes), mapped at 0x0000-0x00FF until 0xFF50 is written
     boot_rom: Option<Vec<u8>>,
     pub boot_rom_active: bool,
@@ -56,7 +56,7 @@ impl Mmu {
             hram: [0; 0x7F],
             ie: 0,
             interrupt_flag: 0,
-            serial_data: 0,
+            serial: Serial::new(),
             boot_rom: None,
             boot_rom_active: false,
             gg_cheats: Vec::new(),
@@ -112,6 +112,10 @@ impl Mmu {
         self.cartridge.set_rtc_offset(seconds);
     }
 
+    pub fn set_tilt(&mut self, x: i16, y: i16) {
+        self.cartridge.set_tilt(x, y);
+    }
+
     pub fn battery_ram(&self) -> &[u8] {
         self.cartridge.ram_data()
     }
@@ -127,7 +131,7 @@ impl Mmu {
         d.extend_from_slice(&self.hram);
         push_u8(d, self.ie);
         push_u8(d, self.interrupt_flag);
-        push_u8(d, self.serial_data);
+        self.serial.save_state(d);
         self.ppu.save_state(d);
         self.timer.save_state(d);
         self.apu.save_state(d);
@@ -143,7 +147,7 @@ impl Mmu {
         *d = &d[0x7F..];
         self.ie = pop_u8(d);
         self.interrupt_flag = pop_u8(d);
-        self.serial_data = pop_u8(d);
+        self.serial.load_state(d);
         self.ppu.load_state(d);
         self.timer.load_state(d);
         self.apu.load_state(d);
@@ -209,8 +213,7 @@ impl Mmu {
 
             // I/O registers
             0xFF00 => self.joypad.read(),
-            0xFF01 => self.serial_data,
-            0xFF02 => 0x7E, // Serial control — stub, no link cable
+            0xFF01 | 0xFF02 => self.serial.read(addr),
             0xFF04..=0xFF07 => self.timer.read(addr),
             0xFF0F => self.interrupt_flag,
             0xFF10..=0xFF3F => self.apu.read(addr),
@@ -270,13 +273,12 @@ impl Mmu {
 
             // I/O registers
             0xFF00 => self.joypad.write(val),
-            0xFF01 => self.serial_data = val,
-            0xFF02 => {
-                // Blargg test ROMs: writing 0x81 triggers serial "send"
-                if val == 0x81 {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    eprint!("{}", self.serial_data as char);
+            0xFF01 | 0xFF02 => {
+                #[cfg(not(target_arch = "wasm32"))]
+                if addr == 0xFF02 && val == 0x81 {
+                    eprint!("{}", self.serial.sb as char);
                 }
+                self.serial.write(addr, val);
             }
             0xFF04..=0xFF07 => {
                 let mut iflag = self.interrupt_flag;
