@@ -646,7 +646,10 @@ pub fn execute_thumb(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u16) -> u32
         // ===== Format 17: Software Interrupt (SWI) =====
         // bits 15-8 = 11011111
         0xDF => {
-            cpu.enter_exception(CpuMode::Supervisor, 0x08);
+            let comment = (instruction & 0xFF) as u8;
+            if !cpu.handle_swi(comment, bus) {
+                cpu.enter_exception(CpuMode::Supervisor, 0x08);
+            }
             3
         }
 
