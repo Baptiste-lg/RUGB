@@ -1,4 +1,4 @@
-use crate::cartridge::Cartridge;
+use crate::cartridge::{BackupType, Cartridge};
 use crate::io::IoRegisters;
 use crate::keypad::Keypad;
 
@@ -59,9 +59,20 @@ impl Bus {
                 self.vram[a]
             }
             0x07 => self.oam[(addr & 0x3FF) as usize],
-            0x08..=0x0D => {
+            0x08..=0x0C => {
                 let offset = (addr & 0x01FF_FFFF) as usize;
                 *self.rom.get(offset).unwrap_or(&0)
+            }
+            0x0D => {
+                // ROM mirror or EEPROM region. EEPROM serial reads use eeprom_read_bit()
+                // (called from mutable context / DMA). For direct reads return ready flag.
+                match self.cart.backup_type {
+                    BackupType::Eeprom512 | BackupType::Eeprom8K => 1,
+                    _ => {
+                        let offset = (addr & 0x01FF_FFFF) as usize;
+                        *self.rom.get(offset).unwrap_or(&0)
+                    }
+                }
             }
             0x0E..=0x0F => self.cart.read(addr),
             _ => 0, // Open bus
@@ -93,11 +104,24 @@ impl Bus {
                 let a = (addr & 0x3FF) as usize;
                 u16::from_le_bytes([self.oam[a], self.oam[a + 1]])
             }
-            0x08..=0x0D => {
+            0x08..=0x0C => {
                 let offset = (addr & 0x01FF_FFFF) as usize;
                 let lo = *self.rom.get(offset).unwrap_or(&0);
                 let hi = *self.rom.get(offset + 1).unwrap_or(&0);
                 u16::from_le_bytes([lo, hi])
+            }
+            0x0D => {
+                // ROM mirror or EEPROM region. EEPROM serial reads use eeprom_read_bit()
+                // (called from mutable context / DMA). For direct reads return ready flag.
+                match self.cart.backup_type {
+                    BackupType::Eeprom512 | BackupType::Eeprom8K => 1,
+                    _ => {
+                        let offset = (addr & 0x01FF_FFFF) as usize;
+                        let lo = *self.rom.get(offset).unwrap_or(&0);
+                        let hi = *self.rom.get(offset + 1).unwrap_or(&0);
+                        u16::from_le_bytes([lo, hi])
+                    }
+                }
             }
             0x0E..=0x0F => {
                 // SRAM/Flash is 8-bit bus — return byte duplicated
@@ -201,6 +225,15 @@ impl Bus {
                 self.vram[a + 1] = val;
             }
             // OAM ignores 8-bit writes
+            0x0D => {
+                // EEPROM write (bit 0 only)
+                match self.cart.backup_type {
+                    BackupType::Eeprom512 | BackupType::Eeprom8K => {
+                        self.cart.eeprom_write_bit(val);
+                    }
+                    _ => {}
+                }
+            }
             0x0E..=0x0F => {
                 self.cart.write(addr, val);
             }
@@ -237,6 +270,15 @@ impl Bus {
                 let a = (addr & 0x3FF) as usize;
                 self.oam[a] = bytes[0];
                 self.oam[a + 1] = bytes[1];
+            }
+            0x0D => {
+                // EEPROM 16-bit write (DMA path) — bit 0 of value is the data bit
+                match self.cart.backup_type {
+                    BackupType::Eeprom512 | BackupType::Eeprom8K => {
+                        self.cart.eeprom_write_bit(val as u8);
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }
