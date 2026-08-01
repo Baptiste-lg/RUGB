@@ -65,6 +65,8 @@ pub struct Ppu {
     pub hdma_active: bool,
     /// 0 = General DMA, 1 = HBlank DMA
     pub hdma_mode: u8,
+    /// Set to true on HBlank entry so the caller can trigger HBlank HDMA
+    pub entered_hblank: bool,
 }
 
 impl Ppu {
@@ -101,6 +103,7 @@ impl Ppu {
             hdma_len: 0,
             hdma_active: false,
             hdma_mode: 0,
+            entered_hblank: false,
         }
     }
 
@@ -124,6 +127,7 @@ impl Ppu {
                 if self.dots >= 172 {
                     self.dots -= 172;
                     self.mode = Mode::HBlank;
+                    self.entered_hblank = true;
 
                     // Render this scanline right as we enter HBlank
                     if (self.ly as usize) < SCREEN_H {

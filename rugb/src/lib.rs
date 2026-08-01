@@ -64,6 +64,10 @@ impl Emulator {
             self.mmu
                 .ppu
                 .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
+            if self.mmu.ppu.entered_hblank {
+                self.mmu.ppu.entered_hblank = false;
+                self.mmu.tick_hdma();
+            }
             self.mmu
                 .timer
                 .tick(interrupt_cycles, &mut self.mmu.interrupt_flag);
@@ -81,6 +85,10 @@ impl Emulator {
 
         let cycles = self.cpu.step(&mut self.mmu);
         self.mmu.ppu.tick(cycles, &mut self.mmu.interrupt_flag);
+        if self.mmu.ppu.entered_hblank {
+            self.mmu.ppu.entered_hblank = false;
+            self.mmu.tick_hdma();
+        }
         self.mmu.timer.tick(cycles, &mut self.mmu.interrupt_flag);
         self.mmu.apu.tick(cycles);
         if let Some(byte) = self.mmu.serial.tick(cycles, &mut self.mmu.interrupt_flag) {
