@@ -195,20 +195,14 @@ impl Ppu {
                         let affine = if bg_idx == 2 {
                             bg::AffineParams {
                                 pa: io.bg2pa,
-                                pb: io.bg2pb,
                                 pc: io.bg2pc,
-                                pd: io.bg2pd,
-                                // Use internal reference points (not IO latch) so that
-                                // the per-scanline PB/PD increment accumulates correctly.
                                 ref_x: self.bg2_internal_x,
                                 ref_y: self.bg2_internal_y,
                             }
                         } else {
                             bg::AffineParams {
                                 pa: io.bg3pa,
-                                pb: io.bg3pb,
                                 pc: io.bg3pc,
-                                pd: io.bg3pd,
                                 ref_x: self.bg3_internal_x,
                                 ref_y: self.bg3_internal_y,
                             }

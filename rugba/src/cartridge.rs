@@ -118,6 +118,7 @@ impl Cartridge {
     /// Positions 68..5 (exclusive) = dummy zeros (4 bits: 68,67,66,65)
     /// Positions 64..1 = data bits 63..0 (bit = data >> (pos-1) & 1)
     /// Position 0 = sequence complete, return to idle.
+    #[allow(dead_code)] // Called via DMA reads (mutable context), not via immutable read8/read16
     pub fn eeprom_read_bit(&mut self) -> u8 {
         if self.eeprom_state != EepromState::ReadReady {
             return 1;
