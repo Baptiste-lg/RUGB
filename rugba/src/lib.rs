@@ -331,6 +331,26 @@ impl WasmGbaEmulator {
         !self.emu.bus.cart.sram.is_empty()
     }
 
+    // --- Debug exports ---
+
+    pub fn read_byte(&self, addr: u32) -> u8 {
+        self.emu.bus.read8(addr)
+    }
+
+    pub fn write_byte(&mut self, addr: u32, val: u8) {
+        self.emu.bus.write8(addr, val);
+    }
+
+    pub fn cpu_reg(&self, n: u8) -> u32 {
+        if (n as usize) < 16 { self.emu.cpu.regs[n as usize] } else { 0 }
+    }
+
+    pub fn cpu_cpsr(&self) -> u32 { self.emu.cpu.cpsr }
+
+    pub fn step(&mut self) {
+        self.emu.cpu.step(&mut self.emu.bus);
+    }
+
     pub fn battery_ram_ptr(&self) -> *const u8 {
         self.emu.bus.cart.sram.as_ptr()
     }
