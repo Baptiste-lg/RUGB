@@ -100,6 +100,7 @@
             <button id="remap-btn" class="menu-item">Remap Keys</button>
             <button id="remap-gp-btn" class="menu-item">Remap Controller</button>
             <button id="link-btn" class="menu-item" disabled>Link Cable</button>
+            <button id="debug-btn" class="menu-item" disabled>Debug Tools</button>
             <div id="cheats-section" class="menu-group" style="display:none">
                 <hr>
                 <span>Cheats</span>
@@ -431,6 +432,25 @@
                 <button id="link-disconnect" style="display:none">Disconnect</button>
                 <button id="link-back" style="display:none">Back</button>
                 <button id="link-close" class="link-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug tools overlay -->
+    <div id="debug-overlay" class="overlay">
+        <div class="overlay-content debug-content">
+            <h2>Debug Tools</h2>
+            <div class="debug-tabs">
+                <button class="debug-tab active" data-tab="cpu">CPU</button>
+                <button class="debug-tab" data-tab="memory">Memory</button>
+                <button class="debug-tab" data-tab="tiles">Tiles</button>
+                <button class="debug-tab" data-tab="disasm">Disasm</button>
+            </div>
+            <div id="debug-panel" class="debug-panel"></div>
+            <div class="debug-controls">
+                <button id="debug-step">Step</button>
+                <label><input type="checkbox" id="debug-auto"> Auto-update</label>
+                <button id="debug-close">Close</button>
             </div>
         </div>
     </div>
