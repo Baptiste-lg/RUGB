@@ -267,6 +267,17 @@ body {
     cursor: default;
 }
 
+.menu-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    text-align: left;
+}
+.menu-toggle-label input[type="checkbox"] {
+    accent-color: #8be9fd;
+}
+
 .side-menu hr {
     border: none;
     border-top: 1px solid #333;
