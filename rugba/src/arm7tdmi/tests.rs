@@ -100,7 +100,7 @@ mod tests {
         cpu.regs[0] = 10;
         cpu.regs[1] = 3;
 
-        cpu.handle_swi(&mut bus, 0x06); // Div
+        cpu.handle_swi(0x06, &mut bus); // Div
 
         assert_eq!(cpu.regs[0], 3); // 10 / 3 = 3
         assert_eq!(cpu.regs[1], 1); // 10 % 3 = 1
@@ -113,7 +113,7 @@ mod tests {
         cpu.regs[0] = (-10i32) as u32;
         cpu.regs[1] = 3;
 
-        cpu.handle_swi(&mut bus, 0x06);
+        cpu.handle_swi(0x06, &mut bus);
 
         assert_eq!(cpu.regs[0] as i32, -3); // -10 / 3 = -3
         assert_eq!(cpu.regs[1] as i32, -1); // -10 % 3 = -1
@@ -124,7 +124,7 @@ mod tests {
     fn test_swi_sqrt() {
         let (mut cpu, mut bus) = make_cpu_bus();
         cpu.regs[0] = 144;
-        cpu.handle_swi(&mut bus, 0x08);
+        cpu.handle_swi(0x08, &mut bus);
         assert_eq!(cpu.regs[0], 12);
     }
 
