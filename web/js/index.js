@@ -619,11 +619,11 @@ function switchShell(system) {
         if (shoulders) shoulders.style.display = 'none';
     }
     screenBytes = screenW * screenH * 4;
-    // Recreate WebGL renderer on the new canvas
+    // Recreate renderer on the new canvas — try WebGL first, fall back to 2D
     if (glRenderer) glRenderer.destroy();
     glRenderer = new WebGLRenderer(canvas);
     if (glRenderer.ready) {
-        // Re-apply current filter and palette
+        ctx = null; // WebGL owns the canvas, no 2D context needed
         const filterMap = { scanlines: 'crt', lcd: 'lcd', smooth: 'smooth', ghosting: 'ghost' };
         const savedF = localStorage.getItem('rugb-filter') || 'none';
         glRenderer.setFilter(filterMap[savedF] || 'none');
@@ -633,8 +633,10 @@ function switchShell(system) {
         } else {
             glRenderer.setPalette(null);
         }
+    } else {
+        glRenderer = null;
+        ctx = canvas.getContext('2d');
     }
-    ctx = canvas.getContext('2d');
     cachedImageData = new ImageData(screenW, screenH);
     frameMs = currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS;
 

@@ -1,10 +1,11 @@
-const CACHE_NAME = 'rugb-v4';
+const CACHE_NAME = 'rugb-v5';
 const ASSETS = [
   './',
   './index.html',
   './docs.html',
   './style.css',
   './js/index.js',
+  './js/webgl-renderer.js',
   './audio-processor.js',
   './manifest.json',
 ];
