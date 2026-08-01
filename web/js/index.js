@@ -1848,13 +1848,24 @@ function showToast(msg) {
     setTimeout(() => toast.classList.remove('show'), 1500);
 }
 
-function doQuickSave() {
+async function doQuickSave() {
+    if (worker) {
+        const data = await workerSaveState();
+        if (data) { quickSaveData = new Uint8Array(data); showToast('Quick Save'); }
+        return;
+    }
     if (!emu) return;
     quickSaveData = emu.save_state();
     showToast('Quick Save');
 }
 
 function doQuickLoad() {
+    if (worker) {
+        if (!quickSaveData) { showToast('No quick save'); return; }
+        worker.postMessage({ cmd: 'load_state', data: quickSaveData });
+        showToast('Quick Load');
+        return;
+    }
     if (!emu || !quickSaveData) { showToast('No quick save'); return; }
     emu.load_state(quickSaveData);
     showToast('Quick Load');
@@ -1868,11 +1879,26 @@ function uint8ToBase64(data) {
     return btoa(binary);
 }
 
-function saveToSlot(slot) {
-    if (!emu) return;
-    const data = emu.save_state();
+async function saveToSlot(slot) {
+    let data, title;
+    if (worker) {
+        data = await workerSaveState();
+        if (!data) return;
+        data = new Uint8Array(data);
+        // Extract title from ROM header
+        const u8 = new Uint8Array(romBytes);
+        title = '';
+        for (let i = 0x134; i < 0x144 && i < u8.length; i++) {
+            if (u8[i] === 0) break;
+            title += String.fromCharCode(u8[i]);
+        }
+        title = sanitizeTitle(title);
+    } else {
+        if (!emu) return;
+        data = emu.save_state();
+        title = emu.title() || '';
+    }
     const timestamp = new Date().toLocaleString();
-    const title = emu.title() || '';
     saveSlots[slot] = { data, timestamp, title };
     const b64 = uint8ToBase64(data);
     localStorage.setItem(`rugb-slot-${slot}`, JSON.stringify({ data: b64, timestamp, title }));
@@ -1881,7 +1907,13 @@ function saveToSlot(slot) {
 }
 
 function loadFromSlot(slot) {
-    if (!emu || !saveSlots[slot]) return;
+    if (!saveSlots[slot]) return;
+    if (worker) {
+        worker.postMessage({ cmd: 'load_state', data: saveSlots[slot].data });
+        showToast(`Loaded Slot ${slot}`);
+        return;
+    }
+    if (!emu) return;
     emu.load_state(saveSlots[slot].data);
     showToast(`Loaded Slot ${slot}`);
 }
@@ -2267,8 +2299,15 @@ function decompressState(data) {
 }
 
 async function generateShareLink() {
-    if (!emu) { showToast('No emulator running'); return; }
-    const state = emu.save_state();
+    if (!emu && !worker) { showToast('No emulator running'); return; }
+    let state;
+    if (worker) {
+        const data = await workerSaveState();
+        if (!data) { showToast('Failed to save state'); return; }
+        state = new Uint8Array(data);
+    } else {
+        state = emu.save_state();
+    }
     const compressed = await compressState(state);
     // Base64url encode (chunked to avoid call stack overflow on large states)
     let raw = '';
@@ -2355,15 +2394,28 @@ async function listRomLibrary() {
 const origStartEmulator = startEmulator;
 startEmulator = async function(bytes) {
     await origStartEmulator(bytes);
-    if (emu) {
-        const title = emu.title();
+    if (emu || worker) {
+        let title = '';
+        if (emu) {
+            title = emu.title() || '';
+        } else {
+            // Extract title from ROM header for worker mode
+            const u8 = new Uint8Array(bytes);
+            for (let i = 0x134; i < 0x144 && i < u8.length; i++) {
+                if (u8[i] === 0) break;
+                title += String.fromCharCode(u8[i]);
+            }
+            title = sanitizeTitle(title);
+        }
         if (title) saveRomToLibrary(title, bytes);
-        // Load cheat database and populate UI
         await loadCheatDb();
         populateCheatsUI(title);
-        // Apply shared state from URL if pending
         if (pendingSharedState) {
-            emu.load_state(pendingSharedState);
+            if (worker) {
+                worker.postMessage({ cmd: 'load_state', data: pendingSharedState });
+            } else {
+                emu.load_state(pendingSharedState);
+            }
             pendingSharedState = null;
             location.hash = '';
             showToast('Loaded shared state');
