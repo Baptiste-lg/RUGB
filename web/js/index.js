@@ -52,8 +52,25 @@ function emuSetButton(btn, pressed) {
     if (worker) {
         worker.postMessage({ cmd: 'input', button: btn, pressed });
     } else if (emu) {
-        emuSetButton(btn, pressed);
+        emu.set_button(btn, pressed);
     }
+}
+
+// Worker toggle
+const workerToggle = document.getElementById('worker-toggle');
+if (!('OffscreenCanvas' in self)) {
+    useWorker = false;
+    if (workerToggle) { workerToggle.checked = false; workerToggle.disabled = true; }
+} else {
+    const savedWorker = localStorage.getItem('rugb-use-worker');
+    useWorker = savedWorker !== 'false';
+    if (workerToggle) workerToggle.checked = useWorker;
+}
+if (workerToggle) {
+    workerToggle.addEventListener('change', () => {
+        useWorker = workerToggle.checked;
+        localStorage.setItem('rugb-use-worker', useWorker);
+    });
 }
 
 let canvas = document.getElementById('screen');
