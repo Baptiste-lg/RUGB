@@ -256,4 +256,28 @@ impl WasmEmulator {
     pub fn set_tilt(&mut self, x: i16, y: i16) {
         self.emu.mmu.set_tilt(x, y);
     }
+
+    // --- Debug exports ---
+
+    pub fn read_byte(&self, addr: u16) -> u8 {
+        self.emu.mmu.read(addr)
+    }
+
+    pub fn write_byte(&mut self, addr: u16, val: u8) {
+        self.emu.mmu.write(addr, val);
+    }
+
+    pub fn cpu_pc(&self) -> u16 { self.emu.cpu.regs.pc }
+    pub fn cpu_sp(&self) -> u16 { self.emu.cpu.regs.sp }
+    pub fn cpu_af(&self) -> u16 { self.emu.cpu.regs.af() }
+    pub fn cpu_bc(&self) -> u16 { self.emu.cpu.regs.bc() }
+    pub fn cpu_de(&self) -> u16 { self.emu.cpu.regs.de() }
+    pub fn cpu_hl(&self) -> u16 { self.emu.cpu.regs.hl() }
+    pub fn cpu_halted(&self) -> bool { self.emu.cpu.halted }
+    pub fn cpu_ime(&self) -> bool { self.emu.cpu.ime }
+
+    /// Step one CPU instruction (for single-stepping debugger).
+    pub fn step(&mut self) {
+        self.emu.step();
+    }
 }
