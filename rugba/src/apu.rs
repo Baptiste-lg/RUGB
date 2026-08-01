@@ -406,7 +406,7 @@ impl Apu {
             }
             // SOUND1CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x064 => {
-                self.psg_ch1.frequency = (val & 0x7FF);
+                self.psg_ch1.frequency = val & 0x7FF ;
                 self.psg_ch1.length_enabled = val & (1 << 14) != 0;
                 if val & (1 << 15) != 0 {
                     // Trigger: restart channel
@@ -426,7 +426,7 @@ impl Apu {
             }
             // SOUND2CNT_H: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x06C => {
-                self.psg_ch2.frequency = (val & 0x7FF);
+                self.psg_ch2.frequency = val & 0x7FF ;
                 self.psg_ch2.length_enabled = val & (1 << 14) != 0;
                 if val & (1 << 15) != 0 {
                     self.psg_ch2.enabled = true;
@@ -454,7 +454,7 @@ impl Apu {
             }
             // SOUND3CNT_X: bits 0-10=frequency, bit 14=length enable, bit 15=trigger
             0x074 => {
-                self.psg_ch3.frequency = (val & 0x7FF);
+                self.psg_ch3.frequency = val & 0x7FF ;
                 if val & (1 << 15) != 0 {
                     self.psg_ch3.enabled = true;
                     self.psg_ch3.timer = self.psg_ch3.period();

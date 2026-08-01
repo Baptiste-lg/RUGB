@@ -342,10 +342,16 @@ impl WasmGbaEmulator {
     }
 
     pub fn cpu_reg(&self, n: u8) -> u32 {
-        if (n as usize) < 16 { self.emu.cpu.regs[n as usize] } else { 0 }
+        if (n as usize) < 16 {
+            self.emu.cpu.regs[n as usize]
+        } else {
+            0
+        }
     }
 
-    pub fn cpu_cpsr(&self) -> u32 { self.emu.cpu.cpsr }
+    pub fn cpu_cpsr(&self) -> u32 {
+        self.emu.cpu.cpsr
+    }
 
     pub fn step(&mut self) {
         self.emu.cpu.step(&mut self.emu.bus);
