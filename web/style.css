@@ -1052,6 +1052,40 @@ canvas.filter-smooth {
     width: 40%;
 }
 
+/* --- Cloud saves --- */
+
+.cloud-content h3 {
+    color: #8be9fd;
+    margin-bottom: 0.5rem;
+}
+
+.cloud-status {
+    font-size: 0.85rem;
+    color: #999;
+    margin-bottom: 1rem;
+}
+
+.cloud-saves-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+}
+
+.cloud-saves-list .cloud-save-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid #333;
+}
+
+.cloud-privacy {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
 /* --- Remap --- */
 
 .remap-table {
