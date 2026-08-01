@@ -7,6 +7,7 @@ const ASSETS = [
   './js/index.js',
   './js/webgl-renderer.js',
   './js/emu-worker.js',
+  './js/cloud-saves.js',
   './audio-processor.js',
   './manifest.json',
 ];

@@ -3,6 +3,7 @@ import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
 import { LinkCable } from './link-cable.js';
 import { DebugTools } from './debug-tools.js';
 import { WebGLRenderer } from './webgl-renderer.js';
+import { CloudSaves } from './cloud-saves.js';
 
 function sanitizeTitle(raw) {
     return raw.replace(/[^\x20-\x7E]/g, '').slice(0, 32);
@@ -2696,5 +2697,107 @@ document.querySelectorAll('.link-close-btn').forEach(btn => {
         linkOverlay.classList.remove('visible');
     });
 });
+
+// --- Cloud Saves ---
+
+let cloudSaves = null;
+const cloudBtn = document.getElementById('cloud-btn');
+const cloudOverlay = document.getElementById('cloud-overlay');
+const cloudStatus = document.getElementById('cloud-status');
+const cloudSignIn = document.getElementById('cloud-sign-in');
+const cloudSync = document.getElementById('cloud-sync');
+const cloudSignOut = document.getElementById('cloud-sign-out');
+const cloudClose = document.getElementById('cloud-close');
+const cloudList = document.getElementById('cloud-saves-list');
+
+function updateCloudUI() {
+    if (!cloudSaves) return;
+    const signedIn = cloudSaves.isSignedIn();
+    cloudStatus.textContent = signedIn ? 'Connected to Google Drive' : 'Not connected';
+    cloudSignIn.style.display = signedIn ? 'none' : '';
+    cloudSync.style.display = signedIn ? '' : 'none';
+    cloudSignOut.style.display = signedIn ? '' : 'none';
+}
+
+async function refreshCloudList() {
+    if (!cloudSaves || !cloudSaves.isSignedIn()) { cloudList.innerHTML = ''; return; }
+    try {
+        const files = await cloudSaves.listSaves();
+        cloudList.innerHTML = '';
+        if (files.length === 0) {
+            cloudList.innerHTML = '<p style="color:#666;font-size:0.85rem">No cloud saves yet</p>';
+            return;
+        }
+        for (const f of files) {
+            const div = document.createElement('div');
+            div.className = 'cloud-save-item';
+            const props = f.appProperties || {};
+            const label = props.gameTitle ? `${f.name} (${props.gameTitle})` : f.name;
+            div.innerHTML = `<span>${label}</span><span style="color:#666">${new Date(f.modifiedTime).toLocaleDateString()}</span>`;
+            cloudList.appendChild(div);
+        }
+    } catch { cloudList.innerHTML = '<p style="color:#c66">Failed to load cloud saves</p>'; }
+}
+
+if (cloudBtn) {
+    cloudBtn.addEventListener('click', async () => {
+        cloudOverlay.classList.add('visible');
+        if (!cloudSaves) {
+            cloudSaves = new CloudSaves();
+            try {
+                cloudStatus.textContent = 'Loading...';
+                await cloudSaves.init();
+            } catch {
+                cloudStatus.textContent = 'Failed to load Google API';
+                return;
+            }
+        }
+        updateCloudUI();
+        refreshCloudList();
+    });
+}
+
+if (cloudSignIn) {
+    cloudSignIn.addEventListener('click', async () => {
+        if (!cloudSaves) return;
+        cloudStatus.textContent = 'Signing in...';
+        await cloudSaves.signIn();
+        updateCloudUI();
+        refreshCloudList();
+    });
+}
+
+if (cloudSync) {
+    cloudSync.addEventListener('click', async () => {
+        if (!cloudSaves || !cloudSaves.isSignedIn()) return;
+        cloudSync.disabled = true;
+        cloudSync.textContent = 'Syncing...';
+        try {
+            const result = await cloudSaves.syncAll();
+            showToast(`Sync complete: ${result.uploaded} up, ${result.downloaded} down`);
+            refreshCloudList();
+        } catch {
+            showToast('Sync failed');
+        }
+        cloudSync.disabled = false;
+        cloudSync.textContent = 'Sync Now';
+    });
+}
+
+if (cloudSignOut) {
+    cloudSignOut.addEventListener('click', () => {
+        if (!cloudSaves) return;
+        cloudSaves.signOut();
+        updateCloudUI();
+        cloudList.innerHTML = '';
+        showToast('Signed out from Google Drive');
+    });
+}
+
+if (cloudClose) {
+    cloudClose.addEventListener('click', () => {
+        cloudOverlay.classList.remove('visible');
+    });
+}
 
 console.log('RUGB ready — load a ROM to start');
