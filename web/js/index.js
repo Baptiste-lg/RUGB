@@ -2,6 +2,7 @@ import initGb, { WasmEmulator } from '../pkg/rugb/rugb.js';
 import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
 import { LinkCable } from './link-cable.js';
 import { DebugTools } from './debug-tools.js';
+import { WebGLRenderer } from './webgl-renderer.js';
 
 function sanitizeTitle(raw) {
     return raw.replace(/[^\x20-\x7E]/g, '').slice(0, 32);
@@ -43,8 +44,9 @@ let rewinding = false;
 // --- Boot ROM ---
 let bootRomData = null;
 
-const canvas = document.getElementById('screen');
-const ctx = canvas.getContext('2d');
+let canvas = document.getElementById('screen');
+let ctx = canvas.getContext('2d');
+let glRenderer = null;
 const pauseBtn = document.getElementById('pause-btn');
 const resetBtn = document.getElementById('reset-btn');
 const muteBtn = document.getElementById('mute-btn');
@@ -349,7 +351,11 @@ let currentPalette = localStorage.getItem('rugb-palette') || 'gray';
 let paletteLUT = null;
 
 function buildPaletteLUT(pal) {
-    if (!pal) { paletteLUT = null; return; }
+    if (!pal) {
+        paletteLUT = null;
+        if (glRenderer && glRenderer.ready) glRenderer.setPalette(null);
+        return;
+    }
     // Map shade values 0xFF, 0xAA, 0x55, 0x00 to RGB
     const lut = new Uint8Array(256 * 3); // 256 possible shade values × 3 channels
     const shades = [0xFF, 0xAA, 0x55, 0x00];
@@ -364,6 +370,10 @@ function buildPaletteLUT(pal) {
         lut[idx + 2] = b;
     }
     paletteLUT = lut;
+    // Upload palette to GPU if WebGL is active
+    if (glRenderer && glRenderer.ready && currentSystem === 'gb') {
+        glRenderer.setPalette(lut);
+    }
 }
 
 function applyPalette(imageData) {
@@ -609,6 +619,21 @@ function switchShell(system) {
         if (shoulders) shoulders.style.display = 'none';
     }
     screenBytes = screenW * screenH * 4;
+    // Recreate WebGL renderer on the new canvas
+    if (glRenderer) glRenderer.destroy();
+    glRenderer = new WebGLRenderer(canvas);
+    if (glRenderer.ready) {
+        // Re-apply current filter and palette
+        const filterMap = { scanlines: 'crt', lcd: 'lcd', smooth: 'smooth', ghosting: 'ghost' };
+        const savedF = localStorage.getItem('rugb-filter') || 'none';
+        glRenderer.setFilter(filterMap[savedF] || 'none');
+        if (savedF === 'ghosting') glRenderer.setBlend(0.5);
+        if (currentSystem === 'gb' && paletteLUT) {
+            glRenderer.setPalette(paletteLUT);
+        } else {
+            glRenderer.setPalette(null);
+        }
+    }
     ctx = canvas.getContext('2d');
     cachedImageData = new ImageData(screenW, screenH);
     frameMs = currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS;
@@ -981,24 +1006,29 @@ function frame(timestamp) {
     if (framesRun > 0) {
         const ptr = emu.framebuffer_ptr();
         const srcView = new Uint8ClampedArray(wasm.memory.buffer, ptr, screenBytes);
-        cachedImageData.data.set(srcView);
-        let imageData = cachedImageData;
-        // Palette LUT only applies to DMG (GBC/GBA use their own color palettes)
-        if (currentSystem === 'gb') imageData = applyPalette(imageData);
-        // Frame blending: mix 50% current + 50% previous frame (no allocation)
-        if (frameBlending) {
-            const cur = imageData.data;
-            for (let i = 0; i < cur.length; i += 4) {
-                const r = cur[i], g = cur[i + 1], b = cur[i + 2];
-                cur[i]     = (r + prevFrameBuf[i])     >> 1;
-                cur[i + 1] = (g + prevFrameBuf[i + 1]) >> 1;
-                cur[i + 2] = (b + prevFrameBuf[i + 2]) >> 1;
-                prevFrameBuf[i] = r;
-                prevFrameBuf[i + 1] = g;
-                prevFrameBuf[i + 2] = b;
+
+        // WebGL path: palette + blending handled by GPU shader
+        if (glRenderer && glRenderer.ready) {
+            glRenderer.render(srcView, screenW, screenH);
+        } else {
+            // Canvas 2D fallback
+            cachedImageData.data.set(srcView);
+            let imageData = cachedImageData;
+            if (currentSystem === 'gb') imageData = applyPalette(imageData);
+            if (frameBlending) {
+                const cur = imageData.data;
+                for (let i = 0; i < cur.length; i += 4) {
+                    const r = cur[i], g = cur[i + 1], b = cur[i + 2];
+                    cur[i]     = (r + prevFrameBuf[i])     >> 1;
+                    cur[i + 1] = (g + prevFrameBuf[i + 1]) >> 1;
+                    cur[i + 2] = (b + prevFrameBuf[i + 2]) >> 1;
+                    prevFrameBuf[i] = r;
+                    prevFrameBuf[i + 1] = g;
+                    prevFrameBuf[i + 2] = b;
+                }
             }
+            ctx.putImageData(imageData, 0, 0);
         }
-        ctx.putImageData(imageData, 0, 0);
 
         // FPS counter
         if (showFps) {
@@ -1215,7 +1245,8 @@ muteBtn.addEventListener('click', () => {
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
 });
 
-// Display filters
+// Display filters — maps data-filter values to WebGL shader names
+const FILTER_TO_SHADER = { none: 'none', scanlines: 'crt', lcd: 'lcd', smooth: 'smooth', ghosting: 'ghost' };
 const filterBtns = document.querySelectorAll('.filter-btn');
 const screenFrame = document.querySelector('.gb-screen-frame');
 filterBtns.forEach(btn => {
@@ -1223,15 +1254,21 @@ filterBtns.forEach(btn => {
         const filter = btn.dataset.filter;
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        // Remove all filter classes
-        canvas.classList.remove('filter-smooth');
-        screenFrame.classList.remove('filter-scanlines', 'filter-lcd');
         frameBlending = false;
-        // Apply selected
-        if (filter === 'smooth') canvas.classList.add('filter-smooth');
-        if (filter === 'scanlines') screenFrame.classList.add('filter-scanlines');
-        if (filter === 'lcd') screenFrame.classList.add('filter-lcd');
-        if (filter === 'ghosting') frameBlending = true;
+
+        if (glRenderer && glRenderer.ready) {
+            // WebGL path: switch shader program
+            glRenderer.setFilter(FILTER_TO_SHADER[filter] || 'none');
+            glRenderer.setBlend(filter === 'ghosting' ? 0.5 : 0.0);
+        } else {
+            // CSS fallback
+            canvas.classList.remove('filter-smooth');
+            screenFrame.classList.remove('filter-scanlines', 'filter-lcd');
+            if (filter === 'smooth') canvas.classList.add('filter-smooth');
+            if (filter === 'scanlines') screenFrame.classList.add('filter-scanlines');
+            if (filter === 'lcd') screenFrame.classList.add('filter-lcd');
+            if (filter === 'ghosting') frameBlending = true;
+        }
         localStorage.setItem('rugb-filter', filter);
     });
 });
