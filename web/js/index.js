@@ -44,6 +44,18 @@ let rewinding = false;
 // --- Boot ROM ---
 let bootRomData = null;
 
+// --- Web Worker mode ---
+let worker = null;
+let useWorker = typeof OffscreenCanvas !== 'undefined';
+
+function emuSetButton(btn, pressed) {
+    if (worker) {
+        worker.postMessage({ cmd: 'input', button: btn, pressed });
+    } else if (emu) {
+        emuSetButton(btn, pressed);
+    }
+}
+
 let canvas = document.getElementById('screen');
 let ctx = canvas.getContext('2d');
 let glRenderer = null;
@@ -805,7 +817,7 @@ function pollGamepad() {
             if (btnIdx >= gp.buttons.length) continue;
             const pressed = gp.buttons[btnIdx].pressed;
             if (pressed !== prev[`b${btnIdx}`]) {
-                emu.set_button(gbBtn, pressed);
+                emuSetButton(gbBtn, pressed);
                 prev[`b${btnIdx}`] = pressed;
             }
         }
@@ -820,10 +832,10 @@ function pollGamepad() {
             const up = ly < -AXIS_THRESHOLD;
             const down = ly > AXIS_THRESHOLD;
 
-            if (left !== prev.axL) { emu.set_button(1, left); prev.axL = left; }
-            if (right !== prev.axR) { emu.set_button(0, right); prev.axR = right; }
-            if (up !== prev.axU) { emu.set_button(2, up); prev.axU = up; }
-            if (down !== prev.axD) { emu.set_button(3, down); prev.axD = down; }
+            if (left !== prev.axL) { emuSetButton(1, left); prev.axL = left; }
+            if (right !== prev.axR) { emuSetButton(0, right); prev.axR = right; }
+            if (up !== prev.axU) { emuSetButton(2, up); prev.axU = up; }
+            if (down !== prev.axD) { emuSetButton(3, down); prev.axD = down; }
         }
     }
 }
@@ -966,8 +978,8 @@ function frame(timestamp) {
             // Turbo: toggle A/B every other frame
             turboFrame++;
             const turboOn = (turboFrame & 1) === 0;
-            if (turboA) emu.set_button(4, turboOn);
-            if (turboB) emu.set_button(5, turboOn);
+            if (turboA) emuSetButton(4, turboOn);
+            if (turboB) emuSetButton(5, turboOn);
             emu.run_frame();
             applyGameSharkCheats();
             frameDebt -= FRAME_MS;
@@ -1523,7 +1535,7 @@ document.addEventListener('keydown', (e) => {
     }
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
-        if (!e.repeat && emu) emu.set_button(btn, true);
+        if (!e.repeat && emu) emuSetButton(btn, true);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.add('pressed');
         e.preventDefault();
     }
@@ -1535,7 +1547,7 @@ document.addEventListener('keyup', (e) => {
     if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
-        if (emu) emu.set_button(btn, false);
+        if (emu) emuSetButton(btn, false);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.remove('pressed');
         e.preventDefault();
     }
@@ -1558,13 +1570,13 @@ gbInputBtns.forEach(el => {
         e.preventDefault();
         el.classList.add('pressed');
         if (e.type === 'touchstart') haptic(15);
-        if (emu) emu.set_button(gbBtn, true);
+        if (emu) emuSetButton(gbBtn, true);
     };
     const release = (e) => {
         e.preventDefault();
         if (!el.classList.contains('pressed')) return;
         el.classList.remove('pressed');
-        if (emu) emu.set_button(gbBtn, false);
+        if (emu) emuSetButton(gbBtn, false);
     };
     el.addEventListener('mousedown', press);
     el.addEventListener('mouseup', release);
@@ -1581,13 +1593,13 @@ document.querySelectorAll('.gba-input').forEach(el => {
         e.preventDefault();
         el.classList.add('pressed');
         if (e.type === 'touchstart') haptic(15);
-        if (emu) emu.set_button(gbaBtn, true);
+        if (emu) emuSetButton(gbaBtn, true);
     };
     const release = (e) => {
         e.preventDefault();
         if (!el.classList.contains('pressed')) return;
         el.classList.remove('pressed');
-        if (emu) emu.set_button(gbaBtn, false);
+        if (emu) emuSetButton(gbaBtn, false);
     };
     el.addEventListener('mousedown', press);
     el.addEventListener('mouseup', release);
@@ -1610,12 +1622,12 @@ document.querySelectorAll('.touch-btn[data-btn]').forEach(el => {
         e.preventDefault();
         el.classList.add('pressed');
         haptic(15);
-        if (emu) emu.set_button(gbBtn, true);
+        if (emu) emuSetButton(gbBtn, true);
     };
     const release = (e) => {
         e.preventDefault();
         el.classList.remove('pressed');
-        if (emu) emu.set_button(gbBtn, false);
+        if (emu) emuSetButton(gbBtn, false);
     };
     el.addEventListener('touchstart', press);
     el.addEventListener('touchend', release);
