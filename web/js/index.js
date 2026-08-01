@@ -1,6 +1,7 @@
 import initGb, { WasmEmulator } from '../pkg/rugb/rugb.js';
 import initGba, { WasmGbaEmulator } from '../pkg/rugba/rugba.js';
 import { LinkCable } from './link-cable.js';
+import { DebugTools } from './debug-tools.js';
 
 function sanitizeTitle(raw) {
     return raw.replace(/[^\x20-\x7E]/g, '').slice(0, 32);
@@ -28,6 +29,9 @@ let turboFrame = 0;
 
 // --- Link cable ---
 let linkCable = null;
+
+// --- Debug tools ---
+let debugTools = null;
 
 // --- Rewind state ---
 const REWIND_MAX_FRAMES = 300; // ~5 seconds at 60fps
@@ -669,6 +673,9 @@ async function startEmulator(bytes) {
     muteBtn.disabled = false;
     screenshotBtn.disabled = false;
     if (linkBtn) linkBtn.disabled = (system === 'gba');
+    const debugBtn = document.getElementById('debug-btn');
+    if (debugBtn) debugBtn.disabled = false;
+    debugTools = new DebugTools(() => emu, () => currentSystem, () => wasm);
     paused = false;
     pauseBtn.textContent = 'Pause';
 
@@ -1008,6 +1015,9 @@ function frame(timestamp) {
 
         // Audio visualizer (drawn in main loop, no separate RAF)
         drawViz();
+
+        // Debug panel auto-update
+        if (debugTools?.autoUpdate) debugTools.update();
     }
 
     animationId = requestAnimationFrame(frame);
@@ -2147,6 +2157,57 @@ let pendingSharedState = null;
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// --- Debug Tools UI ---
+{
+    const debugBtn = document.getElementById('debug-btn');
+    const debugOverlay = document.getElementById('debug-overlay');
+    const debugCloseBtn = document.getElementById('debug-close');
+    const debugStepBtn = document.getElementById('debug-step');
+    const debugAutoChk = document.getElementById('debug-auto');
+    const debugTabs = document.querySelectorAll('.debug-tab');
+
+    if (debugBtn) {
+        debugBtn.addEventListener('click', () => {
+            sideMenu.classList.remove('open');
+            debugOverlay.classList.add('visible');
+            if (debugTools) debugTools.update();
+        });
+    }
+
+    if (debugCloseBtn) {
+        debugCloseBtn.addEventListener('click', () => {
+            debugOverlay.classList.remove('visible');
+            if (debugTools) debugTools.autoUpdate = false;
+            if (debugAutoChk) debugAutoChk.checked = false;
+        });
+    }
+
+    if (debugStepBtn) {
+        debugStepBtn.addEventListener('click', () => {
+            if (!emu) return;
+            emu.step();
+            if (debugTools) debugTools.update();
+        });
+    }
+
+    if (debugAutoChk) {
+        debugAutoChk.addEventListener('change', () => {
+            if (debugTools) debugTools.autoUpdate = debugAutoChk.checked;
+        });
+    }
+
+    debugTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            debugTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (debugTools) {
+                debugTools.activeTab = tab.dataset.tab;
+                debugTools.update();
+            }
+        });
+    });
 }
 
 // --- Link cable UI ---
