@@ -1861,3 +1861,260 @@ canvas.filter-smooth {
 .gbc.screen-only .gbc-power-switch { display: none; }
 .gbc.screen-only .gbc-ir-port { display: none; }
 .gbc.screen-only .gb-speaker-grille { display: none; }
+
+/* ==========================================================================
+   Debug Tools
+   ========================================================================== */
+
+.debug-content {
+    max-width: 620px;
+    width: 95%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.debug-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0.6rem;
+}
+
+.debug-tab {
+    flex: 1;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.debug-tab:hover {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+}
+
+.debug-tab.active {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+    color: #8be9fd;
+}
+
+.debug-panel {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.78rem;
+    background: #0a0e1a;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    padding: 0.5rem;
+    min-height: 300px;
+    max-height: 50vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    flex: 1;
+}
+
+.debug-empty {
+    color: #555;
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.8rem;
+}
+
+.debug-label {
+    color: #666;
+    font-size: 0.72rem;
+    margin-bottom: 0.4rem;
+}
+
+.debug-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.debug-controls button {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    background: #16213e;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.debug-controls button:hover {
+    background: #1a3a5c;
+    border-color: #8be9fd;
+}
+
+.debug-controls label {
+    font-size: 0.8rem;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+/* CPU register grid */
+.debug-regs {
+    display: grid;
+    grid-template-columns: max-content auto;
+    gap: 2px 8px;
+    align-items: baseline;
+}
+
+.debug-reg-label {
+    color: #8be9fd;
+    text-align: right;
+    white-space: nowrap;
+    font-size: 0.78rem;
+}
+
+.debug-reg-val {
+    color: #f8f8f2;
+    font-size: 0.78rem;
+}
+
+.flag-bit {
+    display: inline-block;
+    padding: 1px 4px;
+    margin-right: 2px;
+    border: 1px solid #333;
+    border-radius: 2px;
+    font-size: 0.7rem;
+    color: #555;
+}
+
+.flag-bit.flag-set {
+    color: #50fa7b;
+    border-color: #50fa7b;
+}
+
+.debug-reg-val.flag-set {
+    color: #50fa7b;
+}
+
+/* Memory hex viewer */
+.debug-mem-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.debug-mem-controls button {
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    background: #16213e;
+    color: #8be9fd;
+    border: 1px solid #333;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.debug-mem-controls button:hover {
+    background: #1a3a5c;
+}
+
+.debug-mem-addr {
+    color: #8be9fd;
+    font-size: 0.75rem;
+    flex: 1;
+    text-align: center;
+}
+
+.debug-hex {
+    display: grid;
+    grid-template-columns: max-content repeat(16, max-content) 1fr;
+    gap: 1px 4px;
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+
+.dbg-hex-addr {
+    color: #8be9fd;
+    padding-right: 4px;
+    white-space: nowrap;
+    border-right: 1px solid #2a2a3a;
+}
+
+.dbg-hex-hdr {
+    color: #555;
+    text-align: center;
+}
+
+.dbg-hex-byte {
+    color: #f8f8f2;
+    text-align: center;
+}
+
+.dbg-hex-ascii {
+    color: #6272a4;
+    padding-left: 6px;
+    white-space: pre;
+    letter-spacing: 0.05em;
+}
+
+/* Tile canvas */
+.debug-tile-canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border: 1px solid #2a2a3a;
+    max-width: 100%;
+}
+
+/* Disassembly */
+.debug-disasm {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.debug-disasm td {
+    padding: 1px 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.debug-disasm tr:hover td {
+    background: #111827;
+}
+
+.disasm-addr {
+    color: #8be9fd;
+    width: 60px;
+}
+
+.disasm-bytes {
+    color: #6272a4;
+    width: 80px;
+}
+
+.disasm-mnem {
+    color: #f8f8f2;
+}
+
+.disasm-current td {
+    background: #1a2a4a !important;
+}
+
+.disasm-current .disasm-addr {
+    color: #50fa7b;
+}
+
+.disasm-current .disasm-mnem {
+    color: #ffb86c;
+    font-weight: bold;
+}
