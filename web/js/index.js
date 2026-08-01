@@ -410,6 +410,11 @@ if (currentPalette !== 'gray') {
 let batterySaveTimer = null;
 
 function saveBatteryRAM() {
+    if (worker) {
+        // In worker mode, request battery RAM from worker (handled in onmessage)
+        worker.postMessage({ cmd: 'battery_ram' });
+        return;
+    }
     if (!emu || !emu.has_battery()) return;
     try {
         const title = emu.title();
@@ -553,7 +558,25 @@ function rewindStep() {
 
 // --- Auto-save on exit ---
 
-function autoSaveState() {
+async function autoSaveState() {
+    if (worker) {
+        const data = await workerSaveState();
+        if (data) {
+            try {
+                const b64 = uint8ToBase64(new Uint8Array(data));
+                // Use romBytes title since emu is in worker
+                const u8 = new Uint8Array(romBytes);
+                let title = '';
+                for (let i = 0x134; i < 0x144 && i < u8.length; i++) {
+                    if (u8[i] === 0) break;
+                    title += String.fromCharCode(u8[i]);
+                }
+                title = sanitizeTitle(title);
+                if (title) localStorage.setItem(`rugb-autosave-${title}`, b64);
+            } catch {}
+        }
+        return;
+    }
     if (!emu || !romBytes) return;
     try {
         const title = emu.title();
@@ -670,15 +693,150 @@ function switchShell(system) {
     });
 }
 
+// --- Worker-mode message handler ---
+
+function setupWorkerHandlers(w) {
+    w.onmessage = (e) => {
+        const msg = e.data;
+        switch (msg.cmd) {
+            case 'ready':
+                if (msg.title) {
+                    const title = sanitizeTitle(msg.title);
+                    document.title = `RUGB — ${title}`;
+                    addRecentRom(title);
+                    // Load battery RAM into worker
+                    const b64 = localStorage.getItem(`rugb-sram-${title}`);
+                    if (b64 && b64.length <= 2 * 1024 * 1024) {
+                        const data = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                        w.postMessage({ cmd: 'load_battery_ram', data }, [data.buffer]);
+                    }
+                    // Load auto-save state into worker
+                    const autoB64 = localStorage.getItem(`rugb-autosave-${title}`);
+                    if (autoB64 && autoB64.length <= 2 * 1024 * 1024) {
+                        try {
+                            const state = Uint8Array.from(atob(autoB64), c => c.charCodeAt(0));
+                            w.postMessage({ cmd: 'load_state', data: state }, [state.buffer]);
+                            localStorage.removeItem(`rugb-autosave-${title}`);
+                        } catch {}
+                    }
+                }
+                break;
+            case 'audio':
+                if (audioWorkletNode && !muted) {
+                    audioWorkletNode.port.postMessage(
+                        { type: 'samples', left: msg.left, right: msg.right },
+                        [msg.left.buffer, msg.right.buffer]
+                    );
+                }
+                break;
+            case 'frame':
+                // Fallback: worker sent raw pixels (no OffscreenCanvas)
+                if (ctx && msg.pixels) {
+                    cachedImageData.data.set(msg.pixels);
+                    let imageData = cachedImageData;
+                    if (currentSystem === 'gb') imageData = applyPalette(imageData);
+                    ctx.putImageData(imageData, 0, 0);
+                }
+                break;
+            case 'state':
+                // Save state response — store in pending callback
+                if (_pendingStateCb) { _pendingStateCb(msg.data); _pendingStateCb = null; }
+                break;
+            case 'battery_ram':
+                if (msg.data && msg.title) {
+                    try {
+                        const b64 = uint8ToBase64(new Uint8Array(msg.data));
+                        localStorage.setItem(`rugb-sram-${msg.title}`, b64);
+                    } catch {}
+                }
+                break;
+            case 'rumble':
+                try {
+                    const gamepads = navigator.getGamepads();
+                    if (gamepads) {
+                        for (const gp of gamepads) {
+                            if (gp && gp.vibrationActuator) {
+                                gp.vibrationActuator.playEffect('dual-rumble', {
+                                    duration: 16, strongMagnitude: 0.5, weakMagnitude: 0.3,
+                                });
+                            }
+                        }
+                    }
+                } catch {}
+                break;
+            case 'serial_out':
+                if (linkCable) linkCable.sendByte(msg.byte);
+                break;
+        }
+    };
+}
+
+let _pendingStateCb = null;
+
+function workerSaveState() {
+    return new Promise((resolve) => {
+        _pendingStateCb = resolve;
+        worker.postMessage({ cmd: 'save_state' });
+        // Timeout fallback
+        setTimeout(() => { if (_pendingStateCb) { _pendingStateCb(null); _pendingStateCb = null; } }, 2000);
+    });
+}
+
 async function startEmulator(bytes) {
     // Save previous game's battery RAM before loading new one
     saveBatteryRAM();
     if (batterySaveTimer) clearInterval(batterySaveTimer);
+    if (worker) { worker.terminate(); worker = null; }
 
     romBytes = bytes;
     const system = detectSystem(bytes);
     currentSystem = system;
 
+    switchShell(system);
+    await initAudio();
+
+    pauseBtn.disabled = false;
+    resetBtn.disabled = false;
+    muteBtn.disabled = false;
+    screenshotBtn.disabled = false;
+    if (linkBtn) linkBtn.disabled = (system === 'gba');
+    const debugBtn = document.getElementById('debug-btn');
+    if (debugBtn) debugBtn.disabled = false;
+    paused = false;
+    pauseBtn.textContent = 'Pause';
+
+    if (useWorker && canvas.transferControlToOffscreen) {
+        await startEmulatorWorker(bytes, system);
+    } else {
+        await startEmulatorMainThread(bytes, system);
+    }
+
+    // Auto-save battery RAM every 5 seconds
+    batterySaveTimer = setInterval(saveBatteryRAM, 5000);
+}
+
+async function startEmulatorWorker(bytes, system) {
+    worker = new Worker('./js/emu-worker.js', { type: 'module' });
+    setupWorkerHandlers(worker);
+
+    // Transfer canvas to worker for direct rendering
+    const offscreen = canvas.transferControlToOffscreen();
+    const transfer = [offscreen, bytes.slice(0)];
+    const initMsg = {
+        cmd: 'init',
+        rom: bytes,
+        system,
+        offscreen,
+        bootRom: bootRomData ? bootRomData.slice(0) : null,
+    };
+    worker.postMessage(initMsg, transfer);
+
+    emu = null; // emu lives in worker
+    wasm = null;
+    debugTools = new DebugTools(() => null, () => currentSystem, () => null);
+}
+
+async function startEmulatorMainThread(bytes, system) {
     if (system === 'gba') {
         if (!gbaWasm) gbaWasm = await initGba();
         wasm = gbaWasm;
@@ -693,39 +851,20 @@ async function startEmulator(bytes) {
         }
     }
 
-    switchShell(system);
-
     const title = sanitizeTitle(emu.title() || '');
     if (title) {
         document.title = `RUGB — ${title}`;
         addRecentRom(title);
     }
 
-    // Restore battery-backed SRAM from localStorage
     loadBatteryRAM();
-
-    // Restore auto-save state if one exists (resume from last session)
     autoLoadState();
 
-    pauseBtn.disabled = false;
-    resetBtn.disabled = false;
-    muteBtn.disabled = false;
-    screenshotBtn.disabled = false;
-    if (linkBtn) linkBtn.disabled = (system === 'gba');
-    const debugBtn = document.getElementById('debug-btn');
-    if (debugBtn) debugBtn.disabled = false;
     debugTools = new DebugTools(() => emu, () => currentSystem, () => wasm);
-    paused = false;
-    pauseBtn.textContent = 'Pause';
 
     // Reset rewind buffer for new ROM
     rewindBuffer = [];
     rewindFrameCounter = 0;
-
-    await initAudio();
-
-    // Auto-save battery RAM every 5 seconds
-    batterySaveTimer = setInterval(saveBatteryRAM, 5000);
 
     // Reset frame timing
     lastFrameTs = 0;
@@ -1218,7 +1357,9 @@ document.body.addEventListener('drop', (e) => {
 pauseBtn.addEventListener('click', () => {
     paused = !paused;
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-    if (!paused) {
+    if (worker) {
+        worker.postMessage({ cmd: paused ? 'pause' : 'resume' });
+    } else if (!paused) {
         lastFrameTs = 0;
         frameDebt = 0;
         animationId = requestAnimationFrame(frame);
@@ -1257,6 +1398,7 @@ document.addEventListener('fullscreenchange', () => {
 muteBtn.addEventListener('click', () => {
     muted = !muted;
     muteBtn.textContent = muted ? 'Unmute' : 'Mute';
+    if (worker) worker.postMessage({ cmd: 'mute', muted });
 });
 
 // Display filters — maps data-filter values to WebGL shader names
@@ -1270,7 +1412,10 @@ filterBtns.forEach(btn => {
         btn.classList.add('active');
         frameBlending = false;
 
-        if (glRenderer && glRenderer.ready) {
+        if (worker) {
+            // Worker owns the renderer
+            worker.postMessage({ cmd: 'set_filter', filter: FILTER_TO_SHADER[filter] || 'none', blend: filter === 'ghosting' ? 0.5 : 0.0 });
+        } else if (glRenderer && glRenderer.ready) {
             // WebGL path: switch shader program
             glRenderer.setFilter(FILTER_TO_SHADER[filter] || 'none');
             glRenderer.setBlend(filter === 'ghosting' ? 0.5 : 0.0);
@@ -1315,6 +1460,7 @@ speedBtns.forEach(btn => {
         speed = parseFloat(btn.dataset.speed);
         speedBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        if (worker) worker.postMessage({ cmd: 'set_speed', speed });
     });
 });
 
@@ -1519,31 +1665,55 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'F9') { e.preventDefault(); toggleRecording(); return; }
     if (e.key === 'F10') { e.preventDefault(); generateShareLink(); return; }
     if (e.key === 'F11') { e.preventDefault(); fullscreenBtn.click(); return; }
-    if (e.key === ' ') { e.preventDefault(); fastForward = true; return; }
-    if (e.key === 'r') { e.preventDefault(); rewinding = true; return; }
-    if (e.key === 'q') { turboA = !turboA; showToast(turboA ? 'Turbo A ON' : 'Turbo A OFF'); return; }
-    if (e.key === 'w') { turboB = !turboB; showToast(turboB ? 'Turbo B ON' : 'Turbo B OFF'); return; }
+    if (e.key === ' ') {
+        e.preventDefault(); fastForward = true;
+        if (worker) worker.postMessage({ cmd: 'fast_forward', enabled: true });
+        return;
+    }
+    if (e.key === 'r') {
+        e.preventDefault(); rewinding = true;
+        if (worker) worker.postMessage({ cmd: 'rewind_start' });
+        return;
+    }
+    if (e.key === 'q') {
+        turboA = !turboA; showToast(turboA ? 'Turbo A ON' : 'Turbo A OFF');
+        if (worker) worker.postMessage({ cmd: 'turbo', button: 'a', enabled: turboA });
+        return;
+    }
+    if (e.key === 'w') {
+        turboB = !turboB; showToast(turboB ? 'Turbo B ON' : 'Turbo B OFF');
+        if (worker) worker.postMessage({ cmd: 'turbo', button: 'b', enabled: turboB });
+        return;
+    }
     if (e.key === keyMap.pause) { pauseBtn.click(); return; }
     if (e.key === keyMap.mute) { muteBtn.click(); return; }
     if (e.key === '1') { document.querySelector('.speed-btn[data-speed="1"]')?.click(); return; }
     if (e.key === '2') { document.querySelector('.speed-btn[data-speed="2"]')?.click(); return; }
     if (e.key === '4') { document.querySelector('.speed-btn[data-speed="4"]')?.click(); return; }
     // Quick save/load
-    if (emu) {
+    if (emu || worker) {
         if (e.key === keyMap.quicksave) { e.preventDefault(); doQuickSave(); return; }
         if (e.key === keyMap.quickload) { e.preventDefault(); doQuickLoad(); return; }
     }
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
-        if (!e.repeat && emu) emuSetButton(btn, true);
+        if (!e.repeat && (emu || worker)) emuSetButton(btn, true);
         if (btnIndexToEl[btn]) btnIndexToEl[btn].classList.add('pressed');
         e.preventDefault();
     }
 });
 
 document.addEventListener('keyup', (e) => {
-    if (e.key === ' ') { fastForward = false; return; }
-    if (e.key === 'r') { rewinding = false; return; }
+    if (e.key === ' ') {
+        fastForward = false;
+        if (worker) worker.postMessage({ cmd: 'fast_forward', enabled: false });
+        return;
+    }
+    if (e.key === 'r') {
+        rewinding = false;
+        if (worker) worker.postMessage({ cmd: 'rewind_stop' });
+        return;
+    }
     if (remapListening) return;
     const btn = BUTTON_MAP[e.key];
     if (btn !== undefined) {
