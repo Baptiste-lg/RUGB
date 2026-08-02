@@ -190,7 +190,9 @@ impl Arm7Tdmi {
         match comment {
             0x00 => {
                 // SoftReset — clear registers, reset stack pointers, jump to ROM entry
-                for i in 0..13 { self.regs[i] = 0; }
+                for i in 0..13 {
+                    self.regs[i] = 0;
+                }
                 self.regs[13] = 0x03007F00; // SP_svc
                 self.regs[15] = 0x08000000;
                 self.cpsr = CpuMode::System as u32;
