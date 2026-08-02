@@ -242,7 +242,11 @@ pub fn execute_arm(cpu: &mut Arm7Tdmi, bus: &mut Bus, instruction: u32) -> u32 {
             }
             1
         }
-        _ => 1, // Coprocessor or undefined
+        _ => {
+            // Undefined instruction — enter UND exception
+            cpu.enter_exception(CpuMode::Undefined, 0x04);
+            1
+        }
     }
 }
 
