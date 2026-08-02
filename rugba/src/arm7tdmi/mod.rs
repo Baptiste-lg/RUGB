@@ -189,9 +189,13 @@ impl Arm7Tdmi {
     pub fn handle_swi(&mut self, comment: u8, bus: &mut Bus) -> bool {
         match comment {
             0x00 => {
-                // SoftReset — jump to ROM entry
+                // SoftReset — clear registers, reset stack pointers, jump to ROM entry
+                for i in 0..13 { self.regs[i] = 0; }
+                self.regs[13] = 0x03007F00; // SP_svc
                 self.regs[15] = 0x08000000;
                 self.cpsr = CpuMode::System as u32;
+                // Clear IE, IF, IME
+                bus.io.ime = 0;
                 true
             }
             0x02 => {
@@ -199,8 +203,15 @@ impl Arm7Tdmi {
                 bus.io.halted = true;
                 true
             }
+            0x04 => {
+                // IntrWait — wait for specified interrupt
+                // R0: 1 = discard old flags, R1 = interrupt mask to wait for
+                bus.io.halted = true;
+                true
+            }
             0x05 => {
-                // VBlankIntrWait — set wait flags and halt
+                // VBlankIntrWait — wait for VBlank interrupt
+                // Equivalent to IntrWait(1, 1) — wait for VBlank (IF bit 0)
                 bus.io.halted = true;
                 true
             }
