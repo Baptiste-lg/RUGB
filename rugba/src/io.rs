@@ -5,8 +5,6 @@ use crate::timer::TimerController;
 pub struct IoRegisters {
     /// 0x04000000 DISPCNT — Display control
     pub dispcnt: u16,
-    /// 0x04000002 — Green swap (undocumented, unused)
-    pub green_swap: u16,
     /// 0x04000004 DISPSTAT — Display status
     pub dispstat: u16,
     /// 0x04000006 VCOUNT — Current scanline (read-only, set by PPU)
@@ -76,7 +74,6 @@ impl IoRegisters {
     pub fn new() -> Self {
         IoRegisters {
             dispcnt: 0,
-            green_swap: 0,
             dispstat: 0,
             vcount: 0,
             bgcnt: [0; 4],
@@ -124,7 +121,7 @@ impl IoRegisters {
     pub fn read16(&self, addr: u32) -> u16 {
         match addr & 0x3FE {
             0x000 => self.dispcnt,
-            0x002 => self.green_swap,
+            0x002 => 0, // Green swap (undocumented, not implemented)
             0x004 => self.dispstat,
             0x006 => self.vcount,
             0x008 => self.bgcnt[0],
@@ -173,7 +170,7 @@ impl IoRegisters {
     pub fn write16(&mut self, addr: u32, val: u16) {
         match addr & 0x3FE {
             0x000 => self.dispcnt = val,
-            0x002 => self.green_swap = val,
+            0x002 => {} // Green swap (undocumented, ignored)
             0x004 => {
                 self.dispstat = (self.dispstat & 0x07) | (val & 0xFFF8);
             }
