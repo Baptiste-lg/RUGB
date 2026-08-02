@@ -193,18 +193,12 @@ impl IoRegisters {
             0x022 => self.bg2pb = val as i16,
             0x024 => self.bg2pc = val as i16,
             0x026 => self.bg2pd = val as i16,
-            0x028 => {
-                self.bg2x = (self.bg2x & !0xFFFF) | val as i32;
-                self.bg2x = (self.bg2x << 4) >> 4; // Sign extend 28-bit
-            }
+            0x028 => self.bg2x = (self.bg2x & !0xFFFF) | val as i32,
             0x02A => {
                 self.bg2x = (self.bg2x & 0xFFFF) | ((val as i32) << 16);
-                self.bg2x = (self.bg2x << 4) >> 4;
+                self.bg2x = (self.bg2x << 4) >> 4; // Sign extend 28-bit
             }
-            0x02C => {
-                self.bg2y = (self.bg2y & !0xFFFF) | val as i32;
-                self.bg2y = (self.bg2y << 4) >> 4;
-            }
+            0x02C => self.bg2y = (self.bg2y & !0xFFFF) | val as i32,
             0x02E => {
                 self.bg2y = (self.bg2y & 0xFFFF) | ((val as i32) << 16);
                 self.bg2y = (self.bg2y << 4) >> 4;
@@ -213,18 +207,12 @@ impl IoRegisters {
             0x032 => self.bg3pb = val as i16,
             0x034 => self.bg3pc = val as i16,
             0x036 => self.bg3pd = val as i16,
-            0x038 => {
-                self.bg3x = (self.bg3x & !0xFFFF) | val as i32;
-                self.bg3x = (self.bg3x << 4) >> 4;
-            }
+            0x038 => self.bg3x = (self.bg3x & !0xFFFF) | val as i32,
             0x03A => {
                 self.bg3x = (self.bg3x & 0xFFFF) | ((val as i32) << 16);
                 self.bg3x = (self.bg3x << 4) >> 4;
             }
-            0x03C => {
-                self.bg3y = (self.bg3y & !0xFFFF) | val as i32;
-                self.bg3y = (self.bg3y << 4) >> 4;
-            }
+            0x03C => self.bg3y = (self.bg3y & !0xFFFF) | val as i32,
             0x03E => {
                 self.bg3y = (self.bg3y & 0xFFFF) | ((val as i32) << 16);
                 self.bg3y = (self.bg3y << 4) >> 4;
