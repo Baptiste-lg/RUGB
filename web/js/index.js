@@ -93,26 +93,46 @@ const gameboy = document.querySelector('.gameboy');
 // --- Side menu toggle is handled by dock.js ---
 
 // --- View toggle (Game Boy / Screen Only) ---
-const savedView = localStorage.getItem('rugb-view') || 'gb';
-if (savedView === 'screen') {
-    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.add('screen-only'));
-    viewGbBtn.classList.remove('active');
-    viewScreenBtn.classList.add('active');
+const viewTouchBtn = document.getElementById('view-touch');
+const touchEditSection = document.getElementById('touch-edit-section');
+const touchEditBtn = document.getElementById('touch-edit-btn');
+const touchSizeRow = document.getElementById('touch-size-row');
+const touchSizeSlider = document.getElementById('touch-size-slider');
+const touchResetBtn = document.getElementById('touch-reset-btn');
+const touchDoneBtn = document.getElementById('touch-done-btn');
+const touchControls = document.getElementById('touch-controls');
+const allShells = () => document.querySelectorAll('.gameboy, .gbc, .gba');
+const allViewBtns = [viewGbBtn, viewScreenBtn, viewTouchBtn];
+
+function setViewMode(mode) {
+    allShells().forEach(el => {
+        el.classList.remove('screen-only', 'touch-view');
+    });
+    document.body.classList.remove('touch-view-active');
+    allViewBtns.forEach(b => b.classList.remove('active'));
+
+    if (mode === 'screen') {
+        allShells().forEach(el => el.classList.add('screen-only'));
+        viewScreenBtn.classList.add('active');
+        if (touchEditSection) touchEditSection.classList.add('hidden');
+    } else if (mode === 'touch') {
+        allShells().forEach(el => el.classList.add('touch-view'));
+        document.body.classList.add('touch-view-active');
+        viewTouchBtn.classList.add('active');
+        if (touchEditSection) touchEditSection.classList.remove('hidden');
+    } else {
+        viewGbBtn.classList.add('active');
+        if (touchEditSection) touchEditSection.classList.add('hidden');
+    }
+    localStorage.setItem('rugb-view', mode);
 }
 
-viewGbBtn.addEventListener('click', () => {
-    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.remove('screen-only'));
-    viewGbBtn.classList.add('active');
-    viewScreenBtn.classList.remove('active');
-    localStorage.setItem('rugb-view', 'gb');
-});
+const savedView = localStorage.getItem('rugb-view') || 'gb';
+setViewMode(savedView);
 
-viewScreenBtn.addEventListener('click', () => {
-    document.querySelectorAll('.gameboy, .gbc, .gba').forEach(el => el.classList.add('screen-only'));
-    viewScreenBtn.classList.add('active');
-    viewGbBtn.classList.remove('active');
-    localStorage.setItem('rugb-view', 'screen');
-});
+viewGbBtn.addEventListener('click', () => setViewMode('gb'));
+viewScreenBtn.addEventListener('click', () => setViewMode('screen'));
+viewTouchBtn.addEventListener('click', () => setViewMode('touch'));
 
 // --- Shell switch buttons ---
 // Restore saved shell override active state
@@ -700,10 +720,13 @@ function switchShell(system) {
     cachedImageData = new ImageData(screenW, screenH);
     frameMs = currentSystem === 'gba' ? GBA_FRAME_MS : GB_FRAME_MS;
 
-    // Carry screen-only mode to the new shell
-    const savedView = localStorage.getItem('rugb-view') || 'gb';
-    if (savedView === 'screen') {
+    // Carry view mode to the new shell
+    const sv = localStorage.getItem('rugb-view') || 'gb';
+    if (sv === 'screen') {
         [gb, gbc, gba].forEach(el => el.classList.add('screen-only'));
+    } else if (sv === 'touch') {
+        [gb, gbc, gba].forEach(el => el.classList.add('touch-view'));
+        document.body.classList.add('touch-view-active');
     }
 
     // Update shell button active state
@@ -3069,5 +3092,141 @@ emuSetButton = function(btn, pressed) {
     updateHud(btn, pressed);
     _origEmuSetButton(btn, pressed);
 };
+
+// --- Touch controls edit mode ---
+
+let touchEditMode = false;
+const TOUCH_GROUPS = ['touch-dpad', 'touch-ab', 'touch-meta', 'touch-shoulders'];
+const DEFAULT_LAYOUT = {};
+TOUCH_GROUPS.forEach(g => { DEFAULT_LAYOUT[g] = { x: 0, y: 0, scale: 100 }; });
+
+function loadTouchLayout() {
+    try {
+        const raw = localStorage.getItem('rugb-touch-layout');
+        if (raw) return { ...DEFAULT_LAYOUT, ...JSON.parse(raw) };
+    } catch {}
+    return { ...DEFAULT_LAYOUT };
+}
+
+function saveTouchLayout(layout) {
+    try { localStorage.setItem('rugb-touch-layout', JSON.stringify(layout)); } catch {}
+}
+
+let touchLayout = loadTouchLayout();
+
+function applyTouchLayout() {
+    for (const groupClass of TOUCH_GROUPS) {
+        const el = document.querySelector('.' + groupClass);
+        if (!el) continue;
+        const l = touchLayout[groupClass] || { x: 0, y: 0, scale: 100 };
+        el.style.transform = `translate(${l.x}px, ${l.y}px) scale(${l.scale / 100})`;
+    }
+    if (touchSizeSlider) touchSizeSlider.value = touchLayout[TOUCH_GROUPS[0]]?.scale || 100;
+}
+
+applyTouchLayout();
+
+function enterEditMode() {
+    touchEditMode = true;
+    if (touchControls) touchControls.classList.add('touch-edit-mode');
+    if (touchSizeRow) touchSizeRow.classList.remove('hidden');
+    if (touchEditBtn) touchEditBtn.textContent = 'Editing...';
+    // Make groups draggable
+    for (const groupClass of TOUCH_GROUPS) {
+        const el = document.querySelector('.' + groupClass);
+        if (!el) continue;
+        el.addEventListener('pointerdown', onGroupDragStart);
+    }
+}
+
+function exitEditMode() {
+    touchEditMode = false;
+    if (touchControls) touchControls.classList.remove('touch-edit-mode');
+    if (touchSizeRow) touchSizeRow.classList.add('hidden');
+    if (touchEditBtn) touchEditBtn.textContent = 'Edit Controls';
+    saveTouchLayout(touchLayout);
+    // Remove drag listeners
+    for (const groupClass of TOUCH_GROUPS) {
+        const el = document.querySelector('.' + groupClass);
+        if (!el) continue;
+        el.removeEventListener('pointerdown', onGroupDragStart);
+    }
+}
+
+// Drag logic
+let dragTarget = null;
+let dragStartX = 0, dragStartY = 0;
+let dragOrigX = 0, dragOrigY = 0;
+
+function getGroupClass(el) {
+    return TOUCH_GROUPS.find(g => el.classList.contains(g)) || null;
+}
+
+function onGroupDragStart(e) {
+    if (!touchEditMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragTarget = e.currentTarget;
+    dragTarget.setPointerCapture(e.pointerId);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const gc = getGroupClass(dragTarget);
+    if (gc) {
+        dragOrigX = touchLayout[gc]?.x || 0;
+        dragOrigY = touchLayout[gc]?.y || 0;
+    }
+    dragTarget.addEventListener('pointermove', onGroupDragMove);
+    dragTarget.addEventListener('pointerup', onGroupDragEnd);
+}
+
+function onGroupDragMove(e) {
+    if (!dragTarget) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const gc = getGroupClass(dragTarget);
+    if (gc) {
+        touchLayout[gc].x = dragOrigX + dx;
+        touchLayout[gc].y = dragOrigY + dy;
+        const l = touchLayout[gc];
+        dragTarget.style.transform = `translate(${l.x}px, ${l.y}px) scale(${l.scale / 100})`;
+    }
+}
+
+function onGroupDragEnd(e) {
+    if (!dragTarget) return;
+    dragTarget.removeEventListener('pointermove', onGroupDragMove);
+    dragTarget.removeEventListener('pointerup', onGroupDragEnd);
+    dragTarget.releasePointerCapture(e.pointerId);
+    dragTarget = null;
+}
+
+// Size slider
+if (touchSizeSlider) {
+    touchSizeSlider.addEventListener('input', () => {
+        const scale = parseInt(touchSizeSlider.value);
+        for (const gc of TOUCH_GROUPS) {
+            touchLayout[gc].scale = scale;
+        }
+        applyTouchLayout();
+    });
+}
+
+// Edit button
+if (touchEditBtn) {
+    touchEditBtn.addEventListener('click', () => {
+        if (!touchEditMode) enterEditMode();
+    });
+}
+if (touchDoneBtn) {
+    touchDoneBtn.addEventListener('click', () => exitEditMode());
+}
+if (touchResetBtn) {
+    touchResetBtn.addEventListener('click', () => {
+        touchLayout = {};
+        TOUCH_GROUPS.forEach(g => { touchLayout[g] = { x: 0, y: 0, scale: 100 }; });
+        applyTouchLayout();
+        saveTouchLayout(touchLayout);
+    });
+}
 
 console.log('RUGB ready — load a ROM to start');
