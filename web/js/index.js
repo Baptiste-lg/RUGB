@@ -2164,6 +2164,11 @@ function parseGameShark(code) {
     const addrLow = parseInt(clean.substring(4, 6), 16);
     const addrHigh = parseInt(clean.substring(6, 8), 16);
     const addr = (addrHigh << 8) | addrLow;
+    // Validate address is in a writable region (WRAM, HRAM, cartridge RAM)
+    const inWram = addr >= 0xC000 && addr <= 0xDFFF;
+    const inHram = addr >= 0xFF80 && addr <= 0xFFFE;
+    const inCartRam = addr >= 0xA000 && addr <= 0xBFFF;
+    if (!inWram && !inHram && !inCartRam) return null;
     return { addr, val };
 }
 
