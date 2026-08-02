@@ -27,7 +27,7 @@ impl Mbc5 {
     pub fn new(data: &[u8], ram_size: usize, title: String, battery: bool, rumble: bool) -> Self {
         Mbc5 {
             rom: data.to_vec(),
-            ram: vec![0; if ram_size > 0 { ram_size } else { 0x2000 }],
+            ram: vec![0; ram_size],
             title,
             ram_enabled: false,
             rom_bank: 1,
