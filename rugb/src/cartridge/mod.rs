@@ -212,10 +212,10 @@ mod tests {
 
     #[test]
     fn from_rom_unsupported_falls_back() {
-        // Type 0x14 is not handled — must fall back gracefully without panicking.
+        // Type 0x14 falls between MBC3 (0x0F-0x13) and MBC5 (0x19-0x1E) ranges
+        // and is not a valid mapper — must fall back to NoMbc without panicking.
         let rom = make_rom(0x14, 0x00, 0x00);
         let cart = from_rom(&rom);
-        // Falls back to NoMbc; first byte of ROM is 0x00.
         assert_eq!(cart.read(0x0000), 0x00);
     }
 }
