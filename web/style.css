@@ -1,4 +1,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+.hidden { display: none !important; }
+.menu-link { text-decoration: none; display: block; }
+.link-actions { margin-top: 0.5rem; }
 
 :root {
     --bg: #1a1a2e;

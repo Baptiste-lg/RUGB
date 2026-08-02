@@ -66,7 +66,7 @@
                     <button class="palette-btn" data-palette="bw">B&W</button>
                     <button class="palette-btn" data-palette="custom">Custom</button>
                 </div>
-                <div id="custom-palette" class="custom-palette" style="display:none">
+                <div id="custom-palette" class="custom-palette hidden">
                     <input type="color" class="pal-color" data-idx="0" value="#e0f8d0">
                     <input type="color" class="pal-color" data-idx="1" value="#88c070">
                     <input type="color" class="pal-color" data-idx="2" value="#346856">
@@ -112,14 +112,14 @@
             <label class="menu-item menu-toggle-label"><input type="checkbox" id="hud-toggle"> Input HUD</label>
             <label class="menu-item menu-toggle-label"><input type="checkbox" id="theme-toggle"> Light Theme</label>
             <label class="menu-item menu-toggle-label" id="worker-toggle-label"><input type="checkbox" id="worker-toggle" checked> Worker Mode</label>
-            <div id="cheats-section" class="menu-group" style="display:none">
+            <div id="cheats-section" class="menu-group hidden">
                 <hr>
                 <span>Cheats</span>
                 <div id="cheats-list" class="cheats-list"></div>
                 <a href="https://github.com/libretro/libretro-database" target="_blank" rel="noopener" class="cheats-credit">Cheats by libretro-database</a>
             </div>
             <hr>
-            <a href="docs.html" class="menu-item" style="text-decoration:none;display:block">Help & Docs</a>
+            <a href="docs.html" class="menu-item menu-link">Help & Docs</a>
         </div>
     </div>
 
@@ -141,7 +141,7 @@
             <div class="gb-screen-subtitle">DOT MATRIX WITH STEREO SOUND</div>
             <div class="gb-screen-frame">
                 <canvas id="screen" width="160" height="144" role="img" aria-label="Game Boy screen"></canvas>
-                <div id="fps-overlay" class="fps-overlay" style="display:none">--</div>
+                <div id="fps-overlay" class="fps-overlay hidden">--</div>
             </div>
         </div>
 
@@ -205,7 +205,7 @@
     </div>
 
     <!-- Game Boy Color shell -->
-    <div class="gbc" style="display:none">
+    <div class="gbc hidden">
         <!-- IR port -->
         <div class="gbc-ir-port"></div>
 
@@ -223,7 +223,7 @@
             <div class="gbc-screen-subtitle">COLOR</div>
             <div class="gb-screen-frame">
                 <canvas id="gbc-screen" width="160" height="144" role="img" aria-label="Game Boy Color screen"></canvas>
-                <div id="gbc-fps-overlay" class="fps-overlay" style="display:none">--</div>
+                <div id="gbc-fps-overlay" class="fps-overlay hidden">--</div>
             </div>
         </div>
 
@@ -288,7 +288,7 @@
     </div>
 
     <!-- GBA shell -->
-    <div class="gba" style="display:none">
+    <div class="gba hidden">
         <!-- Shoulder buttons -->
         <div class="gba-shoulder-l gba-input" data-btn="9">L</div>
         <div class="gba-shoulder-r gba-input" data-btn="8">R</div>
@@ -298,7 +298,7 @@
             <span class="gba-title-text">GAME BOY ADVANCE</span>
             <div class="gba-screen-frame">
                 <canvas id="gba-screen" width="240" height="160" role="img" aria-label="GBA screen"></canvas>
-                <div id="gba-fps-overlay" class="fps-overlay" style="display:none">--</div>
+                <div id="gba-fps-overlay" class="fps-overlay hidden">--</div>
             </div>
         </div>
 
@@ -402,8 +402,8 @@
             </div>
 
             <!-- Local mode -->
-            <div id="link-local-panel" style="display:none">
-                <div id="link-code-display" class="link-code" style="display:none">
+            <div id="link-local-panel" class="hidden">
+                <div id="link-code-display" class="link-code hidden">
                     <span>Room Code:</span>
                     <strong id="link-room-code"></strong>
                 </div>
@@ -417,13 +417,13 @@
             </div>
 
             <!-- WebRTC mode -->
-            <div id="link-webrtc-panel" style="display:none">
+            <div id="link-webrtc-panel" class="hidden">
                 <div class="link-actions">
                     <!-- Step 1: Host creates offer -->
                     <button id="link-create-offer">1. Create Offer</button>
 
                     <!-- Offer/Answer display -->
-                    <div id="link-sdp-display" style="display:none">
+                    <div id="link-sdp-display" class="hidden">
                         <span id="link-sdp-label">Share this with your friend:</span>
                         <textarea id="link-sdp-output" class="link-sdp" readonly rows="3"></textarea>
                         <button id="link-copy-sdp">Copy</button>
@@ -439,9 +439,9 @@
             </div>
 
             <!-- Common controls -->
-            <div class="link-actions" style="margin-top:0.5rem">
-                <button id="link-disconnect" style="display:none">Disconnect</button>
-                <button id="link-back" style="display:none">Back</button>
+            <div class="link-actions">
+                <button id="link-disconnect" class="hidden">Disconnect</button>
+                <button id="link-back" class="hidden">Back</button>
                 <button id="link-close" class="link-close-btn">Close</button>
             </div>
         </div>
@@ -543,7 +543,7 @@
 
     <!-- Mobile touch controls -->
     <div id="touch-controls" class="touch-controls">
-        <div class="touch-shoulders" id="touch-shoulders" style="display:none">
+        <div class="touch-shoulders hidden" id="touch-shoulders">
             <button class="touch-btn touch-shoulder" data-btn="9">L</button>
             <button class="touch-btn touch-shoulder" data-btn="8">R</button>
         </div>
@@ -574,7 +574,7 @@
     </div>
 
     <!-- Input HUD overlay (positioned over canvas) -->
-    <div id="input-hud" class="input-hud" style="display:none">
+    <div id="input-hud" class="input-hud hidden">
         <div class="hud-dpad">
             <div class="hud-btn hud-up" data-hud="2"></div>
             <div class="hud-btn hud-left" data-hud="1"></div>
@@ -598,8 +598,8 @@
             <p id="cloud-status" class="cloud-status">Not connected</p>
             <div id="cloud-actions">
                 <button id="cloud-sign-in" class="menu-item">Sign in with Google</button>
-                <button id="cloud-sync" class="menu-item" style="display:none">Sync Now</button>
-                <button id="cloud-sign-out" class="menu-item" style="display:none">Sign Out</button>
+                <button id="cloud-sync" class="menu-item hidden">Sync Now</button>
+                <button id="cloud-sign-out" class="menu-item hidden">Sign Out</button>
             </div>
             <div id="cloud-saves-list" class="cloud-saves-list"></div>
             <p class="cloud-privacy">Only game saves are stored. RUGB cannot access your other Drive files.</p>
