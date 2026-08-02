@@ -1399,12 +1399,63 @@ canvas.filter-smooth {
     pointer-events: auto;
 }
 
-/* Show on touch-capable devices in screen-only mode or narrow viewports */
+/* Show on touch-capable devices */
 @media (pointer: coarse) {
     .touch-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; }
     .gameboy { display: none; }
-    .gameboy.screen-only { display: block; }
+    .gameboy.screen-only, .gameboy.touch-view { display: block; }
+    .gbc.screen-only, .gbc.touch-view { display: block; }
+    .gba.screen-only, .gba.touch-view { display: block; }
     body { justify-content: flex-start; padding-top: 10px; }
+}
+
+/* Touch view mode — force touch controls visible on any device */
+.touch-view-active .touch-controls {
+    display: flex !important;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+/* Touch view hides shell chrome like screen-only */
+.gameboy.touch-view, .gbc.touch-view, .gba.touch-view {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.touch-view .gb-bezel, .touch-view .gb-battery,
+.touch-view .gb-controls, .touch-view .gb-bottom,
+.touch-view .gb-speaker, .touch-view .gb-label,
+.touch-view .gba-controls, .touch-view .gba-bottom,
+.touch-view .gbc-controls, .touch-view .gbc-bottom {
+    display: none !important;
+}
+
+/* Edit mode styles */
+.touch-edit-mode .touch-dpad,
+.touch-edit-mode .touch-ab,
+.touch-edit-mode .touch-meta,
+.touch-edit-mode .touch-shoulders {
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    cursor: move;
+    border-radius: 8px;
+}
+
+.touch-edit-mode .touch-btn {
+    pointer-events: none;
+}
+
+.touch-edit-mode .touch-dpad:active,
+.touch-edit-mode .touch-ab:active,
+.touch-edit-mode .touch-meta:active,
+.touch-edit-mode .touch-shoulders:active {
+    outline-color: #50fa7b;
+}
+
+.touch-edit-section {
+    margin-top: 0.3rem;
 }
 
 .touch-dpad {
