@@ -136,6 +136,34 @@ impl DmaController {
         (cycles, irqs)
     }
 
+    /// Trigger a sound DMA on the given channel (1 or 2) if it's enabled with
+    /// timing mode 3 (special/FIFO). Transfers exactly 4 words (16 bytes).
+    #[allow(clippy::too_many_arguments)]
+    pub fn trigger_sound(
+        &mut self,
+        ch: usize,
+        ewram: &mut [u8],
+        iwram: &mut [u8],
+        vram: &mut [u8],
+        palette: &mut [u8],
+        oam: &mut [u8],
+        rom: &[u8],
+    ) {
+        if ch > 3 || !self.channels[ch].enabled() || self.channels[ch].timing() != 3 {
+            return;
+        }
+        // Sound DMA always transfers 4 32-bit words, fixed destination
+        let channel = &mut self.channels[ch];
+        let mut src = channel.internal_src;
+        let dst = channel.internal_dst; // FIFO address, fixed
+        for _ in 0..4 {
+            let val = read32_dma(src, ewram, iwram, vram, rom);
+            write32_dma(dst, val, ewram, iwram, vram, palette, oam);
+            src = src.wrapping_add(4);
+        }
+        channel.internal_src = src;
+    }
+
     /// Execute a specific DMA channel transfer.
     #[allow(clippy::too_many_arguments)]
     fn execute_channel(

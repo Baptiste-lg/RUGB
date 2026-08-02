@@ -79,10 +79,34 @@ impl GbaEmulator {
             let timer_irqs = self.bus.io.timers.tick(cycles);
             if timer_irqs != 0 {
                 self.bus.io.irq_flags |= timer_irqs;
-                // Timer overflow triggers FIFO sample pop
+                // Timer overflow triggers FIFO sample pop + sound DMA refill
                 for t in 0..2 {
                     if timer_irqs & (1 << (3 + t)) != 0 {
-                        self.apu.timer_overflow(t);
+                        let needs_dma = self.apu.timer_overflow(t);
+                        // FIFO A needs refill → trigger DMA channel 1 (if timing=special)
+                        if needs_dma & 1 != 0 {
+                            self.bus.io.dma.trigger_sound(
+                                1,
+                                &mut *self.bus.ewram,
+                                &mut *self.bus.iwram,
+                                &mut *self.bus.vram,
+                                &mut *self.bus.palette,
+                                &mut *self.bus.oam,
+                                &self.bus.rom,
+                            );
+                        }
+                        // FIFO B needs refill → trigger DMA channel 2 (if timing=special)
+                        if needs_dma & 2 != 0 {
+                            self.bus.io.dma.trigger_sound(
+                                2,
+                                &mut *self.bus.ewram,
+                                &mut *self.bus.iwram,
+                                &mut *self.bus.vram,
+                                &mut *self.bus.palette,
+                                &mut *self.bus.oam,
+                                &self.bus.rom,
+                            );
+                        }
                     }
                 }
             }
