@@ -306,13 +306,6 @@ impl Ppu {
             let map_addr = tile_map_base + tile_row * 32 + tile_col;
             let tile_id = self.vram[(map_addr - 0x8000) as usize];
 
-            let tile_addr = if signed_tile_ids {
-                let signed_id = tile_id as i8 as i16;
-                (0x9000u16 as i16 + signed_id * 16 + pixel_row as i16 * 2) as u16
-            } else {
-                tile_data_base + tile_id as u16 * 16 + pixel_row * 2
-            };
-
             if self.cgb_mode {
                 let map_offset = (map_addr - 0x8000) as usize;
                 let attr = self.vram_bank1[map_offset];
@@ -337,6 +330,12 @@ impl Ppu {
                     Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
                 self.set_pixel_rgba(x as usize, self.ly as usize, rgba);
             } else {
+                let tile_addr = if signed_tile_ids {
+                    let signed_id = tile_id as i8 as i16;
+                    (0x9000u16 as i16 + signed_id * 16 + pixel_row as i16 * 2) as u16
+                } else {
+                    tile_data_base + tile_id as u16 * 16 + pixel_row * 2
+                };
                 let color_id = self.get_tile_pixel(tile_addr, pixel_col);
                 self.bg_color_ids[x as usize] = color_id;
                 let shade = self.apply_palette(self.bgp, color_id);
