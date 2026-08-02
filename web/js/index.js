@@ -1237,6 +1237,7 @@ function loadFile(file) {
     // Handle patch files (IPS/BPS) — apply to currently loaded ROM
     if (name.endsWith('.ips') || name.endsWith('.bps')) {
         if (!romBytes) { showToast('Load a ROM first, then apply a patch'); return; }
+        if (file.size > 64 * 1024 * 1024) { showToast('Patch file too large'); return; }
         const reader = new FileReader();
         reader.onload = () => {
             const patched = tryApplyPatch(romBytes, reader.result);
@@ -2328,12 +2329,32 @@ function compressState(data) {
     return new Response(cs.readable).arrayBuffer().then(b => new Uint8Array(b));
 }
 
-function decompressState(data) {
+async function decompressState(data) {
+    const MAX_DECOMPRESSED = 8 * 1024 * 1024; // 8MB cap
     const ds = new DecompressionStream('deflate-raw');
     const writer = ds.writable.getWriter();
     writer.write(data);
     writer.close();
-    return new Response(ds.readable).arrayBuffer().then(b => new Uint8Array(b));
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.length;
+        if (total > MAX_DECOMPRESSED) {
+            reader.cancel();
+            throw new Error('Decompressed state exceeds 8MB limit');
+        }
+        chunks.push(value);
+    }
+    const result = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return result;
 }
 
 async function generateShareLink() {
@@ -2397,6 +2418,7 @@ function openRomDb() {
 }
 
 async function saveRomToLibrary(title, data) {
+    if (!data || data.byteLength > 64 * 1024 * 1024) return; // 64MB cap
     try {
         const db = await openRomDb();
         const tx = db.transaction(DB_STORE, 'readwrite');
@@ -2780,7 +2802,12 @@ async function refreshCloudList() {
             div.className = 'cloud-save-item';
             const props = f.appProperties || {};
             const label = props.gameTitle ? `${f.name} (${props.gameTitle})` : f.name;
-            div.innerHTML = `<span>${label}</span><span style="color:#666">${new Date(f.modifiedTime).toLocaleDateString()}</span>`;
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = label;
+            const dateSpan = document.createElement('span');
+            dateSpan.style.color = 'var(--muted)';
+            dateSpan.textContent = new Date(f.modifiedTime).toLocaleDateString();
+            div.append(nameSpan, dateSpan);
             cloudList.appendChild(div);
         }
     } catch { cloudList.innerHTML = '<p style="color:#c66">Failed to load cloud saves</p>'; }
@@ -2871,12 +2898,18 @@ async function renderLibrary(filter = '') {
         const item = document.createElement('div');
         item.className = 'library-item';
         const date = rom.savedAt ? new Date(rom.savedAt).toLocaleDateString() : '';
-        item.innerHTML = `
-            <span class="library-item-title">${rom.title}</span>
-            <span class="library-item-date">${date}</span>
-            <button class="library-item-delete" title="Delete">&times;</button>
-        `;
-        item.querySelector('.library-item-title').addEventListener('click', async () => {
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'library-item-title';
+        titleSpan.textContent = rom.title;
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'library-item-date';
+        dateSpan.textContent = date;
+        const delBtn = document.createElement('button');
+        delBtn.className = 'library-item-delete';
+        delBtn.title = 'Delete';
+        delBtn.textContent = '\u00D7';
+        item.append(titleSpan, dateSpan, delBtn);
+        titleSpan.addEventListener('click', async () => {
             const data = await loadRomFromLibrary(rom.title);
             if (data) {
                 libraryOverlay.classList.remove('visible');
@@ -2885,7 +2918,7 @@ async function renderLibrary(filter = '') {
                 showToast('Failed to load ROM');
             }
         });
-        item.querySelector('.library-item-delete').addEventListener('click', async (e) => {
+        delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             await deleteRomFromLibrary(rom.title);
             renderLibrary(librarySearch.value);
