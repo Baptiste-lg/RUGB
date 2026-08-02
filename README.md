@@ -29,22 +29,24 @@ ROM type is auto-detected — just drop any `.gb` or `.gba` file.
 ### Game Boy / Game Boy Color Emulation
 - Full SM83 CPU — all 512 opcodes (256 base + 256 CB-prefixed)
 - Game Boy Color support — auto-detected from ROM header (0x0143)
-  - VRAM banking (2 × 8 KB, VBK register)
-  - WRAM banking (8 × 4 KB, SVBK register)
+  - VRAM banking (2 x 8 KB, VBK register)
+  - WRAM banking (8 x 4 KB, SVBK register)
   - CGB color palettes — 8 BG + 8 OBJ palettes (RGB555) via BCPS/BCPD/OCPS/OCPD
   - CGB tile attributes (palette, VRAM bank, flip, priority from bank 1)
   - Double-speed CPU mode (KEY1 register)
+  - HDMA transfers (general + HBlank DMA)
 - Scanline-accurate PPU — background, window, and sprite rendering (DMG + CGB color)
 - Sample-accurate APU — all 4 channels with DC-blocking high-pass filter and AudioWorklet output
-- Cartridge support — NoMBC, MBC1, MBC2, MBC3 (with RTC), MBC5 (with rumble)
+- Cartridge support — NoMBC, MBC1, MBC2, MBC3 (with RTC), MBC5 (with rumble), MBC7, HuC1, HuC3, MMM01
 - Timer subsystem with falling-edge detection
 - Interrupt controller (VBlank, STAT, Timer, Serial, Joypad)
+- Serial link cable — master/slave 512 T-cycle timing
 - Battery save — cartridge SRAM persisted to localStorage
 - Boot ROM support — drop a `dmg_boot.bin` to see the Nintendo logo scroll
 
 ### GBA Emulation
 - ARM7TDMI CPU — full ARM (32-bit) and THUMB (16-bit) instruction sets
-- HLE BIOS — software interrupt stubs (Div, Sqrt, CpuSet, Halt, VBlankIntrWait)
+- HLE BIOS — SoftReset, Halt, IntrWait, VBlankIntrWait, Div, Sqrt, CpuSet, CpuFastSet
 - Memory bus — EWRAM, IWRAM, VRAM, palette, OAM, ROM, SRAM with proper mirroring
 - PPU — all 6 display modes:
   - Mode 0: 4 text BG layers (8x8 tiles, 4bpp/8bpp, scroll, priority)
@@ -54,40 +56,59 @@ ROM type is auto-detected — just drop any `.gb` or `.gba` file.
   - Mode 4: 240x160 indexed, double-buffered
   - Mode 5: 160x128 direct color, double-buffered
 - Sprite rendering — 128 OBJ from OAM (4bpp/8bpp, hflip/vflip, 1D/2D mapping)
-- DMA controller — 4 channels with immediate transfer support
-- Timer controller — 4 cascadable 16-bit timers with prescaler
-- Audio — DMA Sound FIFO A/B (8-bit PCM, timer-driven), PSG stubs
-- Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), auto-detected from ROM
-- Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), auto-detected from ROM
-- Color effects — alpha blending (EVA/EVB), brightness increase/decrease (EVY)
 - Affine sprites — rotation/scaling via OAM affine parameter groups
+- DMA controller — 4 channels with immediate transfer + sound FIFO DMA
+- Timer controller — 4 cascadable 16-bit timers with prescaler
+- Audio — DMA Sound FIFO A/B (8-bit PCM, timer-driven) + PSG channels (CH1-4)
+- Cartridge backup — SRAM (32KB), Flash (64/128KB with command protocol), EEPROM (512B/8K), auto-detected
+- Color effects — alpha blending (EVA/EVB), brightness increase/decrease (EVY)
 - Scanline-accurate timing with H-blank, V-blank, and V-count match interrupts
+- Save states — full CPU, memory, and I/O serialization
 - 10-button keypad input with mobile L/R touch controls
 
 ### Interface
 - Faithful DMG-01 Game Boy shell with interactive, animated buttons
-- Classic Indigo GBA shell with shoulder buttons (auto-switches based on ROM type)
-- Drag-and-drop ROM loading (`.gb`, `.gba`, `.zip`)
+- Game Boy Color shell with distinct styling
+- Classic Indigo GBA shell with shoulder buttons
+- Shell auto-switches based on ROM type (manual override available)
+- Drag-and-drop ROM loading (`.gb`, `.gba`, `.zip`) — whole page
 - IPS/BPS patch support — drop a patch file to apply to the current ROM
 - Save states — 5 slots with export/import, quick save (F5) / quick load (F8)
 - Rewind — hold R to step backwards through gameplay (~5 seconds buffer)
 - Auto-save on exit — resume where you left off when reloading
-- Cheat codes — Game Genie and GameShark support (F7)
+- Cheat codes — Game Genie, GameShark, and libretro cheat database with toggle UI
 - Video recording — capture gameplay as WebM (F9)
 - Shareable state links — copy a URL encoding the current save state (F10)
 - Keyboard and gamepad remapping with export/import as JSON
 - Speed control (1/2x / 1x / 2x / 4x) + hold Space for uncapped fast forward
 - Turbo buttons — toggle auto-repeat for A (Q) and B (W)
-- Color palettes — classic green, gray, B&W, and fully customizable
+- Color palettes — classic green, gray, B&W, and fully customizable with color pickers
 - Display filters — CRT scanlines, LCD grid, smooth scaling, frame blending
 - Volume slider and per-channel mute with real-time audio visualizer
+- Per-channel audio waveforms — 4 color-coded mini visualizers (CH1-4)
 - RTC time override for MBC3 games (F6)
 - Rumble feedback via Gamepad Vibration API (MBC5 rumble carts)
 - Fullscreen, screenshot, FPS counter
 - Console view / screen-only toggle with free resize
 - Mobile touch controls with haptic feedback
-- Installable PWA — works offline
-- ROM library — previously loaded ROMs saved in IndexedDB for quick re-launch
+- Installable PWA — works offline via service worker
+- ROM library — previously loaded ROMs saved in IndexedDB with search and delete
+
+### Multiplayer
+- Link cable — local multiplayer between two tabs via BroadcastChannel
+- Online multiplayer — peer-to-peer WebRTC with manual SDP exchange
+
+### Advanced
+- WebGL renderer — GPU-accelerated rendering with shader-based filters (CRT barrel distortion, LCD dot matrix, smooth bilinear, frame blending)
+- Web Worker mode — emulation runs off the main thread via OffscreenCanvas for smoother frame pacing
+- Cloud saves — backup/restore to Google Drive (appDataFolder, OAuth 2.0)
+- Debug tools — CPU register viewer, memory hex editor, tile viewer, SM83 disassembler, single-step execution
+- Per-game settings — palette, filter, and speed auto-saved per ROM title
+- Input HUD — on-screen button state overlay for streaming/recording
+- Light/dark theme toggle
+- Dockable sidebar — drag to left, right, top, or bottom edge
+- Keyboard shortcuts overlay (press ?)
+- Content Security Policy headers, input sanitization, WASM memory safety
 
 ## Architecture
 
@@ -95,35 +116,39 @@ The project is a Cargo workspace with two crates:
 
 ```
 RUGB/
-├── rugb/          Game Boy emulator (SM83 CPU)
-├── rugba/         GBA emulator (ARM7TDMI CPU)
-└── web/           Shared web frontend
++-- rugb/          Game Boy emulator (SM83 CPU)
++-- rugba/         GBA emulator (ARM7TDMI CPU)
++-- web/           Shared web frontend
 ```
 
 Both crates compile to independent WASM modules. The JS frontend auto-detects the ROM type and loads the correct module.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                      Browser (JS)                        │
-│  ┌──────────┐  ┌───────────────┐  ┌───────────────────┐  │
-│  │  Canvas   │  │ AudioWorklet  │  │ Keyboard / Touch  │  │
-│  │ (display) │  │   (sound)     │  │ Gamepad (input)   │  │
-│  └─────┬─────┘  └──────┬───────┘  └────────┬──────────┘  │
-│        │               │                   │             │
-│  ┌─────┴───────────────┴───────────────────┴──────────┐  │
-│  │              wasm-bindgen bridge                   │  │
-│  └──────────┬───────────────────────┬─────────────────┘  │
-└─────────────┼───────────────────────┼────────────────────┘
-              │                       │
-    ┌─────────┴─────────┐   ┌────────┴──────────┐
-    │    rugb (WASM)     │   │    rugba (WASM)    │
-    │                    │   │                    │
-    │  SM83 CPU          │   │  ARM7TDMI CPU      │
-    │  PPU (160x144)     │   │  PPU (240x160)     │
-    │  APU (4 channels)  │   │  Memory Bus        │
-    │  MMU + MBC1-5      │   │  I/O + Keypad      │
-    │  Timer + Joypad    │   │  HLE BIOS          │
-    └────────────────────┘   └────────────────────┘
++----------------------------------------------------------+
+|                      Browser (JS)                        |
+|  +----------+  +---------------+  +-------------------+  |
+|  |  Canvas / |  | AudioWorklet  |  | Keyboard / Touch  |  |
+|  |  WebGL    |  |   (sound)     |  | Gamepad (input)   |  |
+|  +-----+-----+  +------+-------+  +--------+----------+  |
+|        |               |                   |             |
+|  +-----+---------------+-------------------+----------+  |
+|  |              wasm-bindgen bridge                    |  |
+|  +----------+-------------------+---------+-----------+  |
+|             |                   |         |              |
+|        +----+----+         +----+----+    |              |
+|        | Worker  |         | Worker  |  (main thread     |
+|        | (opt.)  |         | (opt.)  |   fallback)       |
++--------+---------+---------+---------+-------------------+
+              |                   |
+    +---------+---------+   +----+----------+
+    |    rugb (WASM)     |   |    rugba (WASM)    |
+    |                    |   |                    |
+    |  SM83 CPU          |   |  ARM7TDMI CPU      |
+    |  PPU (160x144)     |   |  PPU (240x160)     |
+    |  APU (4 channels)  |   |  APU (FIFO + PSG)  |
+    |  MMU + MBC1-7      |   |  DMA + Timers      |
+    |  Timer + Serial    |   |  I/O + Keypad      |
+    +--------------------+   +--------------------+
 ```
 
 ## Build
@@ -196,7 +221,7 @@ The Game Boy APU generates sample-accurate audio at 48 kHz via AudioWorklet (2.6
 
 Each channel can be individually muted. A hardware-accurate high-pass filter removes DC offset.
 
-GBA audio is not yet implemented (Phase 4).
+GBA audio uses DMA Sound FIFO channels (A/B) for 8-bit PCM playback driven by timers, plus 4 PSG channels identical to the Game Boy APU.
 
 ## Game Compatibility
 
@@ -216,7 +241,7 @@ GBA audio is not yet implemented (Phase 4).
 
 ### GBA
 
-Supports all 6 display modes, sprites (regular + affine), DMA sound, Flash/SRAM saves, and alpha blending.
+Supports all 6 display modes, sprites (regular + affine), DMA sound, Flash/SRAM/EEPROM saves, and alpha blending.
 
 ## Project Structure
 
@@ -234,6 +259,7 @@ rugb/src/
   apu.rs               4-channel APU with ring buffer
   timer.rs             DIV / TIMA / TMA / TAC
   joypad.rs            8-button input
+  serial.rs            Link cable serial transfer
   interrupt.rs         5-type interrupt controller
   cartridge/
     mod.rs             ROM header parser, MBC detection
@@ -242,6 +268,10 @@ rugb/src/
     mbc2.rs            MBC2 (built-in RAM)
     mbc3.rs            MBC3 (RTC, battery)
     mbc5.rs            MBC5 (rumble, battery)
+    mbc7.rs            MBC7 (accelerometer, EEPROM)
+    huc1.rs            HuC1 (IR stub)
+    huc3.rs            HuC3 (RTC, IR stubs)
+    mmm01.rs           MMM01 (multi-cart)
 
 rugba/src/
   lib.rs              WASM entry point, GbaEmulator + WasmGbaEmulator
@@ -256,17 +286,28 @@ rugba/src/
     modes.rs           Mode 3/4/5 bitmap rendering
     bg.rs              Text and affine BG tile rendering (Mode 0-2)
     obj.rs             Sprite renderer (128 OBJ, 4bpp/8bpp)
-  dma.rs               4-channel DMA controller
+    blend.rs           Alpha blend + brightness effects
+  dma.rs               4-channel DMA controller (immediate + sound FIFO)
   timer.rs             4 cascadable 16-bit timers
+  apu.rs               DMA FIFO sound (A/B) + PSG channels (CH1-4)
   io.rs                I/O register file (PPU, BG, DMA, timer, interrupt)
+  cartridge.rs         Backup detection (SRAM, Flash, EEPROM) + Flash state machine
   keypad.rs            10-button input (A, B, L, R, Start, Select, D-pad)
 
 web/
-  index.html           GB + GBA shells
-  style.css            DMG gray + GBA Indigo styling
-  js/index.js          Shared frontend (auto-detects system)
+  index.html           GB + GBC + GBA shells, overlays, sidebar
+  style.css            DMG gray + GBC purple + GBA Indigo styling, CSS theme variables
+  js/
+    index.js           Main frontend (auto-detects system, frame loop, UI)
+    webgl-renderer.js  GPU shader rendering (CRT, LCD, smooth, ghost filters)
+    emu-worker.js      Web Worker for off-main-thread emulation
+    link-cable.js      Multiplayer (BroadcastChannel + WebRTC P2P)
+    debug-tools.js     CPU viewer, memory hex editor, tile viewer, disassembler
+    dock.js            Dockable sidebar (drag to any edge)
+    cloud-saves.js     Google Drive backup/sync
   audio-processor.js   AudioWorklet for low-latency sound
   sw.js                Service worker (PWA/offline)
+  manifest.json        PWA manifest
 ```
 
 ## References
