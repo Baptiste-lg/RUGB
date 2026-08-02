@@ -24,6 +24,7 @@
                 <input type="file" id="rom-input" accept=".gb,.gba,.bin,.zip,.ips,.bps" hidden>
             </label>
             <div id="recent-roms" class="recent-roms"></div>
+            <button id="library-btn" class="menu-item">ROM Library</button>
             <button id="pause-btn" class="menu-item" disabled>Pause</button>
             <button id="reset-btn" class="menu-item" disabled>Reset</button>
             <button id="mute-btn" class="menu-item" disabled>Mute</button>
@@ -102,6 +103,8 @@
             <button id="link-btn" class="menu-item" disabled>Link Cable</button>
             <button id="debug-btn" class="menu-item" disabled>Debug Tools</button>
             <button id="cloud-btn" class="menu-item">Cloud Saves</button>
+            <label class="menu-item menu-toggle-label"><input type="checkbox" id="hud-toggle"> Input HUD</label>
+            <label class="menu-item menu-toggle-label"><input type="checkbox" id="theme-toggle"> Light Theme</label>
             <label class="menu-item menu-toggle-label" id="worker-toggle-label"><input type="checkbox" id="worker-toggle" checked> Worker Mode</label>
             <div id="cheats-section" class="menu-group" style="display:none">
                 <hr>
@@ -551,6 +554,34 @@
         <div class="touch-meta">
             <button class="touch-btn touch-select" data-btn="7">SEL</button>
             <button class="touch-btn touch-start" data-btn="6">START</button>
+        </div>
+    </div>
+
+    <!-- ROM Library overlay -->
+    <div id="library-overlay" class="overlay">
+        <div class="overlay-content library-content">
+            <h3>ROM Library</h3>
+            <input type="text" id="library-search" class="library-search" placeholder="Search ROMs...">
+            <div id="library-grid" class="library-grid"></div>
+            <button id="library-close" class="menu-item">Done</button>
+        </div>
+    </div>
+
+    <!-- Input HUD overlay (positioned over canvas) -->
+    <div id="input-hud" class="input-hud" style="display:none">
+        <div class="hud-dpad">
+            <div class="hud-btn hud-up" data-hud="2"></div>
+            <div class="hud-btn hud-left" data-hud="1"></div>
+            <div class="hud-btn hud-right" data-hud="0"></div>
+            <div class="hud-btn hud-down" data-hud="3"></div>
+        </div>
+        <div class="hud-face">
+            <div class="hud-btn hud-b" data-hud="5">B</div>
+            <div class="hud-btn hud-a" data-hud="4">A</div>
+        </div>
+        <div class="hud-meta">
+            <div class="hud-btn hud-sel" data-hud="7">Sel</div>
+            <div class="hud-btn hud-sta" data-hud="6">Sta</div>
         </div>
     </div>
 
