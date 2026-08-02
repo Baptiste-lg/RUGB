@@ -43,12 +43,7 @@ export class CloudSaves {
         await new Promise(r => gapi.load('client', r));
         await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
         this.gapiLoaded = true;
-        // Restore token from sessionStorage
-        const saved = sessionStorage.getItem('rugb-cloud-token');
-        if (saved) {
-            this.accessToken = saved;
-            gapi.client.setToken({ access_token: saved });
-        }
+        // Token is memory-only — not persisted to storage to reduce exposure
     }
 
     _loadGis() {
@@ -70,7 +65,6 @@ export class CloudSaves {
             callback: (resp) => {
                 if (resp.error) return;
                 this.accessToken = resp.access_token;
-                sessionStorage.setItem('rugb-cloud-token', resp.access_token);
                 gapi.client.setToken({ access_token: resp.access_token });
                 if (this._onSignIn) this._onSignIn();
             },
@@ -96,7 +90,6 @@ export class CloudSaves {
             google.accounts.oauth2.revoke(this.accessToken);
         }
         this.accessToken = null;
-        sessionStorage.removeItem('rugb-cloud-token');
         gapi.client.setToken(null);
     }
 
