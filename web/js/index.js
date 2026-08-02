@@ -2387,8 +2387,18 @@ async function listRomLibrary() {
         const req = tx.objectStore(DB_STORE).getAll();
         const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
         db.close();
-        return result.map(r => r.title);
+        return result;
     } catch { return []; }
+}
+
+async function deleteRomFromLibrary(title) {
+    try {
+        const db = await openRomDb();
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).delete(title);
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+    } catch {}
 }
 
 // Save ROM to library after successful load + apply shared state + load cheats
@@ -2799,5 +2809,183 @@ if (cloudClose) {
         cloudOverlay.classList.remove('visible');
     });
 }
+
+// --- ROM Library UI ---
+
+const libraryBtn = document.getElementById('library-btn');
+const libraryOverlay = document.getElementById('library-overlay');
+const librarySearch = document.getElementById('library-search');
+const libraryGrid = document.getElementById('library-grid');
+const libraryClose = document.getElementById('library-close');
+
+async function renderLibrary(filter = '') {
+    const roms = await listRomLibrary();
+    libraryGrid.innerHTML = '';
+    const filtered = filter
+        ? roms.filter(r => r.title.toLowerCase().includes(filter.toLowerCase()))
+        : roms;
+    if (filtered.length === 0) {
+        libraryGrid.innerHTML = `<div class="library-empty">${filter ? 'No matches' : 'No ROMs saved yet — load a ROM to add it'}</div>`;
+        return;
+    }
+    // Sort by most recently saved
+    filtered.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    for (const rom of filtered) {
+        const item = document.createElement('div');
+        item.className = 'library-item';
+        const date = rom.savedAt ? new Date(rom.savedAt).toLocaleDateString() : '';
+        item.innerHTML = `
+            <span class="library-item-title">${rom.title}</span>
+            <span class="library-item-date">${date}</span>
+            <button class="library-item-delete" title="Delete">&times;</button>
+        `;
+        item.querySelector('.library-item-title').addEventListener('click', async () => {
+            const data = await loadRomFromLibrary(rom.title);
+            if (data) {
+                libraryOverlay.classList.remove('visible');
+                startEmulator(data);
+            } else {
+                showToast('Failed to load ROM');
+            }
+        });
+        item.querySelector('.library-item-delete').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await deleteRomFromLibrary(rom.title);
+            renderLibrary(librarySearch.value);
+            showToast(`Deleted ${rom.title}`);
+        });
+        libraryGrid.appendChild(item);
+    }
+}
+
+if (libraryBtn) {
+    libraryBtn.addEventListener('click', () => {
+        libraryOverlay.classList.add('visible');
+        librarySearch.value = '';
+        renderLibrary();
+        librarySearch.focus();
+    });
+}
+if (librarySearch) {
+    librarySearch.addEventListener('input', () => renderLibrary(librarySearch.value));
+}
+if (libraryClose) {
+    libraryClose.addEventListener('click', () => libraryOverlay.classList.remove('visible'));
+}
+
+// --- Per-game settings persistence ---
+
+function getGameSettingsKey() {
+    if (emu && emu.title) return `rugb-game-${emu.title()}`;
+    if (romBytes) {
+        const u8 = new Uint8Array(romBytes);
+        let t = '';
+        for (let i = 0x134; i < 0x144 && i < u8.length; i++) {
+            if (u8[i] === 0) break;
+            t += String.fromCharCode(u8[i]);
+        }
+        return `rugb-game-${sanitizeTitle(t)}`;
+    }
+    return null;
+}
+
+function saveGameSettings() {
+    const key = getGameSettingsKey();
+    if (!key) return;
+    const settings = {
+        palette: currentPalette,
+        filter: localStorage.getItem('rugb-filter') || 'none',
+        speed,
+    };
+    try { localStorage.setItem(key, JSON.stringify(settings)); } catch {}
+}
+
+function loadGameSettings() {
+    const key = getGameSettingsKey();
+    if (!key) return;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+        const s = JSON.parse(raw);
+        // Apply palette
+        if (s.palette && PALETTES[s.palette]) {
+            document.querySelector(`.palette-btn[data-palette="${s.palette}"]`)?.click();
+        }
+        // Apply filter
+        if (s.filter) {
+            document.querySelector(`.filter-btn[data-filter="${s.filter}"]`)?.click();
+        }
+        // Apply speed
+        if (s.speed) {
+            speed = s.speed;
+            document.querySelector(`.speed-btn[data-speed="${s.speed}"]`)?.classList.add('active');
+        }
+    } catch {}
+}
+
+// Hook into startEmulator to load/save per-game settings
+const origStartEmulator2 = startEmulator;
+startEmulator = async function(bytes) {
+    // Save current game's settings before switching
+    saveGameSettings();
+    await origStartEmulator2(bytes);
+    // Load new game's settings
+    loadGameSettings();
+};
+
+// Save settings periodically when a game is running
+setInterval(() => { if (emu || worker) saveGameSettings(); }, 10000);
+
+// --- Dark/light theme toggle ---
+
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('rugb-theme');
+if (savedTheme === 'light') {
+    document.documentElement.classList.add('light-theme');
+    if (themeToggle) themeToggle.checked = true;
+}
+if (themeToggle) {
+    themeToggle.addEventListener('change', () => {
+        document.documentElement.classList.toggle('light-theme', themeToggle.checked);
+        localStorage.setItem('rugb-theme', themeToggle.checked ? 'light' : 'dark');
+    });
+}
+
+// --- Input HUD ---
+
+const inputHud = document.getElementById('input-hud');
+const hudToggle = document.getElementById('hud-toggle');
+const hudBtns = inputHud ? inputHud.querySelectorAll('.hud-btn') : [];
+let hudEnabled = false;
+
+if (hudToggle) {
+    const savedHud = localStorage.getItem('rugb-hud') === 'true';
+    hudEnabled = savedHud;
+    hudToggle.checked = savedHud;
+    if (inputHud) inputHud.style.display = savedHud ? '' : 'none';
+
+    hudToggle.addEventListener('change', () => {
+        hudEnabled = hudToggle.checked;
+        localStorage.setItem('rugb-hud', hudEnabled);
+        if (inputHud) inputHud.style.display = hudEnabled ? '' : 'none';
+    });
+}
+
+// Update HUD button states from the emulator's button state
+function updateHud(btn, pressed) {
+    if (!hudEnabled) return;
+    hudBtns.forEach(el => {
+        if (parseInt(el.dataset.hud) === btn) {
+            el.classList.toggle('active', pressed);
+        }
+    });
+}
+
+// Patch emuSetButton to also update HUD
+const _origEmuSetButton = emuSetButton;
+emuSetButton = function(btn, pressed) {
+    updateHud(btn, pressed);
+    _origEmuSetButton(btn, pressed);
+};
 
 console.log('RUGB ready — load a ROM to start');
