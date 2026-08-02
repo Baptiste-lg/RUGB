@@ -32,18 +32,29 @@ pub fn push_slice(data: &mut Vec<u8>, s: &[u8]) {
 }
 
 pub fn pop_u8(data: &mut &[u8]) -> u8 {
+    if data.is_empty() {
+        return 0;
+    }
     let v = data[0];
     *data = &data[1..];
     v
 }
 
 pub fn pop_u16(data: &mut &[u8]) -> u16 {
+    if data.len() < 2 {
+        *data = &[];
+        return 0;
+    }
     let v = u16::from_le_bytes([data[0], data[1]]);
     *data = &data[2..];
     v
 }
 
 pub fn pop_u32(data: &mut &[u8]) -> u32 {
+    if data.len() < 4 {
+        *data = &[];
+        return 0;
+    }
     let v = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
     *data = &data[4..];
     v
@@ -58,13 +69,20 @@ pub fn pop_i8(data: &mut &[u8]) -> i8 {
 }
 
 pub fn pop_i16(data: &mut &[u8]) -> i16 {
+    if data.len() < 2 {
+        *data = &[];
+        return 0;
+    }
     let v = i16::from_le_bytes([data[0], data[1]]);
     *data = &data[2..];
     v
 }
 
+const MAX_VEC_LEN: usize = 1024 * 1024; // 1MB cap on deserialized vectors
+
 pub fn pop_vec(data: &mut &[u8]) -> Vec<u8> {
     let len = pop_u32(data) as usize;
+    let len = len.min(data.len()).min(MAX_VEC_LEN);
     let v = data[..len].to_vec();
     *data = &data[len..];
     v
