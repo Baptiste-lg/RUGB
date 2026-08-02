@@ -4,7 +4,9 @@
  * OAuth 2.0 implicit grant — no backend required.
  */
 
-// Replace with your own OAuth client ID from Google Cloud Console
+// Set your Google Cloud OAuth 2.0 client ID here.
+// Create one at https://console.cloud.google.com/apis/credentials
+// Authorized origins: your GitHub Pages URL. Scope: drive.appdata only.
 const CLIENT_ID = '';
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
@@ -21,6 +23,7 @@ export class CloudSaves {
     /* ── Library loading ──────────────────────────────────────────── */
 
     async init() {
+        if (!CLIENT_ID) throw new Error('Cloud saves not configured — set CLIENT_ID in cloud-saves.js');
         await Promise.all([this._loadGapi(), this._loadGis()]);
     }
 
