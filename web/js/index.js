@@ -2070,10 +2070,22 @@ const vizCanvas = document.getElementById('audio-viz');
 const vizCtx = vizCanvas.getContext('2d');
 let vizData = null; // Pre-allocated, created when analyser is ready
 
+// Per-channel mini visualizers
+const CH_COLORS = ['#50fa7b', '#ff79c6', '#8be9fd', '#ffb86c'];
+const chVizCanvases = [
+    document.getElementById('viz-ch1'),
+    document.getElementById('viz-ch2'),
+    document.getElementById('viz-ch3'),
+    document.getElementById('viz-ch4'),
+];
+const chVizCtxs = chVizCanvases.map(c => c ? c.getContext('2d') : null);
+
 function drawViz() {
     if (!analyserNode) return;
     if (!vizData) vizData = new Uint8Array(analyserNode.frequencyBinCount);
     analyserNode.getByteTimeDomainData(vizData);
+
+    // Main waveform
     const w = vizCanvas.width;
     const h = vizCanvas.height;
     vizCtx.fillStyle = '#0a0e1a';
@@ -2088,6 +2100,31 @@ function drawViz() {
         else vizCtx.lineTo(i * sliceW, y);
     }
     vizCtx.stroke();
+
+    // Per-channel mini waveforms — split frequency bands as approximation
+    // CH1/CH2 (square) = lower freqs, CH3 (wave) = mid, CH4 (noise) = high
+    const binCount = vizData.length;
+    const bandSize = Math.floor(binCount / 4);
+    for (let ch = 0; ch < 4; ch++) {
+        const ctx = chVizCtxs[ch];
+        if (!ctx) continue;
+        const cw = chVizCanvases[ch].width;
+        const ch2 = chVizCanvases[ch].height;
+        ctx.fillStyle = '#0a0e1a';
+        ctx.fillRect(0, 0, cw, ch2);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = CH_COLORS[ch];
+        ctx.beginPath();
+        const start = ch * bandSize;
+        const end = start + bandSize;
+        const sw = cw / bandSize;
+        for (let i = start; i < end; i++) {
+            const y = (vizData[i] / 255) * ch2;
+            if (i === start) ctx.moveTo(0, y);
+            else ctx.lineTo((i - start) * sw, y);
+        }
+        ctx.stroke();
+    }
 }
 
 // --- Cheat codes (Game Genie / GameShark) ---
