@@ -197,7 +197,7 @@ impl Ppu {
     }
 
     fn render_scanline(&mut self) {
-        self.bg_color_ids = [0; SCREEN_W];
+        self.bg_color_ids.fill(0);
         if self.lcdc & 0x01 != 0 {
             self.render_bg();
         }
@@ -226,15 +226,18 @@ impl Ppu {
         let tile_row = (y / 8) as u16;
         let pixel_row = (y % 8) as u16;
 
-        for x in 0..SCREEN_W as u8 {
-            let scrolled_x = x.wrapping_add(self.scx);
-            let tile_col = (scrolled_x / 8) as u16;
-            let pixel_col = scrolled_x % 8;
+        // Cache tile data to avoid re-reading VRAM for each pixel in the same tile
+        let mut cached_tile_col: u16 = 0xFFFF;
+        let mut tile_lo: u8 = 0;
+        let mut tile_hi: u8 = 0;
 
-            let map_addr = tile_map_base + tile_row * 32 + tile_col;
-            let tile_id = self.vram[(map_addr - 0x8000) as usize];
-
-            if self.cgb_mode {
+        if self.cgb_mode {
+            for x in 0..SCREEN_W as u8 {
+                let scrolled_x = x.wrapping_add(self.scx);
+                let tile_col = (scrolled_x / 8) as u16;
+                let pixel_col = scrolled_x % 8;
+                let map_addr = tile_map_base + tile_row * 32 + tile_col;
+                let tile_id = self.vram[(map_addr - 0x8000) as usize];
                 let map_offset = (map_addr - 0x8000) as usize;
                 let attr = self.vram_bank1[map_offset];
                 let palette_num = (attr & 0x07) as usize;
@@ -251,19 +254,36 @@ impl Ppu {
                 };
 
                 let actual_pixel_col = if cgb_x_flip { 7 - pixel_col } else { pixel_col };
-                let color_id = self.get_tile_pixel_banked(tile_addr, actual_pixel_col, tile_bank);
+                let color_id =
+                    self.get_tile_pixel_banked(tile_addr, actual_pixel_col, tile_bank);
                 self.bg_color_ids[x as usize] = color_id;
                 let rgba =
                     Self::cgb_palette_color(&self.bg_palette_data, palette_num, color_id as usize);
                 self.set_pixel_rgba(x as usize, self.ly as usize, rgba);
-            } else {
-                let tile_addr = if signed_tile_ids {
-                    let signed_id = tile_id as i8 as i16;
-                    (0x9000u16 as i16 + signed_id * 16 + pixel_row as i16 * 2) as u16
-                } else {
-                    tile_data_base + tile_id as u16 * 16 + pixel_row * 2
-                };
-                let color_id = self.get_tile_pixel(tile_addr, pixel_col);
+            }
+        } else {
+            for x in 0..SCREEN_W as u8 {
+                let scrolled_x = x.wrapping_add(self.scx);
+                let tile_col = (scrolled_x / 8) as u16;
+                let pixel_col = scrolled_x % 8;
+
+                // Only re-fetch tile data when we cross a tile boundary
+                if tile_col != cached_tile_col {
+                    cached_tile_col = tile_col;
+                    let map_addr = tile_map_base + tile_row * 32 + tile_col;
+                    let tile_id = self.vram[(map_addr - 0x8000) as usize];
+                    let tile_addr = if signed_tile_ids {
+                        let signed_id = tile_id as i8 as i16;
+                        (0x9000u16 as i16 + signed_id * 16 + pixel_row as i16 * 2) as u16
+                    } else {
+                        tile_data_base + tile_id as u16 * 16 + pixel_row * 2
+                    };
+                    tile_lo = self.vram[(tile_addr - 0x8000) as usize];
+                    tile_hi = self.vram[(tile_addr + 1 - 0x8000) as usize];
+                }
+
+                let bit = 7 - pixel_col;
+                let color_id = ((tile_hi >> bit) & 1) << 1 | ((tile_lo >> bit) & 1);
                 self.bg_color_ids[x as usize] = color_id;
                 let shade = self.apply_palette(self.bgp, color_id);
                 self.set_pixel(x as usize, self.ly as usize, shade);
