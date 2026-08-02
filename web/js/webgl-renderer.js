@@ -328,12 +328,14 @@ export class WebGLRenderer {
             this.height = h;
             gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
-            // init prev texture
+            // allocate prev and frame textures at the new resolution
             gl.activeTexture(gl.TEXTURE1);
             gl.bindTexture(gl.TEXTURE_2D, this.prevTex);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
-            // set resolution uniforms
             if (u.uResolution) gl.uniform2f(u.uResolution, w, h);
             if (u.uOutputSize) gl.uniform2f(u.uOutputSize, this.canvas.width, this.canvas.height);
         }
@@ -341,16 +343,23 @@ export class WebGLRenderer {
         // copy current rendered frame to prev texture for next frame blending
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.prevTex);
-        gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, this.canvas.width, this.canvas.height, 0);
+        gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, this.canvas.width, this.canvas.height);
 
-        // upload new frame
+        // upload new frame (sub-image update, no reallocation)
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
-        // set per-frame uniforms
-        gl.uniform1f(u.uBlend, this.blendAmount);
-        gl.uniform1f(u.uUsePalette, this.usePalette ? 1.0 : 0.0);
+        // set per-frame uniforms (only update if changed)
+        const paletteVal = this.usePalette ? 1.0 : 0.0;
+        if (this._lastBlend !== this.blendAmount) {
+            gl.uniform1f(u.uBlend, this.blendAmount);
+            this._lastBlend = this.blendAmount;
+        }
+        if (this._lastPalette !== paletteVal) {
+            gl.uniform1f(u.uUsePalette, paletteVal);
+            this._lastPalette = paletteVal;
+        }
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         return true;

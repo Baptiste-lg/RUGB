@@ -26,6 +26,7 @@ const prevFrameBuf = new Uint8ClampedArray(160 * 144 * 4); // Pre-allocated blen
 let showFps = false;
 let fpsFrameCount = 0;
 let fpsLastTime = 0;
+const fpsOverlayEl = document.getElementById('fps-overlay');
 let turboB = false;
 let turboFrame = 0;
 
@@ -129,14 +130,20 @@ document.querySelectorAll('.shell-btn').forEach(btn => {
     });
 });
 
-// --- Resize observer: keep --gb-w in sync with actual width ---
+// --- Resize observer: keep --gb-w in sync with actual width (RAF-debounced) ---
 const gbcShell = document.querySelector('.gbc');
+let resizePending = false;
 const resizeObs = new ResizeObserver(entries => {
-    for (const entry of entries) {
-        const box = entry.borderBoxSize?.[0];
-        const w = box ? box.inlineSize : entry.target.offsetWidth;
-        entry.target.style.setProperty('--gb-w', w + 'px');
-    }
+    if (resizePending) return;
+    resizePending = true;
+    requestAnimationFrame(() => {
+        resizePending = false;
+        for (const entry of entries) {
+            const box = entry.borderBoxSize?.[0];
+            const w = box ? box.inlineSize : entry.target.offsetWidth;
+            entry.target.style.setProperty('--gb-w', w + 'px');
+        }
+    });
 });
 resizeObs.observe(gameboy);
 resizeObs.observe(gbcShell);
@@ -1130,8 +1137,8 @@ function frame(timestamp) {
         frameDebt += delta * effectiveSpeed;
 
         const maxFrames = fastForward ? 32 : Math.max(4, 4 * speed);
+        pollGamepad(); // Poll once per RAF, not per emulated frame
         while (frameDebt >= FRAME_MS && framesRun < maxFrames) {
-            pollGamepad();
             // Turbo: toggle A/B every other frame
             turboFrame++;
             const turboOn = (turboFrame & 1) === 0;
@@ -1208,7 +1215,7 @@ function frame(timestamp) {
             if (now - fpsLastTime >= 1000) {
                 const fps = fpsFrameCount;
                 const pct = Math.round(fps / 59.73 * 100);
-                document.getElementById('fps-overlay').textContent = `${fps} FPS (${pct}%)`;
+                fpsOverlayEl.textContent = `${fps} FPS (${pct}%)`;
                 fpsFrameCount = 0;
                 fpsLastTime = now;
             }
