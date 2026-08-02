@@ -208,6 +208,7 @@ function applyGameSharkCheats() {
 
 self.onmessage = async (e) => {
     const msg = e.data;
+    if (!msg || typeof msg.cmd !== 'string') return;
 
     switch (msg.cmd) {
         case 'init':
@@ -220,7 +221,9 @@ self.onmessage = async (e) => {
             break;
 
         case 'input':
-            if (emu) emu.set_button(msg.button, msg.pressed);
+            if (emu && typeof msg.button === 'number' && typeof msg.pressed === 'boolean') {
+                emu.set_button(msg.button & 0xFF, msg.pressed);
+            }
             break;
 
         case 'pause':
@@ -234,22 +237,24 @@ self.onmessage = async (e) => {
             tick();
             break;
 
-        case 'set_speed':
-            speed = msg.speed;
+        case 'set_speed': {
+            const s = Number(msg.speed);
+            if (Number.isFinite(s) && s > 0 && s <= 16) speed = s;
             break;
+        }
 
         case 'fast_forward':
-            fastForward = msg.enabled;
+            fastForward = !!msg.enabled;
             if (!msg.enabled) frameDebt = 0;
             break;
 
         case 'mute':
-            muted = msg.muted;
+            muted = !!msg.muted;
             break;
 
         case 'turbo':
-            if (msg.button === 'a') turboA = msg.enabled;
-            if (msg.button === 'b') turboB = msg.enabled;
+            if (msg.button === 'a') turboA = !!msg.enabled;
+            if (msg.button === 'b') turboB = !!msg.enabled;
             break;
 
         case 'save_state':
@@ -313,11 +318,10 @@ self.onmessage = async (e) => {
                 const result = {};
                 if (emu.cpu_registers) result.cpu = emu.cpu_registers();
                 if (emu.read_byte) {
-                    // Sample memory around requested address
-                    const addr = msg.addr || 0;
-                    const len = msg.len || 256;
+                    const addr = (typeof msg.addr === 'number' ? msg.addr : 0) >>> 0;
+                    const len = Math.min(typeof msg.len === 'number' ? msg.len : 256, 65536);
                     const mem = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) mem[i] = emu.read_byte(addr + i);
+                    for (let i = 0; i < len; i++) mem[i] = emu.read_byte((addr + i) >>> 0);
                     result.mem = mem;
                     result.memAddr = addr;
                 }
