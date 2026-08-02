@@ -2276,8 +2276,8 @@ canvas.filter-smooth {
 /* ===================== Input HUD ===================== */
 
 .input-hud {
-    position: absolute;
-    bottom: 8px;
+    position: fixed;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;

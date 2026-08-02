@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rugb-v5';
+const CACHE_NAME = 'rugb-v6';
 const ASSETS = [
   './',
   './index.html',
