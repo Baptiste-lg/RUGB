@@ -107,7 +107,8 @@ export class LinkCable {
             this._setupDC(this.dc);
         };
 
-        const offer = JSON.parse(atob(offerB64));
+        let offer;
+        try { offer = JSON.parse(atob(offerB64)); } catch { throw new Error('Invalid SDP format'); }
         if (!offer || !offer.type || !offer.sdp) throw new Error('Invalid offer');
         await this.pc.setRemoteDescription(offer);
 
@@ -123,7 +124,8 @@ export class LinkCable {
 
     async completeConnection(answerB64) {
         if (answerB64.length > MAX_SDP_LENGTH) throw new Error('SDP too large');
-        const answer = JSON.parse(atob(answerB64));
+        let answer;
+        try { answer = JSON.parse(atob(answerB64)); } catch { throw new Error('Invalid SDP format'); }
         if (!answer || !answer.type || !answer.sdp) throw new Error('Invalid answer');
         await this.pc.setRemoteDescription(answer);
         this.onStatusChange('connecting', null);
