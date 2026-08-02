@@ -472,12 +472,10 @@ impl Ppu {
     #[inline(always)]
     fn set_pixel(&mut self, x: usize, y: usize, shade: u8) {
         let idx = (y * SCREEN_W + x) * 4;
-        if idx + 3 < self.framebuffer.len() {
-            self.framebuffer[idx] = shade; // R
-            self.framebuffer[idx + 1] = shade; // G
-            self.framebuffer[idx + 2] = shade; // B
-            self.framebuffer[idx + 3] = 0xFF; // A
-        }
+        self.framebuffer[idx] = shade; // R
+        self.framebuffer[idx + 1] = shade; // G
+        self.framebuffer[idx + 2] = shade; // B
+        self.framebuffer[idx + 3] = 0xFF; // A
     }
 
     #[inline(always)]
