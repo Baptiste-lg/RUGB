@@ -3012,17 +3012,19 @@ function loadGameSettings() {
     if (!raw) return;
     try {
         const s = JSON.parse(raw);
-        // Apply palette
-        if (s.palette && PALETTES[s.palette]) {
+        const VALID_GAME_FILTERS = new Set(['none', 'scanlines', 'lcd', 'smooth', 'ghosting']);
+        const VALID_GAME_SPEEDS = new Set(['0.5', '1', '2', '4']);
+        // Apply palette (validated against known palette keys)
+        if (s.palette && typeof s.palette === 'string' && PALETTES[s.palette]) {
             document.querySelector(`.palette-btn[data-palette="${s.palette}"]`)?.click();
         }
-        // Apply filter
-        if (s.filter) {
+        // Apply filter (validated against whitelist)
+        if (s.filter && VALID_GAME_FILTERS.has(s.filter)) {
             document.querySelector(`.filter-btn[data-filter="${s.filter}"]`)?.click();
         }
-        // Apply speed
-        if (s.speed) {
-            speed = s.speed;
+        // Apply speed (validated against whitelist)
+        if (s.speed && VALID_GAME_SPEEDS.has(String(s.speed))) {
+            speed = parseFloat(s.speed);
             document.querySelector(`.speed-btn[data-speed="${s.speed}"]`)?.classList.add('active');
         }
     } catch {}
@@ -3114,11 +3116,20 @@ function saveTouchLayout(layout) {
 
 let touchLayout = loadTouchLayout();
 
+function clampLayout(l) {
+    return {
+        x: Math.min(Math.max(Number(l.x) || 0, -2000), 2000),
+        y: Math.min(Math.max(Number(l.y) || 0, -2000), 2000),
+        scale: Math.min(Math.max(Number(l.scale) || 100, 10), 500),
+    };
+}
+
 function applyTouchLayout() {
     for (const groupClass of TOUCH_GROUPS) {
         const el = document.querySelector('.' + groupClass);
         if (!el) continue;
-        const l = touchLayout[groupClass] || { x: 0, y: 0, scale: 100 };
+        const l = clampLayout(touchLayout[groupClass] || {});
+        touchLayout[groupClass] = l;
         el.style.transform = `translate(${l.x}px, ${l.y}px) scale(${l.scale / 100})`;
     }
     if (touchSizeSlider) touchSizeSlider.value = touchLayout[TOUCH_GROUPS[0]]?.scale || 100;
